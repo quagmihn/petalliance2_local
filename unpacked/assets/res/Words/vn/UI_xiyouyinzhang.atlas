@@ -1,0 +1,111 @@
+
+UI_xiyouyinzhang.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bz_epic
+  rotate: false
+  xy: 273, 338
+  size: 288, 168
+  orig: 288, 168
+  offset: 0, 0
+  index: -1
+glow
+  rotate: false
+  xy: 2, 237
+  size: 269, 269
+  orig: 269, 269
+  offset: 0, 0
+  index: -1
+glow2
+  rotate: false
+  xy: 2, 21
+  size: 215, 214
+  orig: 215, 214
+  offset: 0, 0
+  index: -1
+sg_0001
+  rotate: false
+  xy: 563, 396
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0002
+  rotate: false
+  xy: 700, 396
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0003
+  rotate: false
+  xy: 837, 396
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0004
+  rotate: false
+  xy: 273, 226
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0005
+  rotate: false
+  xy: 410, 226
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0006
+  rotate: false
+  xy: 563, 284
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0007
+  rotate: false
+  xy: 700, 284
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0008
+  rotate: false
+  xy: 837, 284
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0009
+  rotate: false
+  xy: 219, 114
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0010
+  rotate: false
+  xy: 356, 114
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+sg_0011
+  rotate: false
+  xy: 219, 2
+  size: 135, 110
+  orig: 135, 110
+  offset: 0, 0
+  index: -1
+star
+  rotate: false
+  xy: 974, 462
+  size: 44, 44
+  orig: 44, 44
+  offset: 0, 0
+  index: -1

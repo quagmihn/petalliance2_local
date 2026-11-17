@@ -1,0 +1,83 @@
+
+077b.png
+size: 256,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+diying
+  rotate: false
+  xy: 114, 64
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/tousha
+  rotate: false
+  xy: 42, 4
+  size: 38, 37
+  orig: 38, 37
+  offset: 0, 0
+  index: -1
+images/yousha
+  rotate: false
+  xy: 107, 16
+  size: 24, 22
+  orig: 24, 22
+  offset: 0, 0
+  index: -1
+images/zuosha
+  rotate: false
+  xy: 193, 56
+  size: 16, 16
+  orig: 16, 16
+  offset: 0, 0
+  index: -1
+sha1
+  rotate: false
+  xy: 173, 55
+  size: 18, 17
+  orig: 18, 17
+  offset: 0, 0
+  index: -1
+sha2
+  rotate: true
+  xy: 2, 2
+  size: 39, 38
+  orig: 39, 38
+  offset: 0, 0
+  index: -1
+sha3
+  rotate: false
+  xy: 146, 38
+  size: 25, 24
+  orig: 25, 24
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 114, 74
+  size: 132, 52
+  orig: 132, 52
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 43
+  size: 110, 83
+  orig: 110, 83
+  offset: 0, 0
+  index: -1
+youtui
+  rotate: false
+  xy: 82, 11
+  size: 23, 30
+  orig: 23, 30
+  offset: 0, 0
+  index: -1
+zuotui
+  rotate: true
+  xy: 114, 40
+  size: 22, 30
+  orig: 22, 30
+  offset: 0, 0
+  index: -1

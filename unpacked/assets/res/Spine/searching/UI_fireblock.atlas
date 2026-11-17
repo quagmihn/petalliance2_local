@@ -1,0 +1,41 @@
+
+UI_fireblock.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/2
+  rotate: false
+  xy: 2, 2
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+texiao/未命名-10001
+  rotate: false
+  xy: 2, 586
+  size: 300, 380
+  orig: 300, 380
+  offset: 0, 0
+  index: -1
+texiao/未命名-10003
+  rotate: false
+  xy: 2, 204
+  size: 300, 380
+  orig: 300, 380
+  offset: 0, 0
+  index: -1
+texiao/未命名-10005
+  rotate: false
+  xy: 304, 586
+  size: 300, 380
+  orig: 300, 380
+  offset: 0, 0
+  index: -1
+texiao/未命名-10007
+  rotate: false
+  xy: 304, 204
+  size: 300, 380
+  orig: 300, 380
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,90 @@
+
+210b.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+diying
+  rotate: false
+  xy: 238, 21
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+jian
+  rotate: true
+  xy: 134, 10
+  size: 116, 102
+  orig: 116, 102
+  offset: 0, 0
+  index: -1
+jiguan
+  rotate: true
+  xy: 354, 56
+  size: 70, 65
+  orig: 70, 65
+  offset: 0, 0
+  index: -1
+jiguan2
+  rotate: true
+  xy: 421, 69
+  size: 57, 79
+  orig: 57, 79
+  offset: 0, 0
+  index: -1
+lingjin
+  rotate: true
+  xy: 406, 7
+  size: 47, 43
+  orig: 47, 43
+  offset: 0, 0
+  index: -1
+pifeng
+  rotate: true
+  xy: 301, 34
+  size: 92, 51
+  orig: 92, 51
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 2, 8
+  size: 130, 118
+  orig: 130, 118
+  offset: 0, 0
+  index: -1
+wangguan
+  rotate: false
+  xy: 354, 3
+  size: 50, 51
+  orig: 50, 51
+  offset: 0, 0
+  index: -1
+youchi
+  rotate: true
+  xy: 451, 31
+  size: 36, 48
+  orig: 36, 48
+  offset: 0, 0
+  index: -1
+youjiao
+  rotate: false
+  xy: 238, 2
+  size: 26, 17
+  orig: 26, 17
+  offset: 0, 0
+  index: -1
+zuochi
+  rotate: false
+  xy: 238, 31
+  size: 61, 95
+  orig: 61, 95
+  offset: 0, 0
+  index: -1
+zuojiao
+  rotate: false
+  xy: 266, 3
+  size: 18, 16
+  orig: 18, 16
+  offset: 0, 0
+  index: -1

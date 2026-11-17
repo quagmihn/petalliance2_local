@@ -1,0 +1,396 @@
+
+UI_denglujiemian_logo.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+X1
+  rotate: false
+  xy: 646, 2
+  size: 250, 177
+  orig: 250, 177
+  offset: 0, 0
+  index: -1
+lizi0004
+  rotate: true
+  xy: 898, 8
+  size: 171, 98
+  orig: 171, 98
+  offset: 0, 0
+  index: -1
+shandian0003
+  rotate: false
+  xy: 646, 408
+  size: 375, 281
+  orig: 375, 281
+  offset: 0, 0
+  index: -1
+shandian0004
+  rotate: false
+  xy: 2, 411
+  size: 488, 303
+  orig: 488, 303
+  offset: 0, 0
+  index: -1
+shandian0005
+  rotate: false
+  xy: 504, 691
+  size: 499, 330
+  orig: 499, 330
+  offset: 0, 0
+  index: -1
+shandian0006
+  rotate: false
+  xy: 2, 716
+  size: 500, 305
+  orig: 500, 305
+  offset: 0, 0
+  index: -1
+shandian0007
+  rotate: true
+  xy: 316, 13
+  size: 396, 328
+  orig: 396, 328
+  offset: 0, 0
+  index: -1
+shandian0008
+  rotate: true
+  xy: 2, 3
+  size: 406, 312
+  orig: 406, 312
+  offset: 0, 0
+  index: -1
+shandian0009
+  rotate: false
+  xy: 646, 181
+  size: 370, 225
+  orig: 370, 225
+  offset: 0, 0
+  index: -1
+xiahua0005
+  rotate: false
+  xy: 492, 455
+  size: 152, 234
+  orig: 152, 234
+  offset: 0, 0
+  index: -1
+
+UI_denglujiemian_logo2.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+II
+  rotate: true
+  xy: 191, 11
+  size: 77, 81
+  orig: 77, 81
+  offset: 0, 0
+  index: -1
+II_0001
+  rotate: false
+  xy: 935, 32
+  size: 77, 81
+  orig: 77, 81
+  offset: 0, 0
+  index: -1
+II_0002
+  rotate: false
+  xy: 945, 447
+  size: 77, 81
+  orig: 77, 81
+  offset: 0, 0
+  index: -1
+guaiwu0001
+  rotate: false
+  xy: 398, 4
+  size: 277, 94
+  orig: 277, 94
+  offset: 0, 0
+  index: -1
+guaiwu0003
+  rotate: false
+  xy: 2, 4
+  size: 187, 84
+  orig: 187, 84
+  offset: 0, 0
+  index: -1
+jiaocha0003
+  rotate: true
+  xy: 810, 530
+  size: 211, 204
+  orig: 211, 204
+  offset: 0, 0
+  index: -1
+jiaocha0005
+  rotate: true
+  xy: 741, 115
+  size: 280, 260
+  orig: 280, 260
+  offset: 0, 0
+  index: -1
+jiaocha0006
+  rotate: false
+  xy: 2, 386
+  size: 295, 339
+  orig: 295, 339
+  offset: 0, 0
+  index: -1
+jiaocha0007
+  rotate: false
+  xy: 423, 693
+  size: 311, 329
+  orig: 311, 329
+  offset: 0, 0
+  index: -1
+jiaocha0008
+  rotate: false
+  xy: 2, 90
+  size: 284, 294
+  orig: 284, 294
+  offset: 0, 0
+  index: -1
+jiaocha0009
+  rotate: false
+  xy: 736, 743
+  size: 268, 279
+  orig: 268, 279
+  offset: 0, 0
+  index: -1
+jiaocha0010
+  rotate: true
+  xy: 422, 370
+  size: 321, 287
+  orig: 321, 287
+  offset: 0, 0
+  index: -1
+lianmeng0001
+  rotate: true
+  xy: 711, 397
+  size: 294, 97
+  orig: 294, 97
+  offset: 0, 0
+  index: -1
+lianmeng0002
+  rotate: true
+  xy: 299, 284
+  size: 229, 99
+  orig: 229, 99
+  offset: 0, 0
+  index: -1
+lizi0005
+  rotate: false
+  xy: 741, 2
+  size: 192, 111
+  orig: 192, 111
+  offset: 0, 0
+  index: -1
+lizi0006
+  rotate: true
+  xy: 299, 515
+  size: 210, 121
+  orig: 210, 121
+  offset: 0, 0
+  index: -1
+shandian0002
+  rotate: false
+  xy: 400, 100
+  size: 339, 268
+  orig: 339, 268
+  offset: 0, 0
+  index: -1
+tuowei
+  rotate: false
+  xy: 2, 727
+  size: 419, 295
+  orig: 419, 295
+  offset: 0, 0
+  index: -1
+xiahua0001
+  rotate: true
+  xy: 288, 9
+  size: 81, 90
+  orig: 81, 90
+  offset: 0, 0
+  index: -1
+xiahua0002
+  rotate: true
+  xy: 810, 415
+  size: 113, 133
+  orig: 113, 133
+  offset: 0, 0
+  index: -1
+xiahua0007
+  rotate: false
+  xy: 288, 92
+  size: 108, 190
+  orig: 108, 190
+  offset: 0, 0
+  index: -1
+xiahua0008
+  rotate: true
+  xy: 736, 696
+  size: 45, 49
+  orig: 45, 49
+  offset: 0, 0
+  index: -1
+
+UI_denglujiemian_logo3.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+II_0003
+  rotate: true
+  xy: 140, 2
+  size: 77, 81
+  orig: 77, 81
+  offset: 0, 0
+  index: -1
+X
+  rotate: true
+  xy: 861, 799
+  size: 220, 141
+  orig: 220, 141
+  offset: 0, 0
+  index: -1
+di
+  rotate: true
+  xy: 273, 504
+  size: 265, 79
+  orig: 265, 79
+  offset: 0, 0
+  index: -1
+glow
+  rotate: false
+  xy: 2, 269
+  size: 233, 238
+  orig: 233, 238
+  offset: 0, 0
+  index: -1
+guaiwu0002
+  rotate: true
+  xy: 643, 292
+  size: 231, 90
+  orig: 231, 90
+  offset: 0, 0
+  index: -1
+jiaocha0001
+  rotate: false
+  xy: 837, 635
+  size: 163, 162
+  orig: 163, 162
+  offset: 0, 0
+  index: -1
+jiaocha0002
+  rotate: false
+  xy: 642, 627
+  size: 193, 215
+  orig: 193, 215
+  offset: 0, 0
+  index: -1
+jiaocha0004
+  rotate: false
+  xy: 349, 780
+  size: 241, 239
+  orig: 241, 239
+  offset: 0, 0
+  index: -1
+jiaocha0011
+  rotate: false
+  xy: 2, 509
+  size: 269, 260
+  orig: 269, 260
+  offset: 0, 0
+  index: -1
+jiaocha0012
+  rotate: false
+  xy: 2, 81
+  size: 227, 186
+  orig: 227, 186
+  offset: 0, 0
+  index: -1
+lianmeng0003
+  rotate: false
+  xy: 642, 525
+  size: 191, 100
+  orig: 191, 100
+  offset: 0, 0
+  index: -1
+lizi0001
+  rotate: false
+  xy: 735, 295
+  size: 126, 73
+  orig: 126, 73
+  offset: 0, 0
+  index: -1
+lizi0002
+  rotate: false
+  xy: 2, 2
+  size: 136, 77
+  orig: 136, 77
+  offset: 0, 0
+  index: -1
+lizi0003
+  rotate: true
+  xy: 735, 370
+  size: 153, 87
+  orig: 153, 87
+  offset: 0, 0
+  index: -1
+lizi0007
+  rotate: true
+  xy: 380, 277
+  size: 229, 132
+  orig: 229, 132
+  offset: 0, 0
+  index: -1
+lizi0008
+  rotate: true
+  xy: 237, 255
+  size: 247, 141
+  orig: 247, 141
+  offset: 0, 0
+  index: -1
+lizi0009
+  rotate: true
+  xy: 499, 524
+  size: 254, 141
+  orig: 254, 141
+  offset: 0, 0
+  index: -1
+lizi0010
+  rotate: true
+  xy: 354, 508
+  size: 270, 143
+  orig: 270, 143
+  offset: 0, 0
+  index: -1
+shandian0001
+  rotate: false
+  xy: 2, 771
+  size: 345, 248
+  orig: 345, 248
+  offset: 0, 0
+  index: -1
+xiahua0003
+  rotate: false
+  xy: 231, 53
+  size: 141, 200
+  orig: 141, 200
+  offset: 0, 0
+  index: -1
+xiahua0004
+  rotate: true
+  xy: 592, 844
+  size: 175, 267
+  orig: 175, 267
+  offset: 0, 0
+  index: -1
+xiahua0006
+  rotate: false
+  xy: 514, 307
+  size: 127, 215
+  orig: 127, 215
+  offset: 0, 0
+  index: -1

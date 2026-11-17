@@ -1,0 +1,146 @@
+
+066b.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+diying
+  rotate: false
+  xy: 2, 2
+  size: 45, 7
+  orig: 45, 7
+  offset: 0, 0
+  index: -1
+gebo
+  rotate: false
+  xy: 661, 343
+  size: 39, 47
+  orig: 39, 47
+  offset: 0, 0
+  index: -1
+houbeikuijia
+  rotate: true
+  xy: 164, 221
+  size: 144, 121
+  orig: 144, 121
+  offset: 0, 0
+  index: -1
+images/houbei
+  rotate: false
+  xy: 2, 219
+  size: 160, 146
+  orig: 160, 146
+  offset: 0, 0
+  index: -1
+images/toukui
+  rotate: false
+  xy: 305, 364
+  size: 149, 145
+  orig: 149, 145
+  offset: 0, 0
+  index: -1
+images/xiatpoukui
+  rotate: true
+  xy: 287, 279
+  size: 83, 148
+  orig: 83, 148
+  offset: 0, 0
+  index: -1
+images/youjianjiao
+  rotate: true
+  xy: 287, 218
+  size: 59, 157
+  orig: 59, 157
+  offset: 0, 0
+  index: -1
+images/youtui
+  rotate: true
+  xy: 456, 388
+  size: 121, 160
+  orig: 121, 160
+  offset: 0, 0
+  index: -1
+images/zuotui
+  rotate: true
+  xy: 456, 304
+  size: 82, 103
+  orig: 82, 103
+  offset: 0, 0
+  index: -1
+jiahao
+  rotate: true
+  xy: 561, 323
+  size: 63, 61
+  orig: 63, 61
+  offset: 0, 0
+  index: -1
+jianjiao
+  rotate: true
+  xy: 2, 11
+  size: 59, 157
+  orig: 59, 157
+  offset: 0, 0
+  index: -1
+jianjiao_z
+  rotate: false
+  xy: 702, 344
+  size: 28, 46
+  orig: 28, 46
+  offset: 0, 0
+  index: -1
+shouwan
+  rotate: false
+  xy: 885, 390
+  size: 43, 34
+  orig: 43, 34
+  offset: 0, 0
+  index: -1
+st
+  rotate: false
+  xy: 2, 367
+  size: 301, 142
+  orig: 301, 142
+  offset: 0, 0
+  index: -1
+toukui
+  rotate: false
+  xy: 2, 72
+  size: 149, 145
+  orig: 149, 145
+  offset: 0, 0
+  index: -1
+tui1
+  rotate: true
+  xy: 780, 343
+  size: 81, 103
+  orig: 81, 103
+  offset: 0, 0
+  index: -1
+tui2
+  rotate: true
+  xy: 618, 392
+  size: 117, 160
+  orig: 117, 160
+  offset: 0, 0
+  index: -1
+xiaba
+  rotate: false
+  xy: 930, 389
+  size: 89, 120
+  orig: 89, 120
+  offset: 0, 0
+  index: -1
+xiakuijia
+  rotate: true
+  xy: 780, 426
+  size: 83, 148
+  orig: 83, 148
+  offset: 0, 0
+  index: -1
+zhua
+  rotate: false
+  xy: 624, 332
+  size: 35, 58
+  orig: 35, 58
+  offset: 0, 0
+  index: -1

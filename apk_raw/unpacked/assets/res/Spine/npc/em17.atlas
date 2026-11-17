@@ -1,0 +1,20 @@
+
+em17.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em17
+  rotate: false
+  xy: 2, 98
+  size: 535, 529
+  orig: 535, 529
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 119, 94
+  orig: 119, 94
+  offset: 0, 0
+  index: -1

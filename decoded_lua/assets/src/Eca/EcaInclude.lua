@@ -1,0 +1,3 @@
+ECA = {}
+
+require("Eca.EcaGen")

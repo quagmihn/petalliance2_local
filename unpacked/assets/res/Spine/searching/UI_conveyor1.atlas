@@ -1,0 +1,12 @@
+
+UI_conveyor1.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+CB
+  rotate: false
+  xy: 2, 2
+  size: 67, 88
+  orig: 67, 88
+  offset: 0, 0
+  index: -1

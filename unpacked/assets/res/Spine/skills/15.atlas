@@ -1,0 +1,68 @@
+15.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+blood
+  rotate: false
+  xy: 592, 247
+  size: 202, 216
+  orig: 202, 216
+  offset: 0, 0
+  index: -1
+eff01
+  rotate: false
+  xy: 2, 461
+  size: 294, 511
+  orig: 294, 511
+  offset: 0, 0
+  index: -1
+eff02
+  rotate: false
+  xy: 298, 498
+  size: 301, 474
+  orig: 301, 474
+  offset: 0, 0
+  index: -1
+eff03
+  rotate: false
+  xy: 2, 32
+  size: 294, 427
+  orig: 294, 427
+  offset: 0, 0
+  index: -1
+eff04
+  rotate: false
+  xy: 298, 159
+  size: 292, 337
+  orig: 292, 337
+  offset: 0, 0
+  index: -1
+eff05
+  rotate: false
+  xy: 601, 465
+  size: 275, 200
+  orig: 275, 200
+  offset: 0, 0
+  index: -1
+eff06
+  rotate: false
+  xy: 298, 2
+  size: 243, 155
+  orig: 243, 155
+  offset: 0, 0
+  index: -1
+light01
+  rotate: false
+  xy: 886, 903
+  size: 69, 69
+  orig: 69, 69
+  offset: 0, 0
+  index: -1
+particle01
+  rotate: false
+  xy: 601, 667
+  size: 283, 305
+  orig: 283, 305
+  offset: 0, 0
+  index: -1

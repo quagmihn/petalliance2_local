@@ -1,0 +1,69 @@
+
+40.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+cloud
+  rotate: false
+  xy: 274, 4
+  size: 132, 135
+  orig: 132, 135
+  offset: 0, 0
+  index: -1
+cloud-light01
+  rotate: false
+  xy: 297, 326
+  size: 198, 184
+  orig: 198, 184
+  offset: 0, 0
+  index: -1
+cloud-light02
+  rotate: false
+  xy: 297, 141
+  size: 183, 183
+  orig: 183, 183
+  offset: 0, 0
+  index: -1
+particle
+  rotate: false
+  xy: 2, 259
+  size: 293, 251
+  orig: 293, 251
+  offset: 0, 0
+  index: -1
+particle01
+  rotate: false
+  xy: 408, 21
+  size: 43, 51
+  orig: 43, 51
+  offset: 0, 0
+  index: -1
+particle02
+  rotate: true
+  xy: 453, 31
+  size: 41, 32
+  orig: 41, 32
+  offset: 0, 0
+  index: -1
+particle03
+  rotate: false
+  xy: 408, 74
+  size: 60, 65
+  orig: 60, 65
+  offset: 0, 0
+  index: -1
+particle04
+  rotate: false
+  xy: 470, 98
+  size: 37, 41
+  orig: 37, 41
+  offset: 0, 0
+  index: -1
+shockwave
+  rotate: false
+  xy: 2, 2
+  size: 270, 255
+  orig: 270, 255
+  offset: 0, 0
+  index: -1

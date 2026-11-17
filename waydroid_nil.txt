@@ -1,0 +1,30 @@
+11-17 08:05:30.554  1702  1722 D cocos2d-x debug info: Get data from file(/data/user/0/com.petalliance2.sea/files/settings/SystemSettings.plist) failed!
+11-17 08:05:30.678  1702  1722 D cocos2d-x debug info: Get data from file(/data/user/0/com.petalliance2.sea/files/settings/WorldMapSettings.plist) failed!
+11-17 08:05:36.248   700  1663 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 08:05:36.248   700  1662 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:05:36.249   252   463 D ConnectivityService: [100 ETHERNET] validation failed
+11-17 08:05:50.266   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:05:50.267   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:05:50.267   700  1751 D NetworkMonitor/100: PROBE_DNS connectivitycheck.gstatic.com 10013ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:05:50.267   700  1750 D NetworkMonitor/100: PROBE_DNS www.google.com 10013ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:05:53.265   700  1749 D NetworkMonitor/100: PROBE_FALLBACK http://play.googleapis.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "play.googleapis.com": No address associated with hostname
+11-17 08:06:00.279   700  1750 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:06:00.279   700  1751 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 08:06:00.280   252   463 D ConnectivityService: [100 ETHERNET] validation failed
+11-17 08:06:18.301   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:18.301   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:18.302   700  1761 D NetworkMonitor/100: PROBE_DNS www.google.com 10013ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:18.302   700  1762 D NetworkMonitor/100: PROBE_DNS connectivitycheck.gstatic.com 10013ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:28.311   700  1760 D NetworkMonitor/100: PROBE_FALLBACK http://www.google.com/gen_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:06:28.312   700  1761 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:06:28.312   700  1762 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 08:06:28.313   252   463 D ConnectivityService: [100 ETHERNET] validation failed
+11-17 08:06:32.476   252   598 D SntpClient: request time failed
+11-17 08:06:54.342   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:54.342   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:54.342   700  1777 D NetworkMonitor/100: PROBE_DNS www.google.com 10015ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:54.342   700  1778 D NetworkMonitor/100: PROBE_DNS connectivitycheck.gstatic.com 10015ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:07:04.352   700  1776 D NetworkMonitor/100: PROBE_FALLBACK http://www.google.com/gen_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:07:04.353   700  1778 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 08:07:04.355   700  1777 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:07:04.356   252   463 D ConnectivityService: [100 ETHERNET] validation failed

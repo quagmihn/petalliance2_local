@@ -1,0 +1,20 @@
+
+em51.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em51
+  rotate: true
+  xy: 2, 109
+  size: 336, 546
+  orig: 336, 546
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 123, 105
+  orig: 123, 105
+  offset: 0, 0
+  index: -1

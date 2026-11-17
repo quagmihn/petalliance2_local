@@ -1,0 +1,20 @@
+
+em46.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em46
+  rotate: true
+  xy: 2, 2
+  size: 452, 516
+  orig: 452, 516
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 520, 362
+  size: 113, 92
+  orig: 113, 92
+  offset: 0, 0
+  index: -1

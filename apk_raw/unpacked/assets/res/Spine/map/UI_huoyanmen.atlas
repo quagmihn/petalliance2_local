@@ -1,0 +1,27 @@
+
+UI_huoyanmen.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+fb2_1
+  rotate: false
+  xy: 2, 206
+  size: 280, 280
+  orig: 280, 280
+  offset: 0, 0
+  index: -1
+glow04
+  rotate: false
+  xy: 2, 2
+  size: 194, 202
+  orig: 194, 202
+  offset: 0, 0
+  index: -1
+vortex06
+  rotate: false
+  xy: 284, 397
+  size: 91, 89
+  orig: 91, 89
+  offset: 0, 0
+  index: -1

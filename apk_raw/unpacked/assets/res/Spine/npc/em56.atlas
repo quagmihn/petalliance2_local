@@ -1,0 +1,20 @@
+
+em56.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em56
+  rotate: true
+  xy: 2, 2
+  size: 479, 515
+  orig: 479, 515
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 519, 444
+  size: 38, 37
+  orig: 38, 37
+  offset: 0, 0
+  index: -1

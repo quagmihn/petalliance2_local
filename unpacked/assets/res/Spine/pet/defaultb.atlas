@@ -1,0 +1,111 @@
+
+defaultb.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bozi1
+  rotate: false
+  xy: 2, 2
+  size: 34, 24
+  orig: 34, 24
+  offset: 0, 0
+  index: -1
+bozi2
+  rotate: true
+  xy: 321, 40
+  size: 40, 30
+  orig: 40, 30
+  offset: 0, 0
+  index: -1
+bozi3
+  rotate: false
+  xy: 163, 11
+  size: 38, 40
+  orig: 38, 40
+  offset: 0, 0
+  index: -1
+bozi4
+  rotate: true
+  xy: 353, 47
+  size: 35, 48
+  orig: 35, 48
+  offset: 0, 0
+  index: -1
+bozi5
+  rotate: true
+  xy: 417, 75
+  size: 51, 52
+  orig: 51, 52
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 38, 18
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 104, 53
+  size: 95, 73
+  orig: 95, 73
+  offset: 0, 0
+  index: -1
+shuye
+  rotate: false
+  xy: 201, 63
+  size: 66, 63
+  orig: 66, 63
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 28
+  size: 100, 98
+  orig: 100, 98
+  offset: 0, 0
+  index: -1
+weiba
+  rotate: false
+  xy: 203, 23
+  size: 46, 38
+  orig: 46, 38
+  offset: 0, 0
+  index: -1
+youer
+  rotate: false
+  xy: 269, 82
+  size: 77, 44
+  orig: 77, 44
+  offset: 0, 0
+  index: -1
+youhoujiao
+  rotate: true
+  xy: 104, 15
+  size: 36, 57
+  orig: 36, 57
+  offset: 0, 0
+  index: -1
+youqianjiao
+  rotate: true
+  xy: 269, 49
+  size: 31, 50
+  orig: 31, 50
+  offset: 0, 0
+  index: -1
+zuoer
+  rotate: false
+  xy: 348, 84
+  size: 67, 42
+  orig: 67, 42
+  offset: 0, 0
+  index: -1
+zuouhoujiao
+  rotate: false
+  xy: 471, 72
+  size: 37, 54
+  orig: 37, 54
+  offset: 0, 0
+  index: -1

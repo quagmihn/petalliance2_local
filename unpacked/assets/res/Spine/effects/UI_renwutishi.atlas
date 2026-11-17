@@ -1,0 +1,12 @@
+
+UI_renwutishi.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+fx
+  rotate: false
+  xy: 2, 2
+  size: 348, 134
+  orig: 348, 134
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,20 @@
+
+em38.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em38
+  rotate: true
+  xy: 2, 2
+  size: 496, 566
+  orig: 496, 566
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 570, 384
+  size: 139, 114
+  orig: 139, 114
+  offset: 0, 0
+  index: -1

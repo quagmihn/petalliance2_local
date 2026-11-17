@@ -1,0 +1,20 @@
+
+em6.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em6
+  rotate: true
+  xy: 2, 129
+  size: 275, 558
+  orig: 275, 558
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 108, 125
+  orig: 108, 125
+  offset: 0, 0
+  index: -1

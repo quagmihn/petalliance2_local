@@ -1,0 +1,146 @@
+
+8.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+flash01
+  rotate: false
+  xy: 2, 78
+  size: 274, 274
+  orig: 274, 274
+  offset: 0, 0
+  index: -1
+flash02
+  rotate: false
+  xy: 566, 713
+  size: 276, 276
+  orig: 276, 276
+  offset: 0, 0
+  index: -1
+ice01
+  rotate: false
+  xy: 139, 11
+  size: 100, 65
+  orig: 100, 65
+  offset: 0, 0
+  index: -1
+ice02
+  rotate: true
+  xy: 413, 416
+  size: 70, 36
+  orig: 70, 36
+  offset: 0, 0
+  index: -1
+ice03
+  rotate: false
+  xy: 2, 2
+  size: 135, 74
+  orig: 135, 74
+  offset: 0, 0
+  index: -1
+ice04
+  rotate: false
+  xy: 278, 179
+  size: 60, 37
+  orig: 60, 37
+  offset: 0, 0
+  index: -1
+ice05
+  rotate: false
+  xy: 276, 598
+  size: 181, 108
+  orig: 181, 108
+  offset: 0, 0
+  index: -1
+ice06
+  rotate: false
+  xy: 459, 506
+  size: 88, 90
+  orig: 88, 90
+  offset: 0, 0
+  index: -1
+icebg
+  rotate: false
+  xy: 275, 708
+  size: 289, 281
+  orig: 289, 281
+  offset: 0, 0
+  index: -1
+particle
+  rotate: false
+  xy: 2, 635
+  size: 271, 354
+  orig: 271, 354
+  offset: 0, 0
+  index: -1
+ringeff
+  rotate: true
+  xy: 2, 354
+  size: 279, 272
+  orig: 279, 272
+  offset: 0, 0
+  index: -1
+smoke01
+  rotate: false
+  xy: 844, 852
+  size: 155, 137
+  orig: 155, 137
+  offset: 0, 0
+  index: -1
+smoke02
+  rotate: false
+  xy: 844, 705
+  size: 147, 145
+  orig: 147, 145
+  offset: 0, 0
+  index: -1
+smoke03
+  rotate: false
+  xy: 459, 598
+  size: 101, 108
+  orig: 101, 108
+  offset: 0, 0
+  index: -1
+w-ice01
+  rotate: true
+  xy: 278, 218
+  size: 100, 65
+  orig: 100, 65
+  offset: 0, 0
+  index: -1
+w-ice02
+  rotate: true
+  xy: 368, 340
+  size: 70, 36
+  orig: 70, 36
+  offset: 0, 0
+  index: -1
+w-ice03
+  rotate: false
+  xy: 276, 412
+  size: 135, 74
+  orig: 135, 74
+  offset: 0, 0
+  index: -1
+w-ice04
+  rotate: false
+  xy: 278, 140
+  size: 60, 37
+  orig: 60, 37
+  offset: 0, 0
+  index: -1
+w-ice05
+  rotate: false
+  xy: 276, 488
+  size: 181, 108
+  orig: 181, 108
+  offset: 0, 0
+  index: -1
+w-ice06
+  rotate: false
+  xy: 278, 320
+  size: 88, 90
+  orig: 88, 90
+  offset: 0, 0
+  index: -1

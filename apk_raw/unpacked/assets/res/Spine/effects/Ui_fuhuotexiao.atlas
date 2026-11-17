@@ -1,0 +1,97 @@
+
+Ui_fuhuotexiao.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10002
+  rotate: false
+  xy: 2, 164
+  size: 320, 320
+  orig: 320, 320
+  offset: 0, 0
+  index: -1
+texiao/20001
+  rotate: false
+  xy: 324, 284
+  size: 320, 200
+  orig: 320, 200
+  offset: 0, 0
+  index: -1
+texiao/30001
+  rotate: false
+  xy: 346, 85
+  size: 90, 35
+  orig: 90, 35
+  offset: 0, 0
+  index: -1
+texiao/40001
+  rotate: false
+  xy: 2, 2
+  size: 170, 160
+  orig: 170, 160
+  offset: 0, 0
+  index: -1
+texiao/40002
+  rotate: false
+  xy: 646, 324
+  size: 170, 160
+  orig: 170, 160
+  offset: 0, 0
+  index: -1
+texiao/40003
+  rotate: false
+  xy: 818, 324
+  size: 170, 160
+  orig: 170, 160
+  offset: 0, 0
+  index: -1
+texiao/40004
+  rotate: false
+  xy: 818, 324
+  size: 170, 160
+  orig: 170, 160
+  offset: 0, 0
+  index: -1
+texiao/40005
+  rotate: false
+  xy: 174, 2
+  size: 170, 160
+  orig: 170, 160
+  offset: 0, 0
+  index: -1
+texiao/40006
+  rotate: false
+  xy: 346, 122
+  size: 170, 160
+  orig: 170, 160
+  offset: 0, 0
+  index: -1
+texiao/40007
+  rotate: false
+  xy: 346, 122
+  size: 170, 160
+  orig: 170, 160
+  offset: 0, 0
+  index: -1
+texiao/40008
+  rotate: false
+  xy: 518, 122
+  size: 170, 160
+  orig: 170, 160
+  offset: 0, 0
+  index: -1
+texiao/40009
+  rotate: false
+  xy: 690, 162
+  size: 170, 160
+  orig: 170, 160
+  offset: 0, 0
+  index: -1
+texiao/fx_ray_141
+  rotate: false
+  xy: 862, 194
+  size: 128, 128
+  orig: 128, 128
+  offset: 0, 0
+  index: -1

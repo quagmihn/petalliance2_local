@@ -1,0 +1,62 @@
+{
+"skeleton": { "hash": "MtPURF3QE+FwaRGLxwsvU52Sc08", "spine": "3.1.02", "width": 280, "height": 280, "images": "./texiao/" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "guangxiao", "parent": "root" },
+	{ "name": "yanwu", "parent": "root" }
+],
+"slots": [
+	{ "name": "5", "bone": "guangxiao" },
+	{ "name": "1", "bone": "yanwu", "attachment": "1" }
+],
+"skins": {
+	"default": {
+		"1": {
+			"1": { "width": 280, "height": 280 },
+			"2": { "width": 280, "height": 280 },
+			"3": { "width": 280, "height": 280 },
+			"4": { "width": 280, "height": 280 }
+		},
+		"5": {
+			"5": { "width": 350, "height": 350 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"1": {
+				"attachment": [
+					{ "time": 0, "name": "1" },
+					{ "time": 0.1, "name": "2" },
+					{ "time": 0.2, "name": "3" },
+					{ "time": 0.3, "name": "4" },
+					{ "time": 0.4, "name": null }
+				]
+			},
+			"5": {
+				"attachment": [
+					{ "time": 0, "name": "5" },
+					{ "time": 0.4333, "name": "5" }
+				]
+			}
+		},
+		"bones": {
+			"yanwu": {
+				"translate": [
+					{ "time": 0, "x": -17.42, "y": -17.42 }
+				]
+			},
+			"guangxiao": {
+				"translate": [
+					{ "time": 0, "x": -1.08, "y": -5.44 }
+				],
+				"scale": [
+					{ "time": 0, "x": 1.331, "y": 1.331 },
+					{ "time": 0.4333, "x": 0.6, "y": 0.6 }
+				]
+			}
+		}
+	}
+}
+}

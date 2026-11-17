@@ -1,0 +1,27 @@
+
+Ui_jinengshifatishi.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/1
+  rotate: false
+  xy: 2, 2
+  size: 230, 230
+  orig: 230, 230
+  offset: 0, 0
+  index: -1
+texiao/2
+  rotate: false
+  xy: 234, 32
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+texiao/7
+  rotate: false
+  xy: 436, 32
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1

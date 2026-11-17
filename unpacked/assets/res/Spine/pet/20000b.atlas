@@ -1,0 +1,111 @@
+
+20000b.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+chibang1
+  rotate: true
+  xy: 2, 23
+  size: 224, 361
+  orig: 224, 361
+  offset: 0, 0
+  index: -1
+chibang2
+  rotate: true
+  xy: 387, 751
+  size: 256, 385
+  orig: 256, 385
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 2, 2
+  size: 129, 19
+  orig: 129, 19
+  offset: 0, 0
+  index: -1
+effect_01
+  rotate: false
+  xy: 774, 833
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_03
+  rotate: true
+  xy: 387, 591
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_05
+  rotate: true
+  xy: 563, 591
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_07
+  rotate: false
+  xy: 774, 657
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_09
+  rotate: false
+  xy: 276, 415
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_11
+  rotate: false
+  xy: 436, 415
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_13
+  rotate: true
+  xy: 276, 255
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_15
+  rotate: false
+  xy: 596, 415
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_17
+  rotate: true
+  xy: 452, 255
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_19
+  rotate: false
+  xy: 365, 79
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+huangguan
+  rotate: false
+  xy: 2, 639
+  size: 383, 368
+  orig: 383, 368
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 2, 249
+  size: 388, 272
+  orig: 388, 272
+  offset: 0, 0
+  index: -1

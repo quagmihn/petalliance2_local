@@ -1,0 +1,104 @@
+
+091.png
+size: 256,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+biyan
+  rotate: false
+  xy: 2, 78
+  size: 92, 37
+  orig: 92, 37
+  offset: 0, 0
+  index: -1
+diying
+  rotate: true
+  xy: 236, 193
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+han-aida
+  rotate: false
+  xy: 210, 133
+  size: 15, 36
+  orig: 15, 36
+  offset: 0, 0
+  index: -1
+images/gongji
+  rotate: false
+  xy: 2, 2
+  size: 92, 36
+  orig: 92, 36
+  offset: 0, 0
+  index: -1
+images/ya
+  rotate: false
+  xy: 130, 59
+  size: 66, 54
+  orig: 66, 54
+  offset: 0, 0
+  index: -1
+images/yan
+  rotate: false
+  xy: 2, 40
+  size: 92, 36
+  orig: 92, 36
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 2, 117
+  size: 138, 128
+  orig: 138, 128
+  offset: 0, 0
+  index: -1
+ya
+  rotate: false
+  xy: 142, 115
+  size: 66, 54
+  orig: 66, 54
+  offset: 0, 0
+  index: -1
+yan
+  rotate: false
+  xy: 142, 209
+  size: 92, 36
+  orig: 92, 36
+  offset: 0, 0
+  index: -1
+yan-gongji
+  rotate: false
+  xy: 142, 171
+  size: 92, 36
+  orig: 92, 36
+  offset: 0, 0
+  index: -1
+yani-aida
+  rotate: true
+  xy: 96, 25
+  size: 90, 32
+  orig: 90, 32
+  offset: 0, 0
+  index: -1
+zui
+  rotate: false
+  xy: 130, 29
+  size: 37, 28
+  orig: 37, 28
+  offset: 0, 0
+  index: -1
+zui-aida
+  rotate: true
+  xy: 169, 28
+  size: 29, 26
+  orig: 29, 26
+  offset: 0, 0
+  index: -1
+zui-gongji
+  rotate: false
+  xy: 96, 6
+  size: 32, 17
+  orig: 32, 17
+  offset: 0, 0
+  index: -1

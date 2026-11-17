@@ -1,0 +1,148 @@
+{
+"skeleton": { "hash": "FsFyRFKjGFTmgZSww6wMbgDsfD8", "spine": "3.1.02", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root", "rotation": 0.45 },
+	{ "name": "root_1", "parent": "root", "scaleX": 0.9, "scaleY": 0.9 },
+	{ "name": "dianjiguangxiao_1", "parent": "root_1" },
+	{ "name": "dianjiguangxiao_2", "parent": "root_1" },
+	{ "name": "dianjiguangxiao_3", "parent": "root_1" },
+	{ "name": "dianjiguangxiao_4", "parent": "root_1" }
+],
+"slots": [
+	{ "name": "texiao/10001", "bone": "dianjiguangxiao_1" },
+	{ "name": "texiao/20001", "bone": "dianjiguangxiao_2" },
+	{ "name": "texiao/30001", "bone": "dianjiguangxiao_3" },
+	{ "name": "texiao/40001", "bone": "dianjiguangxiao_4" }
+],
+"skins": {
+	"default": {
+		"texiao/10001": {
+			"texiao/10001": { "width": 125, "height": 125 },
+			"texiao/10002": { "width": 125, "height": 125 },
+			"texiao/10003": { "width": 125, "height": 125 }
+		},
+		"texiao/20001": {
+			"texiao/20001": { "width": 125, "height": 125 },
+			"texiao/20002": { "width": 125, "height": 125 },
+			"texiao/20003": { "width": 125, "height": 125 }
+		},
+		"texiao/30001": {
+			"texiao/30001": { "width": 125, "height": 125 },
+			"texiao/30002": { "width": 125, "height": 125 },
+			"texiao/30003": { "width": 125, "height": 125 }
+		},
+		"texiao/40001": {
+			"texiao/40001": { "width": 300, "height": 300 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/10001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/10001" },
+					{ "time": 0.0666, "name": "texiao/10002" },
+					{ "time": 0.1333, "name": "texiao/10003" },
+					{ "time": 0.3333, "name": null }
+				],
+				"color": [
+					{ "time": 0.1, "color": "ffffffff" },
+					{ "time": 0.2, "color": "ffffff56" },
+					{ "time": 0.3333, "color": "ffffff00" }
+				]
+			},
+			"texiao/20001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/20001" },
+					{ "time": 0.0666, "name": "texiao/20002" },
+					{ "time": 0.1333, "name": "texiao/20003" },
+					{ "time": 0.3333, "name": null }
+				],
+				"color": [
+					{ "time": 0.1, "color": "ffffffff" },
+					{ "time": 0.2, "color": "ffffff5c" },
+					{ "time": 0.3333, "color": "ffffff01" }
+				]
+			},
+			"texiao/30001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/30001" },
+					{ "time": 0.0666, "name": "texiao/30002" },
+					{ "time": 0.1666, "name": "texiao/30003" },
+					{ "time": 0.3333, "name": null }
+				],
+				"color": [
+					{ "time": 0.1, "color": "ffffffff" },
+					{ "time": 0.2, "color": "ffffff4b" },
+					{ "time": 0.3333, "color": "ffffff03" }
+				]
+			},
+			"texiao/40001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/40001" },
+					{ "time": 0.4, "name": null },
+					{ "time": 1.1666, "name": null }
+				],
+				"color": [
+					{ "time": 0, "color": "ffffff8d" },
+					{ "time": 0.1, "color": "ffffffd5" },
+					{ "time": 0.4, "color": "ffffff00" }
+				]
+			}
+		},
+		"bones": {
+			"dianjiguangxiao_1": {
+				"rotate": [
+					{ "time": 0, "angle": 0 },
+					{ "time": 0.1, "angle": -73.21 },
+					{ "time": 0.3333, "angle": -177.96 }
+				],
+				"translate": [
+					{ "time": 0, "x": 0, "y": 0 }
+				],
+				"scale": [
+					{ "time": 0, "x": 0.9, "y": 0.9 },
+					{ "time": 0.1, "x": 1.25, "y": 1.25 },
+					{ "time": 0.3333, "x": 1.455, "y": 1.455 }
+				]
+			},
+			"dianjiguangxiao_2": {
+				"rotate": [
+					{ "time": 0, "angle": 0 },
+					{ "time": 0.1, "angle": 104.85 },
+					{ "time": 0.3333, "angle": -162.93 }
+				],
+				"translate": [
+					{ "time": 0, "x": 0, "y": 0 }
+				],
+				"scale": [
+					{ "time": 0, "x": 0.942, "y": 0.942 },
+					{ "time": 0.1, "x": 1.358, "y": 1.358 },
+					{ "time": 0.3333, "x": 1.479, "y": 1.479 }
+				]
+			},
+			"dianjiguangxiao_3": {
+				"rotate": [
+					{ "time": 0, "angle": 0 }
+				],
+				"translate": [
+					{ "time": 0, "x": 0, "y": 0 }
+				],
+				"scale": [
+					{ "time": 0, "x": 0.863, "y": 0.863 },
+					{ "time": 0.1, "x": 1.586, "y": 1.586 },
+					{ "time": 0.3333, "x": 1.805, "y": 1.805 }
+				]
+			},
+			"dianjiguangxiao_4": {
+				"scale": [
+					{ "time": 0, "x": 0.365, "y": 0.365 },
+					{ "time": 0.1, "x": 0.714, "y": 0.714 },
+					{ "time": 0.4, "x": 0.036, "y": 0.036 }
+				]
+			}
+		}
+	}
+}
+}

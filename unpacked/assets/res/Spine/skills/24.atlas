@@ -1,0 +1,125 @@
+
+24.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+boom01
+  rotate: false
+  xy: 307, 800
+  size: 227, 199
+  orig: 227, 199
+  offset: 0, 0
+  index: -1
+boom02
+  rotate: false
+  xy: 2, 696
+  size: 303, 303
+  orig: 303, 303
+  offset: 0, 0
+  index: -1
+fire01
+  rotate: true
+  xy: 355, 307
+  size: 143, 138
+  orig: 143, 138
+  offset: 0, 0
+  index: -1
+fire02
+  rotate: true
+  xy: 893, 865
+  size: 134, 129
+  orig: 134, 129
+  offset: 0, 0
+  index: -1
+light01
+  rotate: false
+  xy: 724, 832
+  size: 167, 167
+  orig: 167, 167
+  offset: 0, 0
+  index: -1
+particle
+  rotate: false
+  xy: 2, 434
+  size: 294, 260
+  orig: 294, 260
+  offset: 0, 0
+  index: -1
+particle01a
+  rotate: false
+  xy: 469, 561
+  size: 100, 126
+  orig: 100, 126
+  offset: 0, 0
+  index: -1
+particle01b
+  rotate: false
+  xy: 2, 2
+  size: 127, 233
+  orig: 127, 233
+  offset: 0, 0
+  index: -1
+particle02a
+  rotate: false
+  xy: 446, 248
+  size: 55, 57
+  orig: 55, 57
+  offset: 0, 0
+  index: -1
+particle02b
+  rotate: true
+  xy: 298, 452
+  size: 78, 135
+  orig: 78, 135
+  offset: 0, 0
+  index: -1
+particle03a
+  rotate: true
+  xy: 355, 221
+  size: 84, 89
+  orig: 84, 89
+  offset: 0, 0
+  index: -1
+particle03b
+  rotate: true
+  xy: 307, 689
+  size: 109, 204
+  orig: 109, 204
+  offset: 0, 0
+  index: -1
+shockwave01
+  rotate: false
+  xy: 2, 237
+  size: 196, 195
+  orig: 196, 195
+  offset: 0, 0
+  index: -1
+shockwave02
+  rotate: true
+  xy: 131, 60
+  size: 175, 43
+  orig: 175, 43
+  offset: 0, 0
+  index: -1
+smoke01
+  rotate: false
+  xy: 536, 818
+  size: 186, 181
+  orig: 186, 181
+  offset: 0, 0
+  index: -1
+smoke01b
+  rotate: false
+  xy: 200, 268
+  size: 153, 164
+  orig: 153, 164
+  offset: 0, 0
+  index: -1
+smoke02
+  rotate: false
+  xy: 298, 532
+  size: 169, 155
+  orig: 169, 155
+  offset: 0, 0
+  index: -1

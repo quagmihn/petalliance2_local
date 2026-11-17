@@ -1,0 +1,20 @@
+
+em15.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em15
+  rotate: false
+  xy: 2, 102
+  size: 514, 536
+  orig: 514, 536
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 78, 98
+  orig: 78, 98
+  offset: 0, 0
+  index: -1

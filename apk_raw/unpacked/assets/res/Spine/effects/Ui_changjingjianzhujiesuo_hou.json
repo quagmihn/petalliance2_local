@@ -1,0 +1,83 @@
+{
+"skeleton": { "hash": "g6IcL+ExSksBAF32xW1scGT+XvE", "spine": "3.1.02", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root", "y": 109.2 },
+	{ "name": "guangshu_2", "parent": "root" },
+	{ "name": "guangshu_4", "parent": "root" }
+],
+"slots": [
+	{ "name": "texiao/20001", "bone": "guangshu_2", "blend": "additive" },
+	{ "name": "texiao/20002", "bone": "guangshu_4", "blend": "additive" }
+],
+"skins": {
+	"default": {
+		"texiao/20001": {
+			"texiao/20001": { "width": 150, "height": 230 },
+			"texiao/20002": { "width": 150, "height": 230 },
+			"texiao/20003": { "width": 150, "height": 230 },
+			"texiao/20004": { "width": 150, "height": 230 },
+			"texiao/20005": { "width": 150, "height": 230 },
+			"texiao/20006": { "width": 150, "height": 230 },
+			"texiao/20007": { "width": 150, "height": 230 }
+		},
+		"texiao/20002": {
+			"texiao/20001": { "width": 150, "height": 230 },
+			"texiao/20002": { "width": 150, "height": 230 },
+			"texiao/20003": { "width": 150, "height": 230 },
+			"texiao/20004": { "width": 150, "height": 230 },
+			"texiao/20005": { "width": 150, "height": 230 },
+			"texiao/20006": { "width": 150, "height": 230 },
+			"texiao/20007": { "width": 150, "height": 230 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/20001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/20001" },
+					{ "time": 0.0666, "name": "texiao/20002" },
+					{ "time": 0.1333, "name": "texiao/20003" },
+					{ "time": 0.2666, "name": "texiao/20004" },
+					{ "time": 0.3333, "name": "texiao/20005" },
+					{ "time": 0.4, "name": "texiao/20006" },
+					{ "time": 0.4666, "name": "texiao/20007" },
+					{ "time": 0.5333, "name": null }
+				],
+				"color": [
+					{ "time": 0, "color": "ffffff6f" },
+					{ "time": 0.1333, "color": "ffffff3a", "curve": "stepped" },
+					{ "time": 0.2666, "color": "ffffff3a" },
+					{ "time": 0.5333, "color": "ffffff00" }
+				]
+			},
+			"texiao/20002": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/20001" },
+					{ "time": 0.0666, "name": "texiao/20002" },
+					{ "time": 0.1333, "name": "texiao/20003" },
+					{ "time": 0.2333, "name": "texiao/20004" },
+					{ "time": 0.3, "name": "texiao/20005" },
+					{ "time": 0.3666, "name": "texiao/20006" },
+					{ "time": 0.4333, "name": "texiao/20007" },
+					{ "time": 0.5, "name": null }
+				],
+				"color": [
+					{ "time": 0, "color": "ffffff7a" },
+					{ "time": 0.1333, "color": "ffffff35", "curve": "stepped" },
+					{ "time": 0.2333, "color": "ffffff35" },
+					{ "time": 0.5, "color": "ffffff01" }
+				]
+			}
+		},
+		"bones": {
+			"guangshu_4": {
+				"scale": [
+					{ "time": 0, "x": 1.3, "y": 1.3 }
+				]
+			}
+		}
+	}
+}
+}

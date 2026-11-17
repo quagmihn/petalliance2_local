@@ -1,0 +1,20 @@
+
+em55.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em55
+  rotate: true
+  xy: 2, 69
+  size: 346, 564
+  orig: 346, 564
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 103, 65
+  orig: 103, 65
+  offset: 0, 0
+  index: -1

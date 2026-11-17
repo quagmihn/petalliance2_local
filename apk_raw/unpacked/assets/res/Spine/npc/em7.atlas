@@ -1,0 +1,20 @@
+
+em7.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em7
+  rotate: true
+  xy: 2, 2
+  size: 405, 552
+  orig: 405, 552
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 556, 287
+  size: 131, 120
+  orig: 131, 120
+  offset: 0, 0
+  index: -1

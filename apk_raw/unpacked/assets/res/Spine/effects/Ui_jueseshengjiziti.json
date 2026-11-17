@@ -1,0 +1,46 @@
+{
+"skeleton": { "hash": "hS0X+GggxZT4r6O8wLBJc7pd8pQ", "spine": "3.1.02", "width": 450.88, "height": 104.05, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "ziti", "parent": "root" }
+],
+"slots": [
+	{ "name": "texiao/10001", "bone": "ziti", "attachment": "texiao/10009" }
+],
+"skins": {
+	"default": {
+		"texiao/10001": {
+			"texiao/10001": { "rotation": 0.19, "width": 450, "height": 100 },
+			"texiao/10002": { "rotation": 0.19, "width": 450, "height": 100 },
+			"texiao/10003": { "rotation": 0.19, "width": 450, "height": 100 },
+			"texiao/10004": { "width": 450, "height": 100 },
+			"texiao/10005": { "rotation": 0.19, "width": 450, "height": 100 },
+			"texiao/10006": { "rotation": 0.19, "width": 450, "height": 100 },
+			"texiao/10007": { "rotation": 0.19, "width": 450, "height": 100 },
+			"texiao/10008": { "rotation": 0.19, "width": 450, "height": 100 },
+			"texiao/10009": { "y": -619.5, "rotation": 0.51, "width": 450, "height": 100 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/10001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/10001" },
+					{ "time": 0.0666, "name": "texiao/10002" },
+					{ "time": 0.1333, "name": "texiao/10003" },
+					{ "time": 0.2, "name": "texiao/10004" },
+					{ "time": 0.2666, "name": "texiao/10005" },
+					{ "time": 0.3333, "name": "texiao/10006" },
+					{ "time": 0.4, "name": "texiao/10007" },
+					{ "time": 0.4666, "name": "texiao/10008" },
+					{ "time": 0.5333, "name": "texiao/10009" },
+					{ "time": 0.6, "name": null },
+					{ "time": 2, "name": null }
+				]
+			}
+		}
+	}
+}
+}

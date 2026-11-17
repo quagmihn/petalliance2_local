@@ -1,0 +1,48 @@
+
+UI_shengcunzhan.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+fx_ray_031
+  rotate: false
+  xy: 2, 2
+  size: 228, 212
+  orig: 228, 212
+  offset: 0, 0
+  index: -1
+glow
+  rotate: false
+  xy: 232, 90
+  size: 236, 13
+  orig: 236, 13
+  offset: 0, 0
+  index: -1
+new_0001
+  rotate: false
+  xy: 232, 105
+  size: 320, 109
+  orig: 320, 109
+  offset: 0, 0
+  index: -1
+new_0002
+  rotate: false
+  xy: 554, 105
+  size: 319, 109
+  orig: 319, 109
+  offset: 0, 0
+  index: -1
+new_0003
+  rotate: false
+  xy: 875, 89
+  size: 129, 125
+  orig: 129, 125
+  offset: 0, 0
+  index: -1
+sj_0003
+  rotate: false
+  xy: 232, 35
+  size: 49, 53
+  orig: 49, 53
+  offset: 0, 0
+  index: -1

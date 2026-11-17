@@ -1,0 +1,131 @@
+{
+"skeleton": { "hash": "l6tDe+TRGwHgLB0xhc539y0W7L4", "spine": "3.1.02", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "shandian_1", "parent": "root" },
+	{ "name": "shandian_2", "parent": "root" },
+	{ "name": "shandian_3", "parent": "root" }
+],
+"slots": [
+	{ "name": "texiao/10001", "bone": "shandian_1" },
+	{ "name": "texiao/10002", "bone": "shandian_2" },
+	{ "name": "texiao/10003", "bone": "shandian_3" }
+],
+"skins": {
+	"default": {
+		"texiao/10001": {
+			"texiao/10001": { "width": 160, "height": 80 },
+			"texiao/10002": { "width": 160, "height": 80 },
+			"texiao/10003": { "width": 160, "height": 80 },
+			"texiao/10004": { "width": 160, "height": 80 },
+			"texiao/10005": { "width": 160, "height": 80 },
+			"texiao/10006": { "width": 160, "height": 80 },
+			"texiao/10007": { "width": 160, "height": 80 },
+			"texiao/10008": { "width": 160, "height": 80 },
+			"texiao/10009": { "width": 160, "height": 80 },
+			"texiao/10010": { "width": 160, "height": 80 }
+		},
+		"texiao/10002": {
+			"texiao/10001": { "width": 160, "height": 80 },
+			"texiao/10002": { "width": 160, "height": 80 },
+			"texiao/10003": { "width": 160, "height": 80 },
+			"texiao/10004": { "width": 160, "height": 80 },
+			"texiao/10005": { "width": 160, "height": 80 },
+			"texiao/10006": { "width": 160, "height": 80 },
+			"texiao/10007": { "width": 160, "height": 80 },
+			"texiao/10008": { "width": 160, "height": 80 },
+			"texiao/10009": { "width": 160, "height": 80 },
+			"texiao/10010": { "width": 160, "height": 80 }
+		},
+		"texiao/10003": {
+			"texiao/10001": { "width": 160, "height": 80 },
+			"texiao/10002": { "width": 160, "height": 80 },
+			"texiao/10003": { "width": 160, "height": 80 },
+			"texiao/10004": { "width": 160, "height": 80 },
+			"texiao/10005": { "width": 160, "height": 80 },
+			"texiao/10006": { "width": 160, "height": 80 },
+			"texiao/10007": { "width": 160, "height": 80 },
+			"texiao/10008": { "width": 160, "height": 80 },
+			"texiao/10009": { "width": 160, "height": 80 },
+			"texiao/10010": { "width": 160, "height": 80 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/10001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/10001" },
+					{ "time": 0.0333, "name": "texiao/10002" },
+					{ "time": 0.0666, "name": "texiao/10003" },
+					{ "time": 0.1, "name": "texiao/10004" },
+					{ "time": 0.1333, "name": "texiao/10005" },
+					{ "time": 0.1666, "name": "texiao/10006" },
+					{ "time": 0.2, "name": "texiao/10007" },
+					{ "time": 0.2333, "name": "texiao/10008" },
+					{ "time": 0.2666, "name": "texiao/10009" },
+					{ "time": 0.3, "name": "texiao/10010" },
+					{ "time": 0.3333, "name": null },
+					{ "time": 1.3333, "name": null }
+				]
+			},
+			"texiao/10002": {
+				"attachment": [
+					{ "time": 0.3333, "name": "texiao/10001" },
+					{ "time": 0.3666, "name": "texiao/10002" },
+					{ "time": 0.4, "name": "texiao/10003" },
+					{ "time": 0.4333, "name": "texiao/10004" },
+					{ "time": 0.4666, "name": "texiao/10005" },
+					{ "time": 0.5, "name": "texiao/10006" },
+					{ "time": 0.5333, "name": "texiao/10007" },
+					{ "time": 0.5666, "name": "texiao/10008" },
+					{ "time": 0.6, "name": "texiao/10009" },
+					{ "time": 0.6333, "name": "texiao/10010" },
+					{ "time": 0.6666, "name": null },
+					{ "time": 2, "name": null }
+				]
+			},
+			"texiao/10003": {
+				"attachment": [
+					{ "time": 0.6666, "name": "texiao/10001" },
+					{ "time": 0.7, "name": "texiao/10002" },
+					{ "time": 0.7333, "name": "texiao/10003" },
+					{ "time": 0.7666, "name": "texiao/10004" },
+					{ "time": 0.8, "name": "texiao/10005" },
+					{ "time": 0.8333, "name": "texiao/10006" },
+					{ "time": 0.8666, "name": "texiao/10007" },
+					{ "time": 0.9, "name": "texiao/10008" },
+					{ "time": 0.9333, "name": "texiao/10009" },
+					{ "time": 0.9666, "name": "texiao/10010" },
+					{ "time": 1, "name": null },
+					{ "time": 2, "name": null }
+				]
+			}
+		},
+		"bones": {
+			"shandian_1": {
+				"scale": [
+					{ "time": 0, "x": 1.1, "y": 1 }
+				]
+			},
+			"shandian_2": {
+				"translate": [
+					{ "time": 0.3333, "x": 136.81, "y": 0 }
+				],
+				"scale": [
+					{ "time": 0.3333, "x": 1.2, "y": -1 }
+				]
+			},
+			"shandian_3": {
+				"translate": [
+					{ "time": 0.6666, "x": 290.44, "y": 0 }
+				],
+				"scale": [
+					{ "time": 0.6666, "x": 1.2, "y": 1 }
+				]
+			}
+		}
+	}
+}
+}

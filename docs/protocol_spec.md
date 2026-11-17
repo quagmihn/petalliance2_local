@@ -1,0 +1,16977 @@
+# Monster Clash 2 client protocol notes
+
+Reference client: decoded assets from `apk_extracted`, game resource version
+`1.0.128745`. Sources are under `decoded_lua/assets/src`. The older APK in
+`apk_raw` is a different package/build (`com.master.monster2`, versionCode 5).
+
+## Update and HTTP flow
+
+`GameMgr/Update/UpdateMgr.lua` sets `obbVersion = "1.0.128745"` and starts
+`localVersion` at `1.0.00000`. It reads a saved `version.plist`; if that is
+missing it reads the packaged `version.xml`. It checks the Android minimum
+version at `ver_android.xml`, fetches `version.xml` (and may use
+`versiontmp.xml` for temporary patches), then checks OBB before starting the
+login scene. `review_ver.xml` is used by the iOS review-version path. The
+Android minimum and review values should be plain `0`; version endpoints return
+the plain string `1.0.128745`.
+
+Decoded `AndroidManifest.xml` metadata for the current resource build is:
+
+| Field | Value |
+| --- | --- |
+| package | `com.petalliance2.sea` |
+| versionCode | `7` |
+| OBB filename | `main.7.com.petalliance2.sea.obb` |
+| OBB directory | `/mnt/sdcard/Android/obb/com.petalliance2.sea/` |
+
+The client's published server-list path is `GET /mxmevoListWorld?channel=...`.
+With `IS_SERVERLIST_PUBLISH` set (the Android production branch),
+`NetMgr.getServerList()` parses JSON `worlds[]` entries using `id`, `name`,
+`state`, and `isNew`. It takes TCP `ip` and `port` from a separate hard-coded
+`gameServerAddress` array in `Net/ServerIPMrg.lua`, rather than from those JSON
+entries. That stock Android branch currently points at `47.52.206.226:8421`.
+Changing the HTTP response alone cannot redirect the unmodified client; the
+client's `ServerIPMrg.lua` / APK must also be patched to use
+`192.168.240.1:5568` and the local world-list URL.
+
+`GameNoticeMgr.lua` reads `gamenotice.txt` from its separately configured
+hotfix path. It is not the world-list endpoint.
+
+## TCP framing and primitive encoding
+
+`Net/ByteArray.lua` defaults to `ENDIAN_LITTLE`. The TCP socket code reads a
+two-byte unsigned little-endian frame length, where the length includes the
+two-byte length field. The next two bytes are the little-endian unsigned
+`msgID`; payload follows. Thus `length = 4 + payload_bytes`. The socket layer
+buffers partial reads and emits complete frames; one TCP read may contain
+multiple frames.
+
+Client request payload bytes after the four-byte frame/message header are
+transformed in `HDSocketTCP.send()`. The transform is a symmetric XOR: for
+payload byte index `i` (zero-based), XOR with key byte `i mod 9` and key byte
+`(n-i-1) mod 9`, with key `4inch_MxM` and payload length `n`. The client does
+not apply this transform to received server payloads; server acknowledgements
+are sent as ordinary little-endian bytes. There is no checksum in the inspected
+Lua framing code. No separate transport handshake is defined in the decoded
+Lua. System ping is called through `Proto.CommandL.SYSPING_ACK`, but that
+`CommandL` table/request ID is absent from the decoded Proto Lua files and must
+be captured or obtained from the client runtime before claiming heartbeat
+compatibility.
+
+Primitive serialization:
+
+| Lua Proto primitive | Wire format |
+| --- | --- |
+| BYTE / UCHAR | 1 byte |
+| WORD / USHORT | 2-byte little-endian unsigned |
+| DWORD / UINT | 4-byte little-endian unsigned |
+| int | 4-byte little-endian signed |
+| float | IEEE-754 32-bit little-endian |
+| QWORD | low DWORD then high DWORD (Lua helper uses `0xFFFFFFFF` as divisor) |
+| `Proto.writeString` | UTF-8 bytes terminated by NUL; no length prefix |
+| `Proto.writeVector` | one-byte element count followed by each encoded element |
+| `Proto.writeCode` | signed int32 value, NUL-terminated file string, signed int32 line |
+
+## Login and character creation messages
+
+IDs below are from `Net/Proto/ProtoCommand.lua`. All message bodies exclude
+the four-byte frame/message header.
+
+| Direction | Name (ID) | Body |
+| --- | --- | --- |
+| C→S | `CG_PLATFORMLOGIN_REQ` (2130) | username string, platform token string |
+| S→C | `GC_PLATFORMLOGIN_ACK` (2126) | `Code`; on success, BYTE device count; each device is id/world/token strings |
+| C→S | `CG_DEVICEBIND_REQ` (2211) | device id, world string, device token strings |
+| S→C | `GC_DEVICEBIND_ACK` (2179) | `Code` |
+| C→S | `CG_DEVICELOGIN_REQ` (2156) | device id, world, device token strings |
+| S→C | `GC_DEVICELOGIN_ACK` (2183) | `Code`; on success: int32 roleID, QWORD server time, int32 timezone seconds, user token string; if roleID nonzero, `CharBaseInfo` |
+| C→S | `CM_CREATECHAR_REQ` (1655) | nickname string, BYTE gender, BYTE country, BYTE starter pet template, BYTE icon, int32 world, spreader string, BYTE fashion count + DWORD fashion IDs |
+| S→C | `MC_CREATECHAR_ACK` (807) | `Code`; on success DWORD charID + `CharBaseInfo` |
+| C→S | `CG_QUERYPOKEMONS_REQ` (3140) | QWORD characterID, DWORD startIndex, DWORD endIndex |
+| S→C | `GC_QUERYPOKEMONS_ACK` (3139) | WORD code; QWORD characterID; DWORD start/end; BYTE-count vectors of NUL-terminated JSON strings for active and inactive pets; DWORD inactive count; vector of helper pet JSON strings |
+
+`Code` is int32 value, NUL-terminated source filename, int32 line. Success is
+`0, "", 0`. Device login success with `roleID=0` takes the new-character UI
+path. `GameGuideMgr.PET` offers starter template IDs `{7, 1, 4}` and
+`ChoosePetViewMgr` sends the selected template as `cullPet` in the create
+request.
+
+`CM_APPOINTNICKNAME_REQ` (1626) is a NUL-terminated nickname string, written
+with `Proto.writeNickName`; its `MC_APPOINTNICKNAME_ACK` is ID 1104 and carries
+a WORD result. `CG_CLIENTINFO_REQ` (131) is the client metadata packet: eleven
+NUL-terminated strings in the order `ip`, `device_model`, `os_name`, `os_ver`,
+`mac_addr`, `udid`, `app_channel`, `app_ver`, `network`, `device_screen`,
+`platform_tag`, followed by two DWORDs (`group_id`, `channel_id`). Its response
+is `GC_CLIENTINFO_ACK` (132), carrying a WORD result.
+
+`CG_CAPSULEEGGCDS_REQ` (1573) is acknowledged by `GC_CAPSULEEGGCDS_ACK`
+(1526). A successful ACK is WORD code, followed by the one-byte-count vector
+of `{times: WORD, timeLast: QWORD}` records. PetProcess reads records 1 and 2
+directly, so an empty vector is invalid even though each record's values may
+be zero.
+
+`CharBaseInfo` is defined in `Proto_Login_Types.lua`: username/nickname strings;
+gender/country bytes; three DWORD currency fields; VIP byte; client flag and
+two achievement DWORDs; login-country byte; town WORD; team DWORD;
+optional garden/confraternity/location/active-garden/marriage sections gated by
+one-byte flags; then level WORD, exp DWORD, action/max WORDs, three DWORD time /
+food fields, and current-fashion string. Optional sections must be omitted when
+their preceding flag is zero.
+
+## Incident RCA: login disconnect from 2026-11-17 Waydroid log
+
+The observed `ByteArray.lua:304` exception is caused by incomplete local
+telemetry metadata, not by the server's platform-login or device-bind ACK IDs.
+`GameLogMgr.OnGameStateChange(STATE_SELECTSERVER)` sends a blocking
+`CG_CLIENTINFO_REQ`; `LoginSend.sendCG_ClientInfo_Req` copies all eleven
+metadata strings and two DWORDs; `Proto.writeP_CG_ClientInfo_Req` serializes
+the strings with `Proto.writeString`; that reaches `ByteArray:writeStringXP`,
+where `string.pack` rejects a nil string. The offline
+`XFangCunLogSender.createUserInfoTable()` supplied only six keys, omitting
+`ip`, `device_model`, `os_ver`, `mac_addr`, `udid`, `network`, and
+`device_screen`. Its `app_channel` value was also numeric although the Proto
+writer requires a string. Current replacement values populate all fields with
+the expected Lua types while telemetry methods remain no-ops.
+
+The logcat call chain is `LoginViewMgr.sendDeviceCodeLogin` →
+`GameLogMgr.OnGameStateChange` → `NetInterface.sendWithBlock` →
+`LoginSend.sendCG_ClientInfo_Req` → Proto string serialization →
+`ByteArray.writeStringXP`. The exception happens before message 131 is sent.
+`NetInterface` later reports timeout for `GC_ClientInfo_ACK`, then the client
+closes the socket. The subsequent device-login send is queued after that close
+and its `GC_DEVICELOGIN_ACK` wait also expires. These are downstream symptoms.
+
+The backend log's IDs are consistent with the Lua mapping and are intentionally
+different in each direction: 2130 → 2126, 2211 → 2179. The logged lengths
+14 and 13 match the valid empty-device platform ACK (9-byte `Code` plus
+one-byte vector count, plus four-byte frame header) and device-bind ACK
+(9-byte `Code` plus four-byte frame header). The backend log and 09:50 logcat
+are not a paired same-time capture, so they establish schema compatibility,
+not the actual same-connection packet sequence. An older 1526 nil-index crash
+was caused by a missing cooldown vector; the current handler emits two records
+because the client indexes both entries. Native `CommandL` heartbeat IDs remain
+unresolved from readable Lua and must be captured before hard-coding.
+
+Regression tests cover frame boundaries/fragmentation, XOR decoding,
+request-to-ACK mappings, client-info field shape, device bind/login validation,
+and the two-entry capsule-cooldown ACK. PostgreSQL integration and live Waydroid
+verification require an explicitly available test database and running device;
+the supplied environment currently has no listener on localhost:5432, so those
+runtime checks are not claimed here.
+
+## Town bootstrap
+
+`LoginViewMgr.checkIn()` blocks on `CG_QUERYPOKEMONS_REQ`, then enters
+`MainScene` and starts `LoginMsgMgr.request()`. The initial serialized queue is:
+
+1. `CG_GETITEMPACKET_REQ` → `GC_GETITEMPACKET_ACK` (WORD code + five DWORD counts).
+2. `CG_GETPETARMYS_REQ` → `GC_GETPETARMYS_ACK` (WORD code + JSON string).
+3. `CG_GETFINISHEDADVENTURES_REQ` → ACK (WORD code + DWORD count).
+4. Three `CG_GETCHARACTERVALUES_REQ` calls → ACK (WORD code + JSON string).
+5. Explore, map-node events, capsule cooldowns, sign-in, lost-tower recovery,
+   pet wiki, wishing-tree, VIP awards, pet achievements/potentials, activities,
+   friends, current adventure, month-card, world-open-time, science, unread
+   mail, world boss, and quest-list requests, each awaited serially.
+
+The client will block the loading callback chain if an expected ACK is absent
+or malformed. Item state is populated through the item-packet JSON notification
+(`GC_GETITEMPACKET_NTF`); quest state is populated through the new-quest
+notification (`ZC_NEWQUEST_NTF`) after the quest-list count ACK. Exact response fields for each request are in its corresponding
+`Proto_*.lua` parser and listed by message ID in the catalog below. Current
+server implementations return empty-account values for optional services and
+store player, Pet, inventory, and quest state in PostgreSQL.
+
+## Static data and full command catalog
+
+`ProtoCommand.lua` is the authoritative numeric message-ID table. It contains
+all Lua-visible command IDs (request, acknowledgement, notification, and
+cross-service commands). The `Data/*.lua` and `DatReader/*.lua` files are
+client-side static catalogs for characters, Pets, skills, items, maps, quests,
+and progression; they do not define transport encoding. For exact field order,
+read the matching `Proto.writeP_*` / `Proto.parseP_*` function; corresponding
+send and process modules show when each message is issued and how the response
+is consumed.
+
+| Command | ID |
+| --- | --- |
+| `CG_USEACTIVATECODE_REQ` | 1 |
+| `GC_USEACTIVATECODE_ACK` | 2 |
+| `GC_LOSTTOWERSTEPNUMBERUPDATE_NTF` | 3 |
+| `CG_FIREADVENTUREEVENT_REQ` | 4 |
+| `GC_FIREADVENTUREEVENT_ACK` | 5 |
+| `GC_JUMPPVPTURN_ACK` | 6 |
+| `ZC_EVOLUTIONQUERY_ACK` | 7 |
+| `CG_LEAVEPVP_REQ` | 8 |
+| `CG_JUMPPVPTURN_REQ` | 9 |
+| `GC_CHAT_NTF` | 10 |
+| `CG_GETPVPRECORDS_REQ` | 11 |
+| `GC_GETPVPRECORDS_ACK` | 12 |
+| `GC_LEAVEPVP_ACK` | 13 |
+| `GC_GETARENAAWARD_ACK` | 14 |
+| `CG_PVEPOKEMONCATCH_REQ` | 15 |
+| `CG_GETARENAAWARD_REQ` | 16 |
+| `GC_RECOVERSTEPNUMBER_ACK` | 17 |
+| `CG_RECOVERSTEPNUMBER_REQ` | 18 |
+| `GC_REFRESHMAPNODEEVENT_ACK` | 19 |
+| `CG_REFRESHMAPNODEEVENT_REQ` | 20 |
+| `GC_ADDLOSTTOWERPETS_NTF` | 21 |
+| `CG_POSTAPPROVEFB_REQ` | 22 |
+| `GC_POSTMESSAGEPET_ACK` | 25 |
+| `ZC_QUESTLIST_ACK` | 26 |
+| `CG_POSTAPPROVEPET_REQ` | 27 |
+| `CG_POSTMESSAGEFB_REQ` | 28 |
+| `GC_POSTAPPROVEPET_ACK` | 29 |
+| `GC_POSTMESSAGEFB_ACK` | 30 |
+| `GC_GETMESSAGESFBBYAPPROVE_ACK` | 31 |
+| `GC_GETHOME_ACK` | 32 |
+| `CG_GETMESSAGESFBBYTIME_REQ` | 33 |
+| `GC_FAMILY_NTF` | 34 |
+| `GC_CHAT_ACK` | 35 |
+| `CG_GETMESSAGESPETBYAPPROVE_REQ` | 36 |
+| `GC_GETITEMPACKET_ACK` | 37 |
+| `CG_GETMESSAGESPETBYTIME_REQ` | 38 |
+| `GC_GETPETSKILLWIKI_ACK` | 39 |
+| `GC_GETMESSAGESPETBYAPPROVE_ACK` | 40 |
+| `GC_GETMESSAGESPETBYTIME_ACK` | 41 |
+| `CG_FAMILY_REQ` | 42 |
+| `ZC_ALLELEPOWERUP_ACK` | 43 |
+| `GC_GETMESSAGESFBBYTIME_ACK` | 44 |
+| `CG_CHAT_REQ` | 45 |
+| `GC_FAMILY_ACK` | 46 |
+| `GC_POSTAPPROVEFB_ACK` | 48 |
+| `CG_GETMESSAGESFBBYAPPROVE_REQ` | 49 |
+| `CG_POSTMESSAGEPET_REQ` | 50 |
+| `GC_QUERYARENADATA_ACK` | 51 |
+| `CG_UNLOCKLIFESKILL_REQ` | 52 |
+| `GC_ADDFRIEND_ACK` | 53 |
+| `GC_GETPETWIKI_ACK` | 54 |
+| `CG_GETPETWIKI_REQ` | 55 |
+| `GC_UPDATEPETSKILLWIKI_NTF` | 57 |
+| `GC_GETPETWIKI_NTF` | 58 |
+| `CG_GETITEMPACKET_REQ` | 59 |
+| `GC_GETVIPAWARD_ACK` | 60 |
+| `CG_GETVIPAWARD_REQ` | 61 |
+| `GC_VIPAWARDINFO_ACK` | 62 |
+| `CG_VIPAWARDINFO_REQ` | 63 |
+| `GC_SETCOUNTRY_ACK` | 64 |
+| `CG_SETCOUNTRY_REQ` | 66 |
+| `GC_FINISHPOKEMONACHIEVEMENT_ACK` | 67 |
+| `CG_BUYPOTENTIAL_REQ` | 68 |
+| `CG_GETPOTENTIALS_REQ` | 69 |
+| `GC_GETPOTENTIALS_ACK` | 70 |
+| `GC_BUYPOTENTIAL_ACK` | 71 |
+| `CG_GETPOKEMONACHIEVEMENTS_REQ` | 72 |
+| `CG_FINISHPOKEMONACHIEVEMENT_REQ` | 73 |
+| `GC_GETPOKEMONACHIEVEMENTS_ACK` | 74 |
+| `GC_GETREDHEARTSHOPINFO_ACK` | 75 |
+| `GC_BUYREDHEARTGOODS_ACK` | 76 |
+| `GC_REDHEARTSHOPREFRESHNTF_NTF` | 77 |
+| `CG_GETREDHEARTSHOPINFO_REQ` | 78 |
+| `CG_BUYREDHEARTGOODS_REQ` | 79 |
+| `GC_MYREDHEARTSHOPINFONTF_NTF` | 80 |
+| `GC_GETMYREDHEARTSHOPINFO_ACK` | 81 |
+| `CG_GETMYREDHEARTSHOPINFO_REQ` | 82 |
+| `CG_COMPOUNDPETPIECE_REQ` | 83 |
+| `GC_COMPOUNDPETPIECE_ACK` | 84 |
+| `GC_BUYNPCSHOPGOODS_ACK` | 85 |
+| `CG_BUYNPCSHOPGOODS_REQ` | 86 |
+| `GC_BUYDRAWINGS_ACK` | 87 |
+| `CG_BUYDRAWINGS_REQ` | 88 |
+| `GC_RECHARGETESTCMD_ACK` | 89 |
+| `CG_RECHARGETESTCMD_REQ` | 90 |
+| `GC_RESETADVENTURETIMES_ACK` | 91 |
+| `CG_RESETADVENTURETIMES_REQ` | 92 |
+| `CG_GETLIKELIST_REQ` | 93 |
+| `GC_GETLIKELIST_ACK` | 94 |
+| `GC_LOSTTOWEREVENTS_NTF` | 95 |
+| `CG_GETWISHINGTREESDATA_REQ` | 96 |
+| `GC_GETWISHINGTREESDATA_ACK` | 97 |
+| `CG_PRAYTOTREE_REQ` | 98 |
+| `GC_PRAYTOTREE_ACK` | 99 |
+| `GC_PLANTTREENTF_NTF` | 100 |
+| `CG_GETRECOMMENDFRIEND_REQ` | 101 |
+| `GC_GETRECOMMENDFRIEND_ACK` | 102 |
+| `GC_GETDUNGEON_ACK` | 103 |
+| `CG_FAMILYDISPLAYCELL_REQ` | 104 |
+| `CG_GETDUNGEON_REQ` | 105 |
+| `GC_FAMILYBATTLEINFO_NTF` | 106 |
+| `GC_FAMILYKILLBOSS_NTF` | 107 |
+| `GC_DUNGEONCHANGEFLOOR_ACK` | 108 |
+| `GC_FAMILYRANDOMCHESTAWARD_NTF` | 109 |
+| `GC_FIREDUNGEONCELL_ACK` | 110 |
+| `CG_FIREDUNGEONCELL_REQ` | 111 |
+| `GC_GETITEMPACKET_NTF` | 112 |
+| `GC_FAMILYDISPLAYCELL_ACK` | 113 |
+| `GC_MANUFACTURE_ACK` | 114 |
+| `CG_DUNGEONMOVECELL_REQ` | 115 |
+| `GC_DUNGEONMOVECELL_ACK` | 116 |
+| `GC_GETPETSKILLWIKI_NTF` | 117 |
+| `CG_GETHOME_REQ` | 118 |
+| `CG_DUNGEONCHANGEFLOOR_REQ` | 119 |
+| `CG_GETPETSKILLWIKI_REQ` | 120 |
+| `GC_CHARACTERMOVECELL_NTF` | 121 |
+| `CG_GETMYREDHEARTS_REQ` | 122 |
+| `GC_UNLOCKLIFESKILL_ACK` | 123 |
+| `GC_UPDATEITEMS_NTF` | 126 |
+| `GC_DUNGEONBATTLEEND_ACK` | 127 |
+| `CG_GETLIFESKILLDATA_REQ` | 128 |
+| `CG_DUNGEONBATTLEEND_REQ` | 129 |
+| `GC_DUNGEONCELLS_NTF` | 130 |
+| `CG_CLIENTINFO_REQ` | 131 |
+| `GC_CLIENTINFO_ACK` | 132 |
+| `GC_UPDATESKILLITEMS_NTF` | 133 |
+| `GC_LEAVEFLOOR_NTF` | 134 |
+| `CG_CREATEPVEBATTLE_REQ` | 136 |
+| `GC_OPENCHEST_NTF` | 137 |
+| `GC_BATTLESTARTLOCKED_NTF` | 138 |
+| `CG_MANUFACTURE_REQ` | 139 |
+| `GC_DISPLAYCELL_NTF` | 140 |
+| `MC_QUEUENUM_NTF` | 141 |
+| `GC_ADDBUFF_NTF` | 142 |
+| `GC_ARENAPETSCHANGE_NTF` | 143 |
+| `GC_CLEANCELL_NTF` | 144 |
+| `GC_ALLBUFF_NTF` | 145 |
+| `GC_CURRENTFLOORALLMEBERS_NTF` | 146 |
+| `GC_MONEYOPENCHEST_ACK` | 147 |
+| `CG_MONEYOPENCHEST_REQ` | 148 |
+| `CG_LOGIN_REQ` | 149 |
+| `GC_ALLBATTLE_NTF` | 150 |
+| `CZ_GETCOMINGFESTAPERIOD_REQ` | 151 |
+| `GC_GETACTIVITIESDATA_ACK` | 152 |
+| `GC_CLEANPERSONMAILNTF_NTF` | 153 |
+| `CG_GETACTIVITIESDATA_REQ` | 154 |
+| `GC_QUERYFLOORRANK_ACK` | 155 |
+| `CM_PRIVATECHAT_REQ` | 156 |
+| `CG_RESOLVEPETSKILL_REQ` | 158 |
+| `GC_SETHOME_ACK` | 159 |
+| `GC_BUYHOME_ACK` | 162 |
+| `CG_CHANGELIFECAREER_REQ` | 163 |
+| `CG_FETCHUPGRADEAWARDS_REQ` | 164 |
+| `GC_FETCHUPGRADEAWARDS_ACK` | 165 |
+| `CM_LOADINWAREHOUSEPET_REQ` | 166 |
+| `GC_COMPOUNDPETSKILL_ACK` | 167 |
+| `CG_COMPOUNDPETSKILL_REQ` | 168 |
+| `GC_FETCHLOGINAWARDS_ACK` | 169 |
+| `CG_FETCHLOGINAWARDS_REQ` | 170 |
+| `GC_GETDUNGEONAWARD_ACK` | 172 |
+| `GC_CHANGELIFECAREER_ACK` | 173 |
+| `GC_RESETDUNGEON_ACK` | 175 |
+| `GC_GETDUNGEONCREATETIME_ACK` | 176 |
+| `CG_GETDUNGEONCREATETIME_REQ` | 177 |
+| `CG_RESETDUNGEON_REQ` | 178 |
+| `GC_POKEMONEVO_ACK` | 179 |
+| `CG_GETDUNGEONAWARD_REQ` | 180 |
+| `GC_GETLIFESKILLDATA_ACK` | 181 |
+| `GC_ARENARANKCHANGE_NTF` | 182 |
+| `CG_FETCHFIRSTLOGINAWARDS_REQ` | 184 |
+| `GC_FETCHFIRSTLOGINAWARDS_ACK` | 185 |
+| `GC_PVEBATTLEEND_ACK` | 186 |
+| `CM_QUERYPETOWNER_REQ` | 187 |
+| `GC_LIFESKILLUPDATE_NTF` | 188 |
+| `GC_GETMYREDHEARTS_NTF` | 189 |
+| `GC_RESETADVENTURE_ACK` | 190 |
+| `GC_LOSTTOWERPVPBATTLEEND_ACK` | 191 |
+| `CG_RESETADVENTURE_REQ` | 192 |
+| `CG_GETDUNGEONAWARDINFO_REQ` | 193 |
+| `CG_QUERYFLOORRANK_REQ` | 194 |
+| `GC_GETDUNGEONAWARDINFO_ACK` | 195 |
+| `GC_GETMYFRIENDS_NTF` | 197 |
+| `GC_PVEPOKEMONCATCH_ACK` | 198 |
+| `GC_AUTOJOINTEAM_NTF` | 199 |
+| `CG_CREATETEAM_REQ` | 200 |
+| `GC_CANCELAUTOJOINTEAM_ACK` | 201 |
+| `CG_AUTOJOINTEAM_REQ` | 202 |
+| `GC_RESOLVEPETSKILL_ACK` | 203 |
+| `CG_LOSTTOWERPVPBATTLEEND_REQ` | 204 |
+| `CG_QUERYPOINTRANK_REQ` | 205 |
+| `GC_CREATETEAM_ACK` | 206 |
+| `GC_AUTOJOINTEAM_ACK` | 207 |
+| `CG_CANCELAUTOJOINTEAM_REQ` | 208 |
+| `GC_KICKTEAMMEMBER_ACK` | 209 |
+| `GC_CREATEPVEBATTLE_ACK` | 210 |
+| `CZ_EATEGG_REQ` | 211 |
+| `CG_SETTEAMREADY_REQ` | 212 |
+| `GC_SETTEAMPETS_ACK` | 213 |
+| `GC_SETTEAMREADY_ACK` | 214 |
+| `CG_SETTEAMPETS_REQ` | 215 |
+| `CG_KICKTEAMMEMBER_REQ` | 216 |
+| `GC_KICKTEAMMEMBER_NTF` | 217 |
+| `CG_GETTEAMMEMBERS_REQ` | 218 |
+| `GC_GETTEAMMEMBERS_ACK` | 219 |
+| `CZ_QUERYSACREDINFO_REQ` | 220 |
+| `CG_INVITETEAMMEMBER_REQ` | 221 |
+| `GC_INVITETEAMMEMBER_ACK` | 222 |
+| `GC_GETMYTEAM_ACK` | 223 |
+| `CG_GETMYTEAM_REQ` | 224 |
+| `GC_GETTREASUREBOXDATA_ACK` | 225 |
+| `GC_SETTEAMSORT_ACK` | 226 |
+| `CG_GETTREASUREBOXDATA_REQ` | 227 |
+| `GC_TREASUREBOXNTF_NTF` | 228 |
+| `CG_OPENTREASUREBOX_REQ` | 229 |
+| `CG_GETDUNGEONLOG_REQ` | 230 |
+| `GC_GETDUNGEONLOG_ACK` | 231 |
+| `GC_OPENTREASUREBOX_ACK` | 232 |
+| `CG_SETTEAMSORT_REQ` | 233 |
+| `GC_TEAMDUNGEONEND_NTF` | 234 |
+| `GC_REDHEART_ACK` | 235 |
+| `CZ_PUTPETINWAREHOUSE_REQ` | 236 |
+| `GC_SETTEAMAUTOJOIN_ACK` | 237 |
+| `CG_SETTEAMAUTOJOIN_REQ` | 238 |
+| `CG_REFUSEPVPREQUEST_REQ` | 239 |
+| `GC_ENTERTEAMDUNGEON_ACK` | 240 |
+| `CG_ENTERTEAMDUNGEON_REQ` | 242 |
+| `MC_USERBANINFO_NTF` | 243 |
+| `CG_TEAMBATTLEEND_REQ` | 244 |
+| `CG_SETHOME_REQ` | 245 |
+| `GC_QUERYPOINTRANK_ACK` | 246 |
+| `GC_TEAMBATTLEEND_ACK` | 247 |
+| `CG_LEAVETEAMDUNGEON_REQ` | 248 |
+| `GC_LEAVETEAMDUNGEON_ACK` | 249 |
+| `GC_CHARACTERLEAVEDUNGEON_NTF` | 250 |
+| `CG_BUYHOME_REQ` | 251 |
+| `GC_CHANGEARMYPET_ACK` | 252 |
+| `GC_GETMYFRIENDS_ACK` | 253 |
+| `CG_CHANGEARMYPET_REQ` | 255 |
+| `GC_CHANGEPETNAME_ACK` | 256 |
+| `CG_REDHEART_REQ` | 257 |
+| `CG_CHANGEPETNAME_REQ` | 258 |
+| `CG_REVIVECHARACTER_REQ` | 259 |
+| `CZ_SCREENDRAW_REQ` | 260 |
+| `GC_REVIVECHARACTER_ACK` | 261 |
+| `GC_GETPETPIECEITEMPACKET_NTF` | 262 |
+| `CG_PVEBATTLEEND_REQ` | 263 |
+| `CM_KICKCHAR_REQ` | 264 |
+| `GC_GETARENARECODE_ACK` | 265 |
+| `CG_PLAYARENARECODE_REQ` | 266 |
+| `CG_GETARENARECODE_REQ` | 267 |
+| `CG_GETACHIEVEMENTS_REQ` | 268 |
+| `GC_MOVENEWCELL_ACK` | 269 |
+| `GC_GETFURNITUREPACKET_NTF` | 270 |
+| `GC_DELMAIL_ACK` | 271 |
+| `GC_PLAYARENARECODE_ACK` | 272 |
+| `GC_GETPVPONERECODE_ACK` | 273 |
+| `GC_GETSOMEMAILS_ACK` | 274 |
+| `GC_DELFRIEND_ACK` | 275 |
+| `CG_GETPVPONERECODE_REQ` | 276 |
+| `CG_QUERYARENADATA_REQ` | 277 |
+| `GC_PLAYARENARECODE_NTF` | 278 |
+| `GC_GETPVPCURRENTBATTLEINFO_ACK` | 279 |
+| `MC_ACTIVEMODESHIFTED_NTF` | 280 |
+| `CG_GETPVPCURRENTBATTLEINFO_REQ` | 281 |
+| `CG_QUERYSOMEITEMS_REQ` | 282 |
+| `GC_QUERYSOMEITEMS_ACK` | 283 |
+| `GC_REFUSEPVPREQUEST_ACK` | 284 |
+| `CG_UNLOCKTREASUREBOX_REQ` | 285 |
+| `GC_UNLOCKTREASUREBOX_ACK` | 286 |
+| `CG_TEAMDUNGEONBATTLESTART_REQ` | 287 |
+| `CG_GETMAIL_REQ` | 288 |
+| `GC_TEAMDUNGEONBATTLESTART_ACK` | 289 |
+| `CG_JOINPVPARENA_REQ` | 290 |
+| `GC_JOINPVPARENA_ACK` | 291 |
+| `GC_CANCELJOINPVPARENA_ACK` | 292 |
+| `GC_UPDATEFURNITURES_NTF` | 293 |
+| `CG_MOVENEWCELL_REQ` | 294 |
+| `CG_CANCELJOINPVPARENA_REQ` | 295 |
+| `CG_FETCHRECHARGEAWARDS_REQ` | 296 |
+| `GC_FETCHCONSUMEAWARDS_ACK` | 297 |
+| `CG_FETCHDAILYACTIONVALUE_REQ` | 298 |
+| `GC_FETCHRECHARGEAWARDS_ACK` | 299 |
+| `GC_FETCHDAILYACTIONVALUE_ACK` | 300 |
+| `CG_FETCHCONSUMEAWARDS_REQ` | 301 |
+| `GC_QUERYTEAMDUNGEONMONSTERHP_ACK` | 302 |
+| `CG_QUERYTEAMDUNGEONMONSTERHP_REQ` | 303 |
+| `CG_IWATCHCATCHPET_REQ` | 304 |
+| `GC_GETMAIL_ACK` | 305 |
+| `GC_IWATCHCATCHPET_ACK` | 306 |
+| `GC_GETARENARECODE_NTF` | 307 |
+| `GC_UPDATEACTIVITYPOKEMONS_NTF` | 308 |
+| `GC_DISBANDALLFRIENDAPPLY_ACK` | 309 |
+| `CG_DISBANDALLFRIENDAPPLY_REQ` | 310 |
+| `ZC_TESTSERVERSPEED_ACK` | 311 |
+| `GC_FRIENDFULL_NTF` | 312 |
+| `CM_LOADDISCARDPET_REQ` | 313 |
+| `GC_NEWTREASUREBOX_NTF` | 314 |
+| `GC_TRANSFERCELL_NTF` | 315 |
+| `GC_SELECTTREASUREBOX_ACK` | 316 |
+| `CG_RANDOMARENAENEMYS_REQ` | 317 |
+| `CG_SELECTTREASUREBOX_REQ` | 318 |
+| `GC_GETBULLETIN_ACK` | 319 |
+| `GC_LISTBULLETIN_ACK` | 320 |
+| `CG_RESETACHIEVEMENT_REQ` | 321 |
+| `CG_GETBULLETIN_REQ` | 322 |
+| `GC_RESETACHIEVEMENT_ACK` | 323 |
+| `CG_LISTBULLETIN_REQ` | 324 |
+| `CG_ONTRAP_REQ` | 325 |
+| `GC_GETPVPARENAAWARD_ACK` | 326 |
+| `CG_FINISHACHIEVEMENT_REQ` | 328 |
+| `CG_GETPVPARENAAWARD_REQ` | 329 |
+| `GC_GETPVPARENARANK_ACK` | 330 |
+| `CG_GETPVPARENARANK_REQ` | 331 |
+| `GC_GETMYREDHEARTS_ACK` | 332 |
+| `CG_GETMYPVPARENARANK_REQ` | 333 |
+| `GC_GETMYPVPARENARANK_ACK` | 334 |
+| `GC_PETFREEDOMLOCK_ACK` | 335 |
+| `CG_PETFREEDOMLOCK_REQ` | 336 |
+| `CG_LEVELREFLASHFAMILYSHOP_REQ` | 337 |
+| `GC_LEVELREFLASHFAMILYSHOP_ACK` | 339 |
+| `CG_REFALSHFAMILYSHOP_REQ` | 340 |
+| `GC_GETFAMILYSHOPDATA_ACK` | 341 |
+| `CG_ACTIVEPETARMY_REQ` | 342 |
+| `GC_REFALSHFAMILYSHOP_ACK` | 343 |
+| `ZC_REMOVEPETCONFRATERNITYNPCSTATE_NTF` | 346 |
+| `CG_GETMYFRIENDS_REQ` | 347 |
+| `CG_ENTERTRANSFERDOOR_REQ` | 348 |
+| `CG_GETFAMILYSHOPDATA_REQ` | 349 |
+| `GC_BUYFAMILYSHOPGOODS_ACK` | 350 |
+| `CG_BUYFAMILYSHOPGOODS_REQ` | 351 |
+| `CG_BUYGROWTHFUND_REQ` | 352 |
+| `CM_LOADPET_REQ` | 353 |
+| `GC_BUYGROWTHFUND_ACK` | 354 |
+| `GC_FETCHGROWTHFUNDAWARDS_ACK` | 355 |
+| `GC_RANDOMARENAENEMYS_ACK` | 356 |
+| `CG_FETCHGROWTHFUNDAWARDS_REQ` | 357 |
+| `CG_FETCHSPOKESMANGUESSAWARDS_REQ` | 358 |
+| `GC_FETCHSPOKESMANGUESSAWARDS_ACK` | 359 |
+| `GC_GETPLAYERPOINTRANK_ACK` | 360 |
+| `CG_GETPLAYERPOINTRANK_REQ` | 361 |
+| `GC_ONTRAP_ACK` | 362 |
+| `CG_GETMYPLAYERPOINT_REQ` | 363 |
+| `GC_GETMYPLAYERPOINT_ACK` | 364 |
+| `GC_REFUSEJOINTEAM_ACK` | 365 |
+| `CG_CHANGEARENAPETOBJIDS_REQ` | 366 |
+| `CG_DELFRIEND_REQ` | 367 |
+| `CG_REFUSEJOINTEAM_REQ` | 368 |
+| `GC_STEPLOG_ACK` | 369 |
+| `ZC_INSERTPETCONFRATERNITYNPCSTATE_NTF` | 370 |
+| `CG_EATPET_REQ` | 371 |
+| `ZC_SYSTEMCHAT_NTF` | 372 |
+| `CG_ADDFRIEND_REQ` | 373 |
+| `GC_EATPET_ACK` | 374 |
+| `GC_GETADVAWARD_ACK` | 375 |
+| `GC_EVENTAWARD_NTF` | 376 |
+| `GC_GETMAPSTARAWARD_ACK` | 377 |
+| `CG_GETMAPSTARAWARD_REQ` | 378 |
+| `CG_GETADVAWARD_REQ` | 379 |
+| `CG_CHANGECHANNEL_REQ` | 380 |
+| `GC_GETMAPSTARAWARDDATA_ACK` | 381 |
+| `GC_GETADVAWARDDATA_ACK` | 382 |
+| `CG_GETMAPSTARAWARDDATA_REQ` | 383 |
+| `CG_STEPLOG_REQ` | 384 |
+| `CG_GETADVAWARDDATA_REQ` | 385 |
+| `GC_CHANGECHANNEL_ACK` | 386 |
+| `CG_RESETPETSTAR_REQ` | 387 |
+| `GC_RESETPETSTAR_ACK` | 388 |
+| `GC_RANDOMEVENT_NTF` | 389 |
+| `GC_GETSEVENDAYAWARD_ACK` | 390 |
+| `CG_GETSEVENDAYAWARD_REQ` | 391 |
+| `GC_TERRITORYINFONOPETS_ACK` | 392 |
+| `GC_ENTERTRANSFERDOOR_ACK` | 393 |
+| `CG_TERRITORYINFONOPETS_REQ` | 394 |
+| `GC_TERRITORYINFOWIKI_NTF` | 395 |
+| `CG_TIMELIMITCAPSULEEGG_REQ` | 396 |
+| `GC_TIMELIMITCAPSULEEGG_ACK` | 397 |
+| `CG_BUYONEMCASHSHOP_REQ` | 398 |
+| `CZ_COMMITQUEST_REQ` | 400 |
+| `GC_GETONEMCASHSHOP_NTF` | 401 |
+| `GC_GETONEMCASHSHOP_ACK` | 402 |
+| `GC_CHANGEARENAPETOBJIDS_ACK` | 403 |
+| `ZC_NEWQUEST_NTF` | 404 |
+| `CG_GETONEMCASHSHOP_REQ` | 405 |
+| `GC_BUYONEMCASHSHOP_ACK` | 406 |
+| `CG_GETONEMCASHSHOPDETAIL_REQ` | 407 |
+| `GC_GETONEMCASHSHOPDETAIL_ACK` | 408 |
+| `ZC_SCREENDRAW_ACK` | 409 |
+| `GC_GETWORLDOPENTIME_ACK` | 410 |
+| `CM_GETUSERNICKFROMID_REQ` | 411 |
+| `CG_GETWORLDOPENTIME_REQ` | 412 |
+| `CG_BUYARENAFIGHTTIMES_REQ` | 413 |
+| `GC_CLEAREVOSKILLS_ACK` | 414 |
+| `CG_CLEAREVOSKILLS_REQ` | 415 |
+| `GC_JOINARENA_ACK` | 416 |
+| `GC_GETONEMCASHSHOPLOG_ACK` | 417 |
+| `CG_GETONEMCASHSHOPLOG_REQ` | 418 |
+| `CG_FETCHPVPARENAGRADEPOINTAWARDS_REQ` | 419 |
+| `CG_SETBILLBOARD_REQ` | 420 |
+| `CG_FETCHTEAMDUNGEONAWARDS_REQ` | 421 |
+| `GC_BUYARENAFIGHTTIMES_ACK` | 422 |
+| `GC_CLEARARENACD_ACK` | 423 |
+| `GC_FETCHPVPARENAGRADEPOINTAWARDS_ACK` | 424 |
+| `GC_FETCHTEAMDUNGEONAWARDS_ACK` | 425 |
+| `GC_GETSELFWORLDBOSSDATA_ACK` | 426 |
+| `GC_CHARSTATECHANGE_NTF` | 427 |
+| `GC_BOSSATTACK_ACK` | 428 |
+| `GC_TAKEAWARD_ACK` | 429 |
+| `GC_DIAMONDRECOVERALL_ACK` | 430 |
+| `CG_CLEARARENACD_REQ` | 431 |
+| `GC_GETDAMAGERANK_ACK` | 433 |
+| `CG_NORMALRECOVER_REQ` | 434 |
+| `GC_LOSTTOWERWEEKPOINTCHANGE_NTF` | 435 |
+| `GC_NORMALRECOVER_ACK` | 436 |
+| `CG_CHANGEREADYPET_REQ` | 437 |
+| `CG_GETDAMAGERANK_REQ` | 439 |
+| `CG_TAKEAWARD_REQ` | 440 |
+| `CG_BOSSATTACK_REQ` | 441 |
+| `GC_ATTACKBOSS_ACK` | 442 |
+| `CG_DIAMONDRECOVERALL_REQ` | 443 |
+| `CZ_QUERYPETINBAGINFO_REQ` | 444 |
+| `CG_ATTACKBOSS_REQ` | 445 |
+| `CG_GETWORLDBOSS_REQ` | 446 |
+| `GC_DIAMONDRECOVERPET_ACK` | 447 |
+| `CG_GETBILLBOARD_REQ` | 448 |
+| `GC_BUYGCASH_ACK` | 449 |
+| `GC_GETWORLDBOSS_ACK` | 450 |
+| `CG_GETSELFWORLDBOSSDATA_REQ` | 451 |
+| `GC_SETBILLBOARD_ACK` | 453 |
+| `CG_DIAMONDRECOVERPET_REQ` | 454 |
+| `GC_CHANGEREADYPET_ACK` | 455 |
+| `CZ_EATPET_REQ` | 456 |
+| `GC_CHECKUSERCODE_ACK` | 457 |
+| `GC_GETBILLBOARD_ACK` | 458 |
+| `CG_CHECKUSERCODE_REQ` | 459 |
+| `CG_JOINARENA_REQ` | 460 |
+| `CG_FINISHPOKEMONACHIEVEMENTACTIVITY_REQ` | 461 |
+| `GC_CONFIRMADDFRIEND_ACK` | 462 |
+| `CG_BUYGCASH_REQ` | 463 |
+| `GC_FINISHPOKEMONACHIEVEMENTACTIVITY_ACK` | 465 |
+| `GC_GETPETWIKIACTIVITY_NTF` | 466 |
+| `CG_GETPETWIKIACTIVITY_REQ` | 467 |
+| `GC_GETPETWIKIACTIVITY_ACK` | 468 |
+| `GC_FETCHWORLDBOSSAWARDS_ACK` | 469 |
+| `GC_SELLONMARKET_ACK` | 470 |
+| `GC_BUYPRODUCT_ACK` | 471 |
+| `CG_FETCHWORLDBOSSAWARDS_REQ` | 472 |
+| `GC_CHARACTERVALUESUPDATE_NTF` | 473 |
+| `GC_GETPOKEMONACHIEVEMENTSACT_ACK` | 476 |
+| `ZC_PETMODELCHANGED_BRD` | 477 |
+| `CG_GETMYMARKET_REQ` | 478 |
+| `CG_CONFIRMADDFRIEND_REQ` | 479 |
+| `CG_GETPOKEMONACHIEVEMENTSACT_REQ` | 480 |
+| `CG_BUYPRODUCT_REQ` | 481 |
+| `ZC_RENAMEBAGPET_BRD` | 483 |
+| `CG_GETGMACTIVITIES_REQ` | 484 |
+| `GC_FINISHACHIEVEMENT_ACK` | 485 |
+| `GC_GETGMACTIVITIES_ACK` | 486 |
+| `GC_ACTIVEPETARMY_ACK` | 487 |
+| `GC_FETCHCONTINUELOGINAWARDS_ACK` | 489 |
+| `CG_FETCHCONTINUELOGINAWARDS_REQ` | 490 |
+| `GC_GMACTIVITIESINFO_NTF` | 491 |
+| `CG_SEARCHPRODUCTS_REQ` | 492 |
+| `GC_GETMYMARKET_ACK` | 493 |
+| `CG_FETCHDAILYCOUNTACTIVITYAWARD_REQ` | 494 |
+| `GC_FETCHDAILYCOUNTACTIVITYAWARD_ACK` | 495 |
+| `GC_GETPOSTERBOARDINFO_ACK` | 496 |
+| `CG_GETPOSTERBOARDINFO_REQ` | 497 |
+| `GC_GETWEEKCHAMPIONDATA_ACK` | 498 |
+| `CG_TAKEWEEKAWARD_REQ` | 500 |
+| `CG_GETWEEKCHAMPIONDATA_REQ` | 501 |
+| `GC_UPDATEMESSAGE_ACK` | 502 |
+| `CG_UPDATEMESSAGE_REQ` | 503 |
+| `GC_TAKEWEEKAWARD_ACK` | 504 |
+| `GC_ADDFRIEND_NTF` | 505 |
+| `GC_RANDOMMARENAENEMYS_ACK` | 507 |
+| `CG_SELLONMARKET_REQ` | 508 |
+| `CG_QUERYMARENASOLDIERDETAIL_REQ` | 509 |
+| `CG_QUERYMARENARANK_REQ` | 510 |
+| `GC_MARENARANKFIGHTEND_ACK` | 511 |
+| `ZC_QUERYSUBSTITUTE_ACK` | 512 |
+| `CG_BUYMARENAFIGHTTIMES_REQ` | 513 |
+| `GC_CHANGEMARENAPETOBJIDS_ACK` | 514 |
+| `MC_ALLOWLOGIN_NTF` | 515 |
+| `CG_USEITEM_REQ` | 516 |
+| `CG_ARENARANKFIGHT_REQ` | 517 |
+| `CG_PLAYMARENARECODE_REQ` | 518 |
+| `MC_QUERYSTAGEARENACHARACTERINFO_ACK` | 519 |
+| `GC_SEARCHPRODUCTS_ACK` | 520 |
+| `GC_QUERYMARENASOLDIERDETAIL_ACK` | 521 |
+| `GC_CLEARMARENACD_ACK` | 522 |
+| `CG_JOINMARENA_REQ` | 523 |
+| `CG_CLEARMARENACD_REQ` | 524 |
+| `GC_DELMYPRODUCT_ACK` | 525 |
+| `GC_USEITEM_ACK` | 526 |
+| `GC_QUERYMARENADATA_ACK` | 527 |
+| `CG_DELMYPRODUCT_REQ` | 528 |
+| `GC_MARENARANKFIGHT_ACK` | 529 |
+| `GC_QUERYMARENARANK_ACK` | 530 |
+| `GC_MARENAPETSCHANGE_NTF` | 531 |
+| `GC_USELOSTTOWERITEM_ACK` | 532 |
+| `CG_GETMARENARECODE_REQ` | 533 |
+| `GC_MARENARANKCHANGE_NTF` | 534 |
+| `GC_PLAYMARENARECODE_ACK` | 535 |
+| `CG_MARENARANKFIGHT_REQ` | 536 |
+| `CG_USELOSTTOWERITEM_REQ` | 537 |
+| `GC_LOSTTOWERITEMUPDATE_NTF` | 538 |
+| `GC_GETMARENAAWARD_ACK` | 539 |
+| `CG_POKEMONEVO_REQ` | 541 |
+| `GC_GETMARENARECODE_NTF` | 543 |
+| `CG_SELLITEM_REQ` | 544 |
+| `GC_SELLITEM_ACK` | 545 |
+| `GC_PLAYMARENARECODE_NTF` | 546 |
+| `CG_GETCHARSIGN_REQ` | 547 |
+| `CG_MARENARANKFIGHTEND_REQ` | 548 |
+| `CG_CHANGEMARENAPETOBJIDS_REQ` | 549 |
+| `CZ_GETONLINEBULLETIN_REQ` | 550 |
+| `GC_GETCHARSIGN_ACK` | 551 |
+| `GC_SETCHARSIGN_ACK` | 552 |
+| `GC_BUYMARENAFIGHTTIMES_ACK` | 553 |
+| `GC_GETMARENARECODE_ACK` | 554 |
+| `GC_JOINMARENA_ACK` | 555 |
+| `CG_QUERYMARENADATA_REQ` | 556 |
+| `CG_GETMARENAAWARD_REQ` | 557 |
+| `CG_RANDOMMARENAENEMYS_REQ` | 558 |
+| `CG_SELECTPOKEMON_ACK` | 560 |
+| `CG_PETEQUIPSTRENGTHEN_REQ` | 561 |
+| `CG_SETCHARSIGN_REQ` | 562 |
+| `GC_BUYMARKETITEM_ACK` | 563 |
+| `GC_PETEQUIPOFF_ACK` | 564 |
+| `GC_PETEQUIPPURIFY_ACK` | 565 |
+| `CG_PETEQUIPRESTORE_REQ` | 566 |
+| `GC_PETEQUIPBAPTISM_ACK` | 567 |
+| `GC_PETEQUIPCOMPOSE_ACK` | 568 |
+| `CG_PETEQUIPBAPTISM_REQ` | 569 |
+| `GC_PETEQUIPRESTORE_ACK` | 570 |
+| `CG_PETEQUIPCOMPOSE_REQ` | 571 |
+| `CG_PETEQUIPON_REQ` | 572 |
+| `GC_PETEQUIPSTRENGTHEN_ACK` | 573 |
+| `GC_PETEQUIPON_ACK` | 574 |
+| `CG_PETEQUIPOFF_REQ` | 575 |
+| `CG_PETEQUIPPURIFY_REQ` | 576 |
+| `CG_BUYMARKETITEM_REQ` | 577 |
+| `CG_SURVIVALBATTLEEND_REQ` | 578 |
+| `CG_GETSURVIVALBATTLEDATA_REQ` | 579 |
+| `GC_SURVIVALBATTLEEND_ACK` | 580 |
+| `GC_GETSURVIVALBATTLEDATA_ACK` | 581 |
+| `GC_UPDATEPETEQUIP_NTF` | 582 |
+| `GC_GETSKILLITEMPACKET_NTF` | 583 |
+| `CG_GETSINGLEFASHIONSHOW_REQ` | 584 |
+| `GC_PETEQUIPAPPRAISE_ACK` | 585 |
+| `CG_PETEQUIPAPPRAISE_REQ` | 586 |
+| `ZC_EXECUTECOMMAND_ACK` | 587 |
+| `GC_ARENARANKFIGHT_ACK` | 589 |
+| `GC_GETSELFACTIVITYSHOPDATA_ACK` | 590 |
+| `CG_GETSELFACTIVITYSHOPDATA_REQ` | 592 |
+| `GC_BUYACTIVITYSHOPITEM_ACK` | 593 |
+| `CG_SAVEFASHIONSHOW_REQ` | 594 |
+| `CG_BUYACTIVITYSHOPITEM_REQ` | 595 |
+| `GC_GETEXPEDITIONDATA_ACK` | 596 |
+| `CG_GETEXPEDITIONDATA_REQ` | 597 |
+| `GC_EXPEDITIONBATTLEEND_ACK` | 598 |
+| `GC_FBFRIENDAWARD_ACK` | 599 |
+| `CG_EXPEDITIONBATTLEEND_REQ` | 600 |
+| `GC_FBSHAREPOWER_ACK` | 601 |
+| `CG_FBFRIENDAWARD_REQ` | 602 |
+| `CG_FBSHAREPOWER_REQ` | 604 |
+| `GC_TAKEFASHIONSHOWRANKAWARD_ACK` | 606 |
+| `GC_COMMITPVPARENAQUEST_ACK` | 607 |
+| `CG_GETFASHIONSHOWRANK_REQ` | 608 |
+| `CG_GETMYPVPARENAQUESTS_REQ` | 609 |
+| `CG_SELECTPOKEMON_REQ` | 611 |
+| `GC_GETFASHIONSHOWRANK_ACK` | 612 |
+| `CG_COMMITPVPARENAQUEST_REQ` | 613 |
+| `GC_GETMYPVPARENAQUESTS_ACK` | 614 |
+| `CG_RESETPVPARENAQUEST_REQ` | 615 |
+| `GC_RESETPVPARENAQUEST_ACK` | 616 |
+| `GC_GETPVPARENAQUESTPOWERAWARD_ACK` | 617 |
+| `GC_SAVEFASHIONSHOW_ACK` | 618 |
+| `CG_GETPVPARENAQUESTPOWERAWARD_REQ` | 619 |
+| `CG_BUYROLLCOUNT_REQ` | 620 |
+| `GC_GETPOINTLOTTERYDATA_ACK` | 621 |
+| `ZC_EATPET_ACK` | 622 |
+| `GC_ROLLDICE_ACK` | 623 |
+| `GC_BUYROLLCOUNT_ACK` | 624 |
+| `CG_GETPOINTLOTTERYDATA_REQ` | 626 |
+| `ZC_CREATEPET_NTF` | 627 |
+| `MC_LOADINWAREHOUSEPET_ACK` | 628 |
+| `CG_TAKEFASHIONSHOWRANKAWARD_REQ` | 629 |
+| `MC_CHANGEINFO_ACK` | 630 |
+| `GC_GETSINGLEFASHIONSHOW_ACK` | 631 |
+| `CM_CHANGEINFO_REQ` | 632 |
+| `CG_ROLLDICE_REQ` | 633 |
+| `ZC_RENAMEBAGPET_ACK` | 634 |
+| `GC_EXPEDITIONAWARD_NTF` | 635 |
+| `ZC_SCREENCHAT_BRD` | 636 |
+| `CG_GETFASHIONSHOWPEOPERS_REQ` | 637 |
+| `GC_PETDETAIL_NTF` | 638 |
+| `GC_GETFASHIONSHOWPEOPERS_ACK` | 639 |
+| `GC_PLAYMARENARECODE3_NTF` | 640 |
+| `GC_PLAYMARENARECODE4_NTF` | 641 |
+| `GC_PLAYARENARECODE3_NTF` | 642 |
+| `GC_PLAYARENARECODE4_NTF` | 643 |
+| `GC_PLAYMARENARECODE2_NTF` | 644 |
+| `GC_PLAYARENARECODE2_NTF` | 645 |
+| `GC_RESETSCIENCECONSUMES_ACK` | 646 |
+| `MC_KICKCHAR_ACK` | 647 |
+| `CG_LIKEFASHIONSHOW_REQ` | 648 |
+| `GC_LIKEFASHIONSHOW_ACK` | 649 |
+| `GC_SCIENCESTARUP_ACK` | 650 |
+| `GC_GETSCIENCEDATAS_ACK` | 651 |
+| `CG_RESETSCIENCECONSUMES_REQ` | 652 |
+| `CG_SCIENCESTARUP_REQ` | 653 |
+| `CG_SCIENCELEVELUP_REQ` | 654 |
+| `GC_RECHARGECD_ACK` | 655 |
+| `GC_SCIENCELEVELUP_ACK` | 656 |
+| `GC_SIGNINDATA_NTF` | 657 |
+| `CG_GETSCIENCEDATAS_REQ` | 659 |
+| `CG_SCIENCECONSUME_REQ` | 660 |
+| `GC_SCIENCECONSUME_ACK` | 661 |
+| `CG_RECHARGECD_REQ` | 662 |
+| `GC_PETSTRENGOVERFLOW_ACK` | 663 |
+| `CZ_RETAKEINWAREHOUSEPET_REQ` | 664 |
+| `CG_PETSTRENGOVERFLOW_REQ` | 665 |
+| `GC_PASSWORDGIFT_ACK` | 666 |
+| `GC_BUYPASSWORDPRODUCT_ACK` | 667 |
+| `CG_BUYPASSWORDPRODUCT_REQ` | 668 |
+| `CM_EXCHANGEREWARDCODING_REQ` | 669 |
+| `CG_PASSWORDGIFT_REQ` | 670 |
+| `CG_CLEARWARENACD_REQ` | 672 |
+| `CG_JOINWARENA_REQ` | 673 |
+| `CG_BUYWARENAFIGHTTIMES_REQ` | 674 |
+| `CG_PLAYWARENARECODE_REQ` | 675 |
+| `GC_LOADSIGNINDATA_ACK` | 676 |
+| `GC_GETWARENARECODE_NTF` | 677 |
+| `CG_QUERYWARENASOLDIERDETAIL_REQ` | 678 |
+| `GC_QUERYWARENASOLDIERDETAIL_ACK` | 679 |
+| `CG_CHANGEWARENAPETOBJIDS_REQ` | 680 |
+| `GC_PLAYWARENARECODE_ACK` | 681 |
+| `GC_PLAYWARENARECODE_NTF` | 682 |
+| `GC_ARENARANKFIGHTEND_ACK` | 683 |
+| `GC_JOINWARENA_ACK` | 684 |
+| `CG_GETWARENAAWARD_REQ` | 685 |
+| `GC_WARENARANKCHANGE_NTF` | 686 |
+| `GC_PLAYWARENARECODE4_NTF` | 687 |
+| `GC_RANDOMWARENAENEMYS_ACK` | 688 |
+| `CG_QUERYWARENARANK_REQ` | 689 |
+| `CM_READINFO_REQ` | 690 |
+| `CG_GETWARENARECODE_REQ` | 691 |
+| `GC_QUERYWARENADATA_ACK` | 693 |
+| `GC_GETWARENARECODE_ACK` | 695 |
+| `CG_RANDOMWARENAENEMYS_REQ` | 696 |
+| `MC_LOADPET_ACK` | 697 |
+| `GC_SIGNINREPAIR_ACK` | 698 |
+| `CG_ARENARANKFIGHTEND_REQ` | 699 |
+| `GC_GETWARENAAWARD_ACK` | 700 |
+| `CG_WARENARANKFIGHT_REQ` | 701 |
+| `CG_QUERYWARENADATA_REQ` | 702 |
+| `GC_PLAYWARENARECODE2_NTF` | 703 |
+| `GC_PLAYWARENARECODE3_NTF` | 704 |
+| `CG_GETCOUNTRIES_REQ` | 705 |
+| `GC_BUYWARENAFIGHTTIMES_ACK` | 706 |
+| `GC_WARENARANKFIGHT_ACK` | 707 |
+| `GC_CLEARWARENACD_ACK` | 708 |
+| `GC_CHANGEWARENAPETOBJIDS_ACK` | 709 |
+| `GC_QUERYWARENARANK_ACK` | 710 |
+| `CG_QUERYMYWARENARANK_REQ` | 711 |
+| `GC_QUERYMYWARENARANK_ACK` | 712 |
+| `GC_GETMYWEEKDAMAGERANK_ACK` | 713 |
+| `CG_GETWEEKDAMAGERANK_REQ` | 714 |
+| `CG_SIGNIN_REQ` | 715 |
+| `GC_SIGNIN_ACK` | 716 |
+| `GC_GETWEEKDAMAGERANK_ACK` | 717 |
+| `CG_GETMYWEEKDAMAGERANK_REQ` | 718 |
+| `CG_CHANGENAME_REQ` | 719 |
+| `GC_CHANGENAME_ACK` | 720 |
+| `MC_READINFO_ACK` | 721 |
+| `CG_ADVENTUREUSESKILL_REQ` | 722 |
+| `GC_NEWACCOUNTBINDOLDROLEID_ACK` | 723 |
+| `CG_NEWACCOUNTBINDOLDROLEID_REQ` | 724 |
+| `CM_LOGINSTORGEPASSWORD_REQ` | 725 |
+| `ZC_COMMITQUEST_ACK` | 726 |
+| `ZC_ENDENCLOSEPET_BRD` | 727 |
+| `GC_SUPEREVOLUTIONPET_ACK` | 728 |
+| `CG_SUPEREVOLUTIONPET_REQ` | 729 |
+| `GC_IMPORTETHPET_ACK` | 730 |
+| `CG_IMPORTETHPET_REQ` | 731 |
+| `JC_QUERYCHARACTERINFO_ACK` | 742 |
+| `GC_ADVENTUREUSESKILL_ACK` | 746 |
+| `GC_GETCHARACTERVALUES_ACK` | 747 |
+| `GC_UPDATEEXPLOREDIFFCULTDATAS_NTF` | 748 |
+| `MC_QUERYPETINFO_ACK` | 757 |
+| `CZ_LOADPOTENTIAL_REQ` | 758 |
+| `AC_GETCONFIGSCRIPT_ACK` | 764 |
+| `CG_GETRANDOMADVENTRUEAWARD_REQ` | 765 |
+| `ZC_UPDATEQUEST_NTF` | 767 |
+| `CG_GETCHARACTERVALUES_REQ` | 770 |
+| `GC_DEVICERELOGIN_ACK` | 773 |
+| `GC_EVOLUTIONPET_ACK` | 777 |
+| `CG_GETSHOP_REQ` | 778 |
+| `CZ_QUESTLIST_REQ` | 785 |
+| `HC_SYSTEMNOTICE_NTF` | 791 |
+| `CM_QUERYPETINFO_REQ` | 800 |
+| `CG_FINISHRANDOMADVENTRUE_REQ` | 802 |
+| `CG_LOADSIGNINDATA_REQ` | 806 |
+| `MC_CREATECHAR_ACK` | 807 |
+| `CZ_DISCARDPET_REQ` | 814 |
+| `CZ_GETSUBSTITUTE_REQ` | 824 |
+| `CG_SIGNINREPAIR_REQ` | 827 |
+| `GC_MESSAGE_NTF` | 831 |
+| `CG_SYSTEMREFRESHGOODS_REQ` | 835 |
+| `GC_GETACHIEVEMENTS_ACK` | 837 |
+| `MC_BULLETIN_NTF` | 847 |
+| `CZ_TESTSERVERSPEED_REQ` | 848 |
+| `CG_REFRESHGOODS_REQ` | 853 |
+| `CG_GETLOSTTOWERDATA_REQ` | 855 |
+| `CG_BUYGOODS_REQ` | 858 |
+| `GC_SYSTEMREFRESHGOODS_ACK` | 859 |
+| `CG_CREATRANDOMADVENTRUE_REQ` | 860 |
+| `ZC_SCREENDRAW_BRD` | 861 |
+| `GC_FINISHRANDOMADVENTRUE_ACK` | 862 |
+| `CZ_QUERYSUBSTITUTE_REQ` | 868 |
+| `CG_RESETSHOP_REQ` | 869 |
+| `ZC_LOADPETBAG_BRD` | 871 |
+| `MC_SYSTEMSETTING_NTF` | 872 |
+| `CG_GETCAPSULEEGGADDVALUEPETS_REQ` | 874 |
+| `GC_QUITZONE_NTF` | 875 |
+| `GC_GETLOSTTOWERDATA_ACK` | 883 |
+| `ZC_QUERYSACREDINFO_ACK` | 904 |
+| `CZ_SWAPINBAGPETORDER_REQ` | 913 |
+| `CZ_SACREDPET_REQ` | 916 |
+| `ZC_UPDATEPOTENTIAL_NTF` | 917 |
+| `GC_CREATRANDOMADVENTRUE_ACK` | 922 |
+| `ZC_QUERYPETINBAGINFO_ACK` | 924 |
+| `CG_CHECKUNREADMAIL_REQ` | 930 |
+| `CG_TERRITORIALRESETINFO_REQ` | 932 |
+| `CZ_EVOLUTIONQUERY_REQ` | 933 |
+| `MC_CHANGESTORGEPASSWORD_ACK` | 935 |
+| `GC_RESETDATA_ACK` | 936 |
+| `GC_GETRANDOMADVENTRUEAWARD_ACK` | 950 |
+| `ZC_UPDATEPETPOWER_NTF` | 964 |
+| `ZC_LOADPETBAG_ACK` | 966 |
+| `GC_GETCAPSULEEGGADDVALUEPETS_ACK` | 971 |
+| `CG_GETSOMEMAILS_REQ` | 978 |
+| `GC_UPDATEACTIVEPETLIST_ACK` | 983 |
+| `GC_TERRITORIALRESETINFO_ACK` | 985 |
+| `GC_BUYPOWER_ACK` | 991 |
+| `CG_RESETDATA_REQ` | 997 |
+| `CG_UPDATEACTIVEPETLIST_REQ` | 1006 |
+| `ZC_INBAGPETORDER_NTF` | 1013 |
+| `GC_POKEMONADVASTAGELEVEL_ACK` | 1032 |
+| `CG_POKEMONADVASTAGELEVEL_REQ` | 1038 |
+| `CG_ENDEXPLORE_REQ` | 1041 |
+| `CG_GETMAILATTACH_REQ` | 1054 |
+| `CZ_INBAGPETWARINFO_REQ` | 1055 |
+| `GC_ENDEXPLORE_ACK` | 1066 |
+| `CZ_EXECUTECOMMAND_REQ` | 1068 |
+| `CZ_FREEPET_REQ` | 1071 |
+| `CG_GETEXPLOREDATA_REQ` | 1074 |
+| `GC_CHECKUNREADMAIL_ACK` | 1077 |
+| `MC_QUERYPETOWNER_ACK` | 1090 |
+| `ZC_ACTIVATEPET_ACK` | 1092 |
+| `CJ_LOGIN_REQ` | 1100 |
+| `MC_APPOINTNICKNAME_ACK` | 1104 |
+| `GC_GETMAILATTACH_ACK` | 1106 |
+| `GC_GETEXPLOREDATA_ACK` | 1109 |
+| `CG_DELMAIL_REQ` | 1114 |
+| `ZC_EATEGG_ACK` | 1122 |
+| `GC_NEWMAILNOTIFY_NTF` | 1128 |
+| `GC_EXPLORE_ACK` | 1136 |
+| `CG_EXPLORE_REQ` | 1138 |
+| `ZC_QUERYCHATCHARACTERINFO_ACK` | 1146 |
+| `CG_LOGINSNS_REQ` | 1165 |
+| `GC_ADVENTUREDAMAGE_ACK` | 1167 |
+| `CG_ADVENTUREDAMAGE_REQ` | 1169 |
+| `CZ_QUERYCHATCHARACTERINFO_REQ` | 1172 |
+| `CG_QUERYARENARANK_REQ` | 1175 |
+| `ZC_EVOLUTIONPET_BRD` | 1204 |
+| `CG_GETSERVERTIME_REQ` | 1214 |
+| `GC_GETSERVERTIME_ACK` | 1216 |
+| `CG_QUERYARENASOLDIERDETAIL_REQ` | 1235 |
+| `GC_QUERYARENARANK_ACK` | 1239 |
+| `CG_BUYPOWER_REQ` | 1242 |
+| `CG_UPDATEFRIENDDETAIL_REQ` | 1243 |
+| `ZC_GETCOMINGFESTAPERIOD_ACK` | 1244 |
+| `CG_EVOLUTIONPET_REQ` | 1247 |
+| `ZC_LOADPOTENTIAL_ACK` | 1248 |
+| `CZ_USEBIGBUGLE_REQ` | 1252 |
+| `GC_GETFRIENDDETAIL_ACK` | 1261 |
+| `CG_POKEMONSKILLCHANGE_REQ` | 1282 |
+| `CG_GETFRIENDDETAIL_REQ` | 1283 |
+| `GC_UPDATEFRIENDDETAIL_ACK` | 1290 |
+| `CM_QUERYSTAGEARENACHARACTERINFO_REQ` | 1296 |
+| `GC_LOSTTOWERPOINTCHANGE_NTF` | 1299 |
+| `CG_POKEMONSKILLLEVELUP_REQ` | 1302 |
+| `GC_QUERYARENASOLDIERDETAIL_ACK` | 1305 |
+| `ZC_SEASON_NTF` | 1306 |
+| `GC_WORLDLIST_ACK` | 1308 |
+| `CZ_USESMALLBUGLE_REQ` | 1310 |
+| `GC_BIGBUGLE_NTF` | 1322 |
+| `GC_USESPACEBUGLE_ACK` | 1331 |
+| `CG_GETMYMAPNODEEVENTINFO_REQ` | 1338 |
+| `GC_SKILLITEMUPGRADE_ACK` | 1353 |
+| `AC_GETCONFIGSCRIPTOVER_NTF` | 1358 |
+| `CG_WORLDLIST_REQ` | 1360 |
+| `GC_INDULGEFIVE_NTF` | 1361 |
+| `GC_FIGHTEND_ACK` | 1363 |
+| `CG_TRANSFERFLOOR_REQ` | 1364 |
+| `GC_POKEMONSKILLCHANGE_ACK` | 1369 |
+| `GC_POKEMONSKILLLEVELUP_ACK` | 1371 |
+| `CG_RECOVERSTATE_REQ` | 1374 |
+| `GC_RECOVERSTATE_ACK` | 1380 |
+| `CG_SKILLITEMUPGRADE_REQ` | 1385 |
+| `CG_CAPSULEEGG_REQ` | 1392 |
+| `GC_CAPSULEEGGALLINFOCMD_ACK` | 1396 |
+| `GC_TERRITORYFIGHT_ACK` | 1397 |
+| `CZ_MATEGAMETE_REQ` | 1400 |
+| `ZC_BAGPETSPAWNGAMETE_ACK` | 1405 |
+| `CG_FIGHTEND_REQ` | 1419 |
+| `GC_GETCOUNTRIES_ACK` | 1425 |
+| `GC_TRANSFERFLOOR_ACK` | 1426 |
+| `GC_GETMYMAPNODEEVENTINFO_ACK` | 1433 |
+| `GC_GETEQUIPPACKET_NTF` | 1434 |
+| `CG_HAVEDINNER_REQ` | 1435 |
+| `ZC_MATEGAMETE_ACK` | 1437 |
+| `CM_RENAMECHARACTERNICKNAME_REQ` | 1451 |
+| `GC_HAVEDINNER_ACK` | 1452 |
+| `GC_LOGIN_ACK` | 1456 |
+| `CM_GETUSERIDFROMNICK_REQ` | 1460 |
+| `GC_TRIGGERNODEEVENT_ACK` | 1470 |
+| `GC_USEBIGBUGLE_ACK` | 1475 |
+| `ZC_SACREDPET_ACK` | 1477 |
+| `CG_SELFTERRITORYINFO_REQ` | 1485 |
+| `GC_INGAMEBULLETIN_NTF` | 1488 |
+| `GC_SELFTERRITORYINFO_ACK` | 1497 |
+| `GC_SPACEBUGLE_NTF` | 1499 |
+| `CG_TERRITORYFIGHT_REQ` | 1505 |
+| `MC_REWARDCODING_ACK` | 1508 |
+| `GC_ENEMYPETS_NTF` | 1511 |
+| `GC_UPDATEEXPLOREDATA_NTF` | 1513 |
+| `CG_CAPSULEEGGALLINFOCMD_REQ` | 1519 |
+| `GC_CAPSULEEGGCDS_ACK` | 1526 |
+| `CG_TRIGGERNODEEVENT_REQ` | 1527 |
+| `CM_REWARDCODING_REQ` | 1528 |
+| `CG_TERRITORYCOUNTINFO_REQ` | 1535 |
+| `MC_USERONLINETIME_NTF` | 1559 |
+| `GC_CAPSULEEGG_ACK` | 1561 |
+| `GC_TERRITORYCOUNTINFO_ACK` | 1569 |
+| `CG_CAPSULEEGGCDS_REQ` | 1573 |
+| `CG_PETFREEDOM_REQ` | 1579 |
+| `GC_PETFREEDOM_ACK` | 1592 |
+| `CG_PETSTARUP_REQ` | 1596 |
+| `GC_CHANGEFLOOR_ACK` | 1602 |
+| `CZ_ACTIVATEPET_REQ` | 1611 |
+| `CM_APPOINTNICKNAME_REQ` | 1626 |
+| `MC_GETUSERIDFROMNICK_ACK` | 1629 |
+| `CG_QUERYSELFTERRITORYIDINFO_REQ` | 1644 |
+| `GC_PETSTARUP_ACK` | 1650 |
+| `GC_CHANGEPETEVOSKILL_ACK` | 1653 |
+| `CM_CREATECHAR_REQ` | 1655 |
+| `GC_QUERYSELFTERRITORYIDINFO_ACK` | 1664 |
+| `CZ_BAGPETSPAWNGAMETE_REQ` | 1666 |
+| `CG_CHANGEPETEVOSKILL_REQ` | 1667 |
+| `ZC_FREEPET_ACK` | 1669 |
+| `CZ_ALLELEPOWERUP_REQ` | 1670 |
+| `GC_TERRITORYCHANGE_NTF` | 1680 |
+| `CG_DEVICERELOGIN_REQ` | 1684 |
+| `CG_RESETPETSTRENG_REQ` | 1694 |
+| `GC_TERRITORYCOUNTCHANGE_NTF` | 1697 |
+| `GC_PETSTRENG_ACK` | 1699 |
+| `GC_GETCONFIGSCRIPTUPDATE_NTF` | 1705 |
+| `ZC_GETONLINEBULLETIN_ACK` | 1709 |
+| `GC_LOGINSNS_ACK` | 1710 |
+| `GC_RESETPETSTRENG_ACK` | 1714 |
+| `CG_PETSTRENG_REQ` | 1717 |
+| `ZC_REDEEMPET_ACK` | 1720 |
+| `GC_UPDATEEQUIPS_NTF` | 1729 |
+| `MC_QUERYCHARBRIEFINFO_ACK` | 1731 |
+| `GC_RESETSHOP_ACK` | 1737 |
+| `CG_QUICKCLEARADVENTURE_REQ` | 1738 |
+| `GC_QUICKCLEARADVENTURE_ACK` | 1741 |
+| `GC_GETSHOP_ACK` | 1746 |
+| `GC_GETFINISHEDADVENTURES_NTF` | 1749 |
+| `GC_STRENGTHENEQUIP_ACK` | 1751 |
+| `CG_UPDATEPETARMYS_REQ` | 1755 |
+| `GC_UPDATEPETARMYS_ACK` | 1756 |
+| `CG_GETPETARMYS_REQ` | 1760 |
+| `GC_GETPETARMYS_ACK` | 1774 |
+| `CG_CHANGEFLOOR_REQ` | 1781 |
+| `CG_GETDAILYQUESTSTEPAWARD_REQ` | 1794 |
+| `GC_MOVEEQUIP_ACK` | 1797 |
+| `GC_GETDAILYQUESTSTEPAWARD_ACK` | 1798 |
+| `CZ_RENAMEBAGPET_REQ` | 1808 |
+| `CZ_SCREENCHAT_REQ` | 1809 |
+| `CG_TERRITORYINFO_REQ` | 1819 |
+| `CG_EVOEQUIP_REQ` | 1822 |
+| `CG_MOVEEQUIP_REQ` | 1827 |
+| `GC_WASHEQUIP_ACK` | 1839 |
+| `GC_EVOEQUIP_ACK` | 1845 |
+| `CM_CHANGESTORGEPASSWORD_REQ` | 1851 |
+| `MC_RENAMECHARACTERNICKNAME_ACK` | 1853 |
+| `CG_STRENGTHENEQUIP_REQ` | 1858 |
+| `CG_WASHEQUIP_REQ` | 1860 |
+| `CG_USEWASHEQUIP_REQ` | 1871 |
+| `GC_USEWASHEQUIP_ACK` | 1872 |
+| `CG_GETRELOGINKEY_REQ` | 1873 |
+| `GC_REFRESHGOODS_ACK` | 1876 |
+| `ZC_REMOVEPETFOODSTATE_NTF` | 1886 |
+| `GC_GETRELOGINKEY_ACK` | 1889 |
+| `GC_PETSTARPOURAUTO_ACK` | 1893 |
+| `ZC_LOCALTIME_NTF` | 1896 |
+| `GC_PETSTARPOUR_ACK` | 1898 |
+| `GC_TERRITORYINFO_ACK` | 1901 |
+| `CG_PETSTARPOURAUTO_REQ` | 1902 |
+| `CG_PETSTARPOUR_REQ` | 1925 |
+| `CG_BUYEXPLOREPACKET_REQ` | 1945 |
+| `GC_BUYEXPLOREPACKET_ACK` | 1951 |
+| `GC_BUYGOODS_ACK` | 1953 |
+| `CG_MOVEOBSTACLE_REQ` | 1964 |
+| `CG_DELYOKEPET_REQ` | 1966 |
+| `CJ_QUERYCHARACTERINFO_REQ` | 1968 |
+| `GC_DELYOKEPET_ACK` | 1973 |
+| `ZC_RETAKEINWAREHOUSEPET_ACK` | 1976 |
+| `MC_INWAREHOUSEPETDATA_NTF` | 1990 |
+| `GC_CHANGEYOKEPET_ACK` | 1991 |
+| `CG_ADDYOKEPET_REQ` | 2010 |
+| `GC_SMALLBUGLE_NTF` | 2012 |
+| `GC_MOVEOBSTACLE_ACK` | 2016 |
+| `ZC_INBAGPETWARINFO_ACK` | 2024 |
+| `CM_RESETCLIENTFLAG_REQ` | 2029 |
+| `ZC_INSERTPETFOODSTATE_NTF` | 2032 |
+| `GC_ADDYOKEPET_ACK` | 2035 |
+| `CG_CHANGEYOKEPET_REQ` | 2037 |
+| `GC_UPDATEPETYOKEINFO_NTF` | 2041 |
+| `CG_BUYPACKET_REQ` | 2042 |
+| `GC_BUYPACKET_ACK` | 2043 |
+| `ZC_DISCARDPET_ACK` | 2057 |
+| `MC_LOADDISCARDPET_ACK` | 2062 |
+| `GC_RESTOREFASHIONS_ACK` | 2066 |
+| `CG_GETFASHIONS_REQ` | 2075 |
+| `GC_FIREEVENTCELL_ACK` | 2083 |
+| `MC_EXCHANGEREWARDCODING_ACK` | 2085 |
+| `CG_RESTOREFASHIONS_REQ` | 2098 |
+| `GC_GETFASHIONS_ACK` | 2102 |
+| `GC_FASHIONS_NTF` | 2105 |
+| `ZC_PUTPETINWAREHOUSE_ACK` | 2108 |
+| `GC_SETFASHIONS_ACK` | 2109 |
+| `CG_SETFASHIONS_REQ` | 2121 |
+| `GC_PLATFORMLOGIN_ACK` | 2126 |
+| `GC_INDULGETHREE_NTF` | 2129 |
+| `CG_PLATFORMLOGIN_REQ` | 2130 |
+| `CG_DEVICELOGIN_REQ` | 2156 |
+| `CG_FIREEVENTCELL_REQ` | 2162 |
+| `ZC_LISTONLINEBULLETINCAPTION_ACK` | 2165 |
+| `GC_CLOSECLIENT_NTF` | 2167 |
+| `CG_TERRITORYRANKINFO_REQ` | 2174 |
+| `GC_DEVICEBIND_ACK` | 2179 |
+| `GC_DEVICELOGIN_ACK` | 2183 |
+| `MC_SYSTEMTIME_NTF` | 2204 |
+| `CZ_REDEEMPET_REQ` | 2208 |
+| `CG_DEVICEBIND_REQ` | 2211 |
+| `GC_TERRITORYRANKINFO_ACK` | 2223 |
+| `MC_RESETCLIENTFLAG_ACK` | 2228 |
+| `CZ_PUTPETINBAG_REQ` | 2271 |
+| `JC_LOGIN_ACK` | 2302 |
+| `ZC_PETENCLOSED_BRD` | 2309 |
+| `CZ_LISTONLINEBULLETINCAPTION_REQ` | 2349 |
+| `GC_GETLOGINVALIDATE_ACK` | 2385 |
+| `GC_INDULGECLEAN_NTF` | 2438 |
+| `ZC_GETPETDEPOTSCOUNT_ACK` | 2457 |
+| `ZC_MOBILITY_NTF` | 2475 |
+| `ZC_SWAPINBAGPETORDER_ACK` | 2476 |
+| `MC_GETUSERNICKFROMID_ACK` | 2494 |
+| `ZC_QUERYRACECLASS_ACK` | 2523 |
+| `CM_QUERYCHARBRIEFINFO_REQ` | 2532 |
+| `ZC_FREEPET_BRD` | 2545 |
+| `ZC_BEGINENCLOSEPET_BRD` | 2549 |
+| `CZ_LOADPETBAG_REQ` | 2559 |
+| `MC_LOGINSTORGEPASSWORD_ACK` | 2565 |
+| `GC_USESMALLBUGLE_ACK` | 2582 |
+| `CZ_QUERYRACECLASS_REQ` | 2612 |
+| `MC_SYSTEMCHAT_NTF` | 2618 |
+| `CG_GETLOGINVALIDATE_REQ` | 2668 |
+| `GC_SNSSERVERSTATUS_NTF` | 2693 |
+| `CA_GETCONFIGSCRIPT_REQ` | 2698 |
+| `CZ_GETPETDEPOTSCOUNT_REQ` | 2699 |
+| `MC_PRIVATECHAT_REQ` | 2755 |
+| `CZ_USESPACEBUGLE_REQ` | 2761 |
+| `CM_CHECKPETUPGRADEINWAREHOUSE_NTF` | 2766 |
+| `ZC_GETSUBSTITUTE_ACK` | 2772 |
+| `ZC_PUTPETINBAG_ACK` | 2812 |
+| `MC_PRIVATECHAT_NTF` | 2845 |
+| `GC_FINISHADVENTURE_ACK` | 2995 |
+| `CG_CREATEADVENTURE_REQ` | 2996 |
+| `GC_GETCURRENTADVENTRUE_ACK` | 2997 |
+| `CG_GETADVENTUREAWARD_REQ` | 2998 |
+| `CG_GETCURRENTADVENTRUE_REQ` | 2999 |
+| `CG_GETFINISHEDADVENTURES_REQ` | 3078 |
+| `GC_GETADVENTUREAWARD_ACK` | 3079 |
+| `GC_CREATEADVENTURE_ACK` | 3080 |
+| `GC_GETFINISHEDADVENTURES_ACK` | 3081 |
+| `CG_FINISHADVENTURE_REQ` | 3082 |
+| `CG_READYPVP_REQ` | 3083 |
+| `CG_STARTPVP_REQ` | 3084 |
+| `GC_JOINPVP_ACK` | 3085 |
+| `CG_PVPBATTLECOMMAND_REQ` | 3086 |
+| `GC_PVPINFO_NTF` | 3087 |
+| `CG_PVPBATTLESTART_REQ` | 3088 |
+| `GC_READYPVP_ACK` | 3089 |
+| `GC_STARTPVP_ACK` | 3090 |
+| `CG_JOINPVP_REQ` | 3091 |
+| `GC_PVPBATTLECOMMAND_NTF` | 3092 |
+| `GC_PVPBATTLESTART_ACK` | 3093 |
+| `GC_PVPBATTLECOMMAND_ACK` | 3094 |
+| `CZ_TAKEMONTHCARDAWARD_REQ` | 3102 |
+| `ZC_TAKEMONTHCARDAWARD_ACK` | 3103 |
+| `CZ_LOADMONTHCARD_REQ` | 3104 |
+| `ZC_LOADMONTHCARD_ACK` | 3106 |
+| `ZC_NEWDELETEQUEST_NTF` | 3131 |
+| `ZC_UPDATEQUEST_ACK` | 3132 |
+| `CZ_UPDATEQUEST_REQ` | 3133 |
+| `GC_DELPOKEMON_NTF` | 3138 |
+| `GC_QUERYPOKEMONS_ACK` | 3139 |
+| `CG_QUERYPOKEMONS_REQ` | 3140 |
+| `GC_UPDATEPOKEMON_NTF` | 3141 |
+
+
+## Static gameplay tables
+
+The decoded client separates gameplay definitions from wire schemas. The main
+runtime loaders are `Data/Data.lua`, `Data/SharedDatas.lua`, and the four
+`Data/*.lua` modules. `DatReader/*.lua` exposes the individual static catalogs;
+the directly relevant tables include:
+
+| Data area | Client table files |
+| --- | --- |
+| Characters and starter roster | `PokemonInfoConfig.lua`, `PokemonAchievementInfoConfig.lua` |
+| Skills | `SkillInfoConfig.lua`, `SkillTemplateInfoConfig.lua`, `PetSkillInfoConfig.lua`, `ElementSkillInfoConfig.lua`, `PotentialSkillInfoConfig.lua` |
+| Items and equipment | `ItemInfoConfig.lua`, `PetEquipInfoConfig.lua`, `PetEquipEffectInfoConfig.lua`, `FashionItemInfoConfig.lua`, `PetPieceInfoConfig.lua` |
+| Maps and encounters | `MapStarAwardConfig.lua`, `EventInfoConfig.lua`, `EventListInfoConfig.lua`, `MonsterGroupManInfoConfig.lua`, `TeamMonsterInfoConfig.lua` |
+| Quests and rewards | `QuestInfoConfig.lua`, `NewQuestInfoConfig.lua`, `FamilyQuestInfoConfig.lua`, `AdvAwardConfig.lua`, `DropInfoConfig.lua` |
+| Progression | `PetAdvanceInfoConfig.lua`, `PetEvoInfoConfig.lua`, `PetStarUpInfoConfig.lua`, `PetStrengthenInfoConfig.lua` |
+
+These are client data files and are not required to be reseeded into PostgreSQL
+for login. Mutable character, Pet, inventory, and quest state belongs in the
+server database; a game feature that references an additional static catalog
+should use the matching decoded `DatReader` file as its ID/value source.
+
+## Complete Lua request/response field routines
+
+The following bodies are extracted verbatim from the decoded Proto sources. They preserve field order, optional branches, and nested type calls for every generated writer/parser pair.
+
+### `Proto_Achievement.lua` — `Proto.writeP_CG_GetAchievements_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetAchievements_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETACHIEVEMENTS_REQ);
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.parseP_GC_GetAchievements_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetAchievements_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETACHIEVEMENTS_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.achievementIDs=Proto.parseVector(entry,Proto.parseWORD); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.writeP_CG_FinishAchievement_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FinishAchievement_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FINISHACHIEVEMENT_REQ);
+	Proto.writeWORD(msg,data.achievementID); -- 成就ID
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.parseP_GC_FinishAchievement_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FinishAchievement_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FINISHACHIEVEMENT_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.achievementID=Proto.parseWORD(entry); -- 成就ID
+	end
+	return data;
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.writeP_CG_FinishPokemonAchievement_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FinishPokemonAchievement_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FINISHPOKEMONACHIEVEMENT_REQ);
+	Proto.writeWORD(msg,data.pokeAchievementID); -- 成就ID
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.parseP_GC_FinishPokemonAchievement_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FinishPokemonAchievement_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FINISHPOKEMONACHIEVEMENT_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.pokeAchievementID=Proto.parseWORD(entry); -- 成就ID
+	end
+	return data;
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.writeP_CG_GetPokemonAchievements_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPokemonAchievements_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPOKEMONACHIEVEMENTS_REQ);
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.parseP_GC_GetPokemonAchievements_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPokemonAchievements_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPOKEMONACHIEVEMENTS_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.pokeAchievementIDs=Proto.parseVector(entry,Proto.parseWORD); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.writeP_CG_GetPotentials_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPotentials_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPOTENTIALS_REQ);
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.parseP_GC_GetPotentials_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPotentials_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPOTENTIALS_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.potentials=Proto.parseVector(entry,Proto.parseWORD); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.writeP_CG_BuyPotential_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyPotential_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYPOTENTIAL_REQ);
+	Proto.writeWORD(msg,data.potentialID); -- 潜力ID
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.parseP_GC_BuyPotential_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyPotential_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYPOTENTIAL_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.writeP_CG_ResetAchievement_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResetAchievement_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETACHIEVEMENT_REQ);
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.parseP_GC_ResetAchievement_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResetAchievement_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETACHIEVEMENT_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.writeP_CG_FinishPokemonAchievementActivity_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FinishPokemonAchievementActivity_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FINISHPOKEMONACHIEVEMENTACTIVITY_REQ);
+	Proto.writeWORD(msg,data.pokeAchievementID); -- 成就ID
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.parseP_GC_FinishPokemonAchievementActivity_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FinishPokemonAchievementActivity_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FINISHPOKEMONACHIEVEMENTACTIVITY_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.pokeAchievementID=Proto.parseWORD(entry); -- 成就ID
+	end
+	return data;
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.writeP_CG_GetPokemonAchievementsAct_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPokemonAchievementsAct_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPOKEMONACHIEVEMENTSACT_REQ);
+end
+```
+
+### `Proto_Achievement.lua` — `Proto.parseP_GC_GetPokemonAchievementsAct_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPokemonAchievementsAct_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPOKEMONACHIEVEMENTSACT_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.pokeAchievementIDs=Proto.parseVector(entry,Proto.parseWORD); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_ActivateCode.lua` — `Proto.writeP_CG_UseActivateCode_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UseActivateCode_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_USEACTIVATECODE_REQ);
+	Proto.writeString(msg,data.strCode); -- 激活码
+end
+```
+
+### `Proto_ActivateCode.lua` — `Proto.parseP_GC_UseActivateCode_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UseActivateCode_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_USEACTIVATECODE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_GetActivitiesData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetActivitiesData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETACTIVITIESDATA_REQ);
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_GetActivitiesData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetActivitiesData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETACTIVITIESDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.data=Proto.parseString(entry); -- json数据
+	end
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchLoginAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchLoginAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHLOGINAWARDS_REQ);
+	Proto.writeint(msg,data.day); -- 登录第几天的
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchLoginAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchLoginAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHLOGINAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchFirstLoginAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchFirstLoginAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHFIRSTLOGINAWARDS_REQ);
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchFirstLoginAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchFirstLoginAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHFIRSTLOGINAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchUpgradeAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchUpgradeAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHUPGRADEAWARDS_REQ);
+	Proto.writeBYTE(msg,data.level); -- 玩家等级
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchUpgradeAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchUpgradeAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHUPGRADEAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchDailyActionValue_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchDailyActionValue_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHDAILYACTIONVALUE_REQ);
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchDailyActionValue_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchDailyActionValue_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHDAILYACTIONVALUE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchRechargeAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchRechargeAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHRECHARGEAWARDS_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+	Proto.writeDWORD(msg,data.mCash); -- 充值额度
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchRechargeAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchRechargeAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHRECHARGEAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchConsumeAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchConsumeAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHCONSUMEAWARDS_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+	Proto.writeDWORD(msg,data.mCash); -- 消费额度
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchConsumeAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchConsumeAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHCONSUMEAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_BuyGrowthFund_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyGrowthFund_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYGROWTHFUND_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_BuyGrowthFund_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyGrowthFund_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYGROWTHFUND_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchGrowthFundAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchGrowthFundAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHGROWTHFUNDAWARDS_REQ);
+	Proto.writeBYTE(msg,data.level); -- 玩家等级
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchGrowthFundAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchGrowthFundAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHGROWTHFUNDAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchSpokesmanGuessAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchSpokesmanGuessAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHSPOKESMANGUESSAWARDS_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+	Proto.writeBYTE(msg,data.awardIndex); -- 第几个奖项(0~N)
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchSpokesmanGuessAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchSpokesmanGuessAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHSPOKESMANGUESSAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_TimeLimitCapsuleEgg_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TimeLimitCapsuleEgg_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TIMELIMITCAPSULEEGG_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+	Proto.writeint(msg,data.atype); -- 宠物1，技能2
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_TimeLimitCapsuleEgg_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TimeLimitCapsuleEgg_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TIMELIMITCAPSULEEGG_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.awardVecStr=Proto.parseVector(entry,Proto.parseString); -- 奖励元素表
+	end
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_GetWorldOpenTime_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetWorldOpenTime_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETWORLDOPENTIME_REQ);
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_GetWorldOpenTime_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetWorldOpenTime_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETWORLDOPENTIME_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.openTime=Proto.parseQWORD(entry); -- 开服时间
+	end
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchPVPArenaGradePointAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchPVPArenaGradePointAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHPVPARENAGRADEPOINTAWARDS_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchPVPArenaGradePointAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchPVPArenaGradePointAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHPVPARENAGRADEPOINTAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchTeamDungeonAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchTeamDungeonAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHTEAMDUNGEONAWARDS_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchTeamDungeonAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchTeamDungeonAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHTEAMDUNGEONAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchWorldBossAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchWorldBossAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHWORLDBOSSAWARDS_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchWorldBossAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchWorldBossAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHWORLDBOSSAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_GetGMActivities_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetGMActivities_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETGMACTIVITIES_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_GetGMActivities_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetGMActivities_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETGMACTIVITIES_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	data.count=Proto.parseDWORD(entry); -- 活动数量
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_GMActivitiesInfo_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GMActivitiesInfo_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GMACTIVITIESINFO_NTF;
+	data.activities=Proto.parseVector(entry,Proto.parseString); -- 活动
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchContinueLoginAwards_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchContinueLoginAwards_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHCONTINUELOGINAWARDS_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 登录第几天的
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchContinueLoginAwards_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchContinueLoginAwards_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHCONTINUELOGINAWARDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_FetchDailyCountActivityAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FetchDailyCountActivityAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FETCHDAILYCOUNTACTIVITYAWARD_REQ);
+	Proto.writeDWORD(msg,data.aID); -- 活动ID
+	Proto.writeDWORD(msg,data.count); -- 计数
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_FetchDailyCountActivityAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FetchDailyCountActivityAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FETCHDAILYCOUNTACTIVITYAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Activities.lua` — `Proto.writeP_CG_GetPosterBoardInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPosterBoardInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPOSTERBOARDINFO_REQ);
+end
+```
+
+### `Proto_Activities.lua` — `Proto.parseP_GC_GetPosterBoardInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPosterBoardInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPOSTERBOARDINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.width=Proto.parseDWORD(entry); -- 整体宽度
+		data.length=Proto.parseDWORD(entry); -- 整体长度
+		data.params=Proto.parseString(entry); -- 参数
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_CreateAdventure_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CreateAdventure_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CREATEADVENTURE_REQ);
+	Proto.writeDWORD(msg,data.adventureID); --
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_CreateAdventure_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CreateAdventure_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CREATEADVENTURE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.adventureID=Proto.parseDWORD(entry); -- 
+		data.adventureInfo=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetCurrentAdventrue_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetCurrentAdventrue_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETCURRENTADVENTRUE_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetCurrentAdventrue_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetCurrentAdventrue_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETCURRENTADVENTRUE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.adventureID=Proto.parseDWORD(entry); -- 
+		data.adventureInfo=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetFinishedAdventures_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetFinishedAdventures_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETFINISHEDADVENTURES_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetFinishedAdventures_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetFinishedAdventures_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETFINISHEDADVENTURES_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	data.num=Proto.parseDWORD(entry); -- 副本数量（等待notify发送）
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetFinishedAdventures_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetFinishedAdventures_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETFINISHEDADVENTURES_NTF;
+	data.finished=Proto.parseVector(entry,Proto.parseString); -- 
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetAdventureAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetAdventureAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETADVENTUREAWARD_REQ);
+	Proto.writeDWORD(msg,data.floor); -- 层数 (1 开始)
+	Proto.writeDWORD(msg,data.field); -- 列数 (1 开始)
+	Proto.writeDWORD(msg,data.row); -- 行数 (1 开始)
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetAdventureAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetAdventureAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETADVENTUREAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_FinishAdventure_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FinishAdventure_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FINISHADVENTURE_REQ);
+	Proto.writeWORD(msg,data.star); --
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_FinishAdventure_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FinishAdventure_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FINISHADVENTURE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_SetBillboard_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SetBillboard_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SETBILLBOARD_REQ);
+	Proto.writeString(msg,data.billboardKey); -- 
+	Proto.writeString(msg,data.billboardConcent); --
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_SetBillboard_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SetBillboard_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SETBILLBOARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.billboardKey=Proto.parseString(entry); -- 
+		data.billboardConcent=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetBillboard_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetBillboard_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETBILLBOARD_REQ);
+	Proto.writeString(msg,data.billboardKey); --
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetBillboard_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetBillboard_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETBILLBOARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.billboardKey=Proto.parseString(entry); -- 
+		data.billboardConcent=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_AdventureUseSkill_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_AdventureUseSkill_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ADVENTUREUSESKILL_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 
+	Proto.writeDWORD(msg,data.skillID); --
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_AdventureUseSkill_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_AdventureUseSkill_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ADVENTUREUSESKILL_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_CreatRandomAdventrue_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CreatRandomAdventrue_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CREATRANDOMADVENTRUE_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_CreatRandomAdventrue_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CreatRandomAdventrue_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CREATRANDOMADVENTRUE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_FinishRandomAdventrue_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FinishRandomAdventrue_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FINISHRANDOMADVENTRUE_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_FinishRandomAdventrue_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FinishRandomAdventrue_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FINISHRANDOMADVENTRUE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetRandomAdventrueAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetRandomAdventrueAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETRANDOMADVENTRUEAWARD_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetRandomAdventrueAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetRandomAdventrueAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETRANDOMADVENTRUEAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_AdventureDamage_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_AdventureDamage_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ADVENTUREDAMAGE_REQ);
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 
+	Proto.writeVector(msg,data.damageTypes,Proto.writeDWORD); -- 
+	Proto.writeVector(msg,data.damages,Proto.writeDWORD); --
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_AdventureDamage_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_AdventureDamage_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ADVENTUREDAMAGE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.petObjIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 
+		data.damageTypes=Proto.parseVector(entry,Proto.parseDWORD); -- 
+		data.hp=Proto.parseVector(entry,Proto.parseDWORD); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_QuickClearAdventure_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QuickClearAdventure_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUICKCLEARADVENTURE_REQ);
+	Proto.writeDWORD(msg,data.adventureID); -- 副本ID
+	Proto.writeDWORD(msg,data.clearType); -- 扫荡类型 0:扫荡券
+	Proto.writeDWORD(msg,data.isManyTimes); -- 是否连续扫荡 1 是 0 否
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_QuickClearAdventure_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QuickClearAdventure_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUICKCLEARADVENTURE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_TriggerNodeEvent_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TriggerNodeEvent_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TRIGGERNODEEVENT_REQ);
+	Proto.writeWORD(msg,data.mapIndex); -- 大地图编号
+	Proto.writeDWORD(msg,data.nodeIndex); -- 节点编号
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_TriggerNodeEvent_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TriggerNodeEvent_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TRIGGERNODEEVENT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 事件奖品
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetMyMapNodeEventInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMyMapNodeEventInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYMAPNODEEVENTINFO_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetMyMapNodeEventInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyMapNodeEventInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYMAPNODEEVENTINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.nodeEventInfo=Proto.parseString(entry); -- 节点事件信息
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_FireAdventureEvent_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FireAdventureEvent_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FIREADVENTUREEVENT_REQ);
+	Proto.writeDWORD(msg,data.adventureID); -- 副本ID
+	Proto.writeVector(msg,data.events,Proto.writeDWORD); -- 事件列表
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_FireAdventureEvent_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FireAdventureEvent_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FIREADVENTUREEVENT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_RefreshMapNodeEvent_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RefreshMapNodeEvent_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_REFRESHMAPNODEEVENT_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_RefreshMapNodeEvent_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RefreshMapNodeEvent_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_REFRESHMAPNODEEVENT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.nodeEventInfo=Proto.parseString(entry); -- 节点事件信息
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_BuyNpcShopGoods_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyNpcShopGoods_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYNPCSHOPGOODS_REQ);
+	Proto.writeDWORD(msg,data.index); -- 商品序号
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_BuyNpcShopGoods_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyNpcShopGoods_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYNPCSHOPGOODS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_ResetAdventureTimes_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResetAdventureTimes_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETADVENTURETIMES_REQ);
+	Proto.writeDWORD(msg,data.adventureID); --
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_ResetAdventureTimes_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResetAdventureTimes_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETADVENTURETIMES_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.finAdv=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_ResetAdventure_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResetAdventure_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETADVENTURE_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_ResetAdventure_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResetAdventure_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETADVENTURE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetMapStarAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMapStarAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMAPSTARAWARD_REQ);
+	Proto.writeDWORD(msg,data.tID); --
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetMapStarAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMapStarAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMAPSTARAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetMapStarAwardData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMapStarAwardData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMAPSTARAWARDDATA_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetMapStarAwardData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMapStarAwardData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMAPSTARAWARDDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.datas=Proto.parseVector(entry,Proto.parseDWORD); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetAdvAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetAdvAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETADVAWARD_REQ);
+	Proto.writeDWORD(msg,data.advID); --
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetAdvAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetAdvAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETADVAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.writeP_CG_GetAdvAwardData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetAdvAwardData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETADVAWARDDATA_REQ);
+end
+```
+
+### `Proto_Adventure.lua` — `Proto.parseP_GC_GetAdvAwardData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetAdvAwardData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETADVAWARDDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.datas=Proto.parseVector(entry,Proto.parseDWORD); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_QueryArenaData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryArenaData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYARENADATA_REQ);
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_QueryArenaData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryArenaData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYARENADATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseDWORD(entry); -- 排名
+		data.petObjIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 防守宠物objIDs
+		data.teamID=Proto.parseDWORD(entry); -- 防守队伍ID
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_ArenaRankChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_ArenaRankChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ARENARANKCHANGE_NTF;
+	data.rank=Proto.parseDWORD(entry); -- 排名
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_ArenaPetsChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_ArenaPetsChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ARENAPETSCHANGE_NTF;
+	data.petObjIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 防守宠物objIDs
+	data.teamID=Proto.parseDWORD(entry); -- 防守队伍ID
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_RandomArenaEnemys_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RandomArenaEnemys_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RANDOMARENAENEMYS_REQ);
+	Proto.writeDWORD(msg,data.nowRank); -- 自己当前的排名
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_RandomArenaEnemys_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RandomArenaEnemys_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RANDOMARENAENEMYS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.enemys=Proto.parseVector(entry,Proto.parseString); -- 对手
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_ChangeArenaPetObjIDs_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangeArenaPetObjIDs_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGEARENAPETOBJIDS_REQ);
+	Proto.writeDWORD(msg,data.teamID); -- 防守队伍ID
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 防守宠物objIDs
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_ChangeArenaPetObjIDs_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangeArenaPetObjIDs_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGEARENAPETOBJIDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_JoinArena_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_JoinArena_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_JOINARENA_REQ);
+	Proto.writeDWORD(msg,data.teamID); -- 防守队伍ID
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 防守宠物objIDs
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_JoinArena_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_JoinArena_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_JOINARENA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseDWORD(entry); -- 排名
+		data.teamID=Proto.parseDWORD(entry); -- 防守队伍ID
+		data.petObjIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 防守宠物objIDs
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_ArenaRankFight_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ArenaRankFight_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ARENARANKFIGHT_REQ);
+	Proto.writeDWORD(msg,data.rank); -- 挑战的排名
+	Proto.writeDWORD(msg,data.teamID); -- 防守队伍ID
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 防守宠物objIDs
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_ArenaRankFight_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ArenaRankFight_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ARENARANKFIGHT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.arenaBattleID=Proto.parseString(entry); -- 
+		data.self=Proto.parseVector(entry,Proto.parseString); -- 
+		data.enemys=Proto.parseVector(entry,Proto.parseString); -- 
+		data.battleID=Proto.parseString(entry); -- 
+		data.serverID=Proto.parseDWORD(entry); -- 
+		data.selfHelper=Proto.parseVector(entry,Proto.parseString); -- 
+		data.enemysHelper=Proto.parseVector(entry,Proto.parseString); -- 
+		data.selfOtherParams=Proto.parseString(entry); -- 
+		data.enemyOtherParams=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_ArenaRankFightEnd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ArenaRankFightEnd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ARENARANKFIGHTEND_REQ);
+	Proto.writeString(msg,data.arenaBattleID); -- 
+	Proto.writeDWORD(msg,data.isWin); -- 是否胜利 0负 1胜 2平
+	Proto.writeVector(msg,data.report,Proto.writeString); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_ArenaRankFightEnd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ArenaRankFightEnd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ARENARANKFIGHTEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_QueryArenaRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryArenaRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYARENARANK_REQ);
+	Proto.writeDWORD(msg,data.rankMin); -- 
+	Proto.writeDWORD(msg,data.rankMax); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_QueryArenaRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryArenaRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYARENARANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.soldiers=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_QueryArenaSoldierDetail_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryArenaSoldierDetail_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYARENASOLDIERDETAIL_REQ);
+	Proto.writeDWORD(msg,data.charID); -- 
+	Proto.writeDWORD(msg,data.teamID); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_QueryArenaSoldierDetail_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryArenaSoldierDetail_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYARENASOLDIERDETAIL_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.charID=Proto.parseDWORD(entry); -- 
+		data.teamID=Proto.parseDWORD(entry); -- 
+		data.pets=Proto.parseVector(entry,Proto.parseString); -- 
+		data.helperPets=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_ClearArenaCD_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ClearArenaCD_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CLEARARENACD_REQ);
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_ClearArenaCD_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ClearArenaCD_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CLEARARENACD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_BuyArenaFightTimes_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyArenaFightTimes_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYARENAFIGHTTIMES_REQ);
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_BuyArenaFightTimes_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyArenaFightTimes_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYARENAFIGHTTIMES_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_GetArenaAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetArenaAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETARENAAWARD_REQ);
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_GetArenaAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetArenaAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETARENAAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_GetArenaRecode_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetArenaRecode_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETARENARECODE_REQ);
+	Proto.writeDWORD(msg,data.startIndex); -- 
+	Proto.writeDWORD(msg,data.endIndex); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_GetArenaRecode_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetArenaRecode_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETARENARECODE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.isNew=Proto.parseDWORD(entry); -- 
+		data.recodes=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_PlayArenaRecode_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PlayArenaRecode_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PLAYARENARECODE_REQ);
+	Proto.writeString(msg,data.t); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayArenaRecode_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PlayArenaRecode_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYARENARECODE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.recodeNum=Proto.parseDWORD(entry); -- 
+		data.recodeInfo=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayArenaRecode_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayArenaRecode_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYARENARECODE_NTF;
+	data.turnIndex=Proto.parseDWORD(entry); -- 
+	data.recode=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayArenaRecode2_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayArenaRecode2_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYARENARECODE2_NTF;
+	data.recodeInfo=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayArenaRecode3_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayArenaRecode3_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYARENARECODE3_NTF;
+	data.recodeInfo=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayArenaRecode4_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayArenaRecode4_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYARENARECODE4_NTF;
+	data.recodeInfo=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_GetArenaRecode_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetArenaRecode_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETARENARECODE_NTF;
+	data.isNew=Proto.parseDWORD(entry); -- 
+	data.recodes=Proto.parseVector(entry,Proto.parseString); -- 
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_QueryMArenaData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryMArenaData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYMARENADATA_REQ);
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_QueryMArenaData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryMArenaData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYMARENADATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseDWORD(entry); -- 排名
+		data.petObjIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 防守宠物objIDs
+		data.teamID=Proto.parseDWORD(entry); -- 防守队伍ID
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_MArenaRankChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_MArenaRankChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MARENARANKCHANGE_NTF;
+	data.rank=Proto.parseDWORD(entry); -- 排名
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_MArenaPetsChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_MArenaPetsChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MARENAPETSCHANGE_NTF;
+	data.petObjIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 防守宠物objIDs
+	data.teamID=Proto.parseDWORD(entry); -- 防守队伍ID
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_RandomMArenaEnemys_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RandomMArenaEnemys_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RANDOMMARENAENEMYS_REQ);
+	Proto.writeDWORD(msg,data.nowRank); -- 自己当前的排名
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_RandomMArenaEnemys_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RandomMArenaEnemys_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RANDOMMARENAENEMYS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.enemys=Proto.parseVector(entry,Proto.parseString); -- 对手
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_ChangeMArenaPetObjIDs_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangeMArenaPetObjIDs_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGEMARENAPETOBJIDS_REQ);
+	Proto.writeDWORD(msg,data.teamID); -- 防守队伍ID
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 防守宠物objIDs
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_ChangeMArenaPetObjIDs_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangeMArenaPetObjIDs_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGEMARENAPETOBJIDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_JoinMArena_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_JoinMArena_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_JOINMARENA_REQ);
+	Proto.writeDWORD(msg,data.teamID); -- 防守队伍ID
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 防守宠物objIDs
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_JoinMArena_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_JoinMArena_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_JOINMARENA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseDWORD(entry); -- 排名
+		data.teamID=Proto.parseDWORD(entry); -- 防守队伍ID
+		data.petObjIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 防守宠物objIDs
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_MArenaRankFight_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_MArenaRankFight_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_MARENARANKFIGHT_REQ);
+	Proto.writeDWORD(msg,data.rank); -- 挑战的排名
+	Proto.writeDWORD(msg,data.teamID); -- 防守队伍ID
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 防守宠物objIDs
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_MArenaRankFight_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_MArenaRankFight_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MARENARANKFIGHT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.arenaBattleID=Proto.parseString(entry); -- 
+		data.self=Proto.parseVector(entry,Proto.parseString); -- 
+		data.enemys=Proto.parseVector(entry,Proto.parseString); -- 
+		data.battleID=Proto.parseString(entry); -- 
+		data.serverID=Proto.parseDWORD(entry); -- 
+		data.selfHelper=Proto.parseVector(entry,Proto.parseString); -- 
+		data.enemysHelper=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_MArenaRankFightEnd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_MArenaRankFightEnd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_MARENARANKFIGHTEND_REQ);
+	Proto.writeString(msg,data.arenaBattleID); -- 
+	Proto.writeDWORD(msg,data.isWin); -- 是否胜利 0负 1胜 2平
+	Proto.writeVector(msg,data.report,Proto.writeString); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_MArenaRankFightEnd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_MArenaRankFightEnd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MARENARANKFIGHTEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_QueryMArenaRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryMArenaRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYMARENARANK_REQ);
+	Proto.writeDWORD(msg,data.rankMin); -- 
+	Proto.writeDWORD(msg,data.rankMax); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_QueryMArenaRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryMArenaRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYMARENARANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.soldiers=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_QueryMArenaSoldierDetail_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryMArenaSoldierDetail_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYMARENASOLDIERDETAIL_REQ);
+	Proto.writeDWORD(msg,data.charID); -- 
+	Proto.writeDWORD(msg,data.teamID); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_QueryMArenaSoldierDetail_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryMArenaSoldierDetail_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYMARENASOLDIERDETAIL_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.charID=Proto.parseDWORD(entry); -- 
+		data.teamID=Proto.parseDWORD(entry); -- 
+		data.pets=Proto.parseVector(entry,Proto.parseString); -- 
+		data.helperPets=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_ClearMArenaCD_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ClearMArenaCD_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CLEARMARENACD_REQ);
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_ClearMArenaCD_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ClearMArenaCD_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CLEARMARENACD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_BuyMArenaFightTimes_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyMArenaFightTimes_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYMARENAFIGHTTIMES_REQ);
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_BuyMArenaFightTimes_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyMArenaFightTimes_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYMARENAFIGHTTIMES_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_GetMArenaAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMArenaAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMARENAAWARD_REQ);
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_GetMArenaAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMArenaAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMARENAAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_GetMArenaRecode_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMArenaRecode_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMARENARECODE_REQ);
+	Proto.writeDWORD(msg,data.startIndex); -- 
+	Proto.writeDWORD(msg,data.endIndex); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_GetMArenaRecode_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMArenaRecode_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMARENARECODE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.isNew=Proto.parseDWORD(entry); -- 
+		data.recodes=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.writeP_CG_PlayMArenaRecode_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PlayMArenaRecode_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PLAYMARENARECODE_REQ);
+	Proto.writeString(msg,data.t); --
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayMArenaRecode_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PlayMArenaRecode_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYMARENARECODE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.recodeNum=Proto.parseDWORD(entry); -- 
+		data.recodeInfo=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayMArenaRecode_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayMArenaRecode_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYMARENARECODE_NTF;
+	data.turnIndex=Proto.parseDWORD(entry); -- 
+	data.recode=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_GetMArenaRecode_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetMArenaRecode_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMARENARECODE_NTF;
+	data.isNew=Proto.parseDWORD(entry); -- 
+	data.recodes=Proto.parseVector(entry,Proto.parseString); -- 
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayMArenaRecode2_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayMArenaRecode2_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYMARENARECODE2_NTF;
+	data.recodeInfo=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayMArenaRecode3_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayMArenaRecode3_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYMARENARECODE3_NTF;
+	data.recodeInfo=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Arena.lua` — `Proto.parseP_GC_PlayMArenaRecode4_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayMArenaRecode4_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYMARENARECODE4_NTF;
+	data.recodeInfo=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Battle.lua` — `Proto.writeP_CG_CreatePVEBattle_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CreatePVEBattle_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CREATEPVEBATTLE_REQ);
+	Proto.writeDWORD(msg,data.battleType); -- 
+	Proto.writeDWORD(msg,data.battleTypeID); -- 
+	Proto.writeDWORD(msg,data.battleTypeSubID); --
+end
+```
+
+### `Proto_Battle.lua` — `Proto.parseP_GC_CreatePVEBattle_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CreatePVEBattle_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CREATEPVEBATTLE_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.monsters=Proto.parseVector(entry,Proto.parseString); -- 
+		data.exp=Proto.parseDWORD(entry); -- 
+		data.helpMonsters=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Battle.lua` — `Proto.writeP_CG_PVEBattleEnd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PVEBattleEnd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PVEBATTLEEND_REQ);
+	Proto.writeWORD(msg,data.isWin); -- 0 败 1 胜 2平
+	Proto.writeVector(msg,data.battleDetails,Proto.writeString); -- 战斗信息
+end
+```
+
+### `Proto_Battle.lua` — `Proto.parseP_GC_PVEBattleEnd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PVEBattleEnd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PVEBATTLEEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.exp=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Battle.lua` — `Proto.writeP_CG_PVEPokemonCatch_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PVEPokemonCatch_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PVEPOKEMONCATCH_REQ);
+	Proto.writeDWORD(msg,data.pokemonID); -- 
+	Proto.writeDWORD(msg,data.itemID); --
+end
+```
+
+### `Proto_Battle.lua` — `Proto.parseP_GC_PVEPokemonCatch_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PVEPokemonCatch_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PVEPOKEMONCATCH_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.isCatched=Proto.parseWORD(entry); -- 0 捉失败 1 捉成功
+		data.petData=Proto.parseString(entry); -- 
+		data.pb=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Bulletin.lua` — `Proto.writeP_CG_ListBulletin_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ListBulletin_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_LISTBULLETIN_REQ);
+end
+```
+
+### `Proto_Bulletin.lua` — `Proto.parseP_GC_ListBulletin_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ListBulletin_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LISTBULLETIN_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	if (data.code.value==Proto.Error.ERROR_OK) then
+		data.bulletins=Proto.parseVector(entry,Proto.parseBulletinBriefInfo); -- 布告列表
+	end
+	return data;
+end
+```
+
+### `Proto_Bulletin.lua` — `Proto.writeP_CG_GetBulletin_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetBulletin_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETBULLETIN_REQ);
+	Proto.writeint(msg,data.id); -- 布告ID
+end
+```
+
+### `Proto_Bulletin.lua` — `Proto.parseP_GC_GetBulletin_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetBulletin_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETBULLETIN_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	if (data.code.value==Proto.Error.ERROR_OK) then
+		data.info=Proto.parseBulletinDetailInfo(entry); -- 布告信息
+	end
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CG_ChangeChannel_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangeChannel_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGECHANNEL_REQ);
+	Proto.writeString(msg,data.channel); -- 
+	Proto.writeString(msg,data.data); --
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_ChangeChannel_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangeChannel_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGECHANNEL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.channel=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CZ_ScreenChat_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_ScreenChat_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_SCREENCHAT_REQ);
+	Proto.writeChatContent(msg,data.content); -- 聊天内容
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_ZC_ScreenChat_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_ScreenChat_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_SCREENCHAT_BRD;
+	data.handle=Proto.parseRoleHandle(entry); -- 说话者句柄
+	data.content=Proto.parseChatContent(entry); -- 聊天内容
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CM_PrivateChat_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_PrivateChat_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_PRIVATECHAT_REQ);
+	Proto.writeUserID(msg,data.id); -- 玩家ID
+	Proto.writeChatContent(msg,data.content); -- 聊天内容
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_MC_PrivateChat_Req(entry)`
+
+```lua
+function Proto.parseP_MC_PrivateChat_Req(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_PRIVATECHAT_REQ;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_MC_PrivateChat_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_PrivateChat_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_PRIVATECHAT_NTF;
+	data.id=Proto.parseUserID(entry); -- 玩家ID
+	data.content=Proto.parseChatContent(entry); -- 聊天内容
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CZ_ScreenDraw_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_ScreenDraw_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_SCREENDRAW_REQ);
+	Proto.writeWORD(msg,data.colorID); -- 颜色编号
+	Proto.writeBYTE(msg,data.width); -- 宽度
+	Proto.writeVector(msg,data.drawContent,Proto.writePOS2D); -- 画图内容
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_ZC_ScreenDraw_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_ScreenDraw_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_SCREENDRAW_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_ZC_ScreenDraw_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_ScreenDraw_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_SCREENDRAW_BRD;
+	data.handle=Proto.parseRoleHandle(entry); -- 角色Handle
+	data.colorID=Proto.parseWORD(entry); -- 颜色编号
+	data.width=Proto.parseBYTE(entry); -- 宽度
+	data.drawContent=Proto.parseVector(entry,Proto.parsePOS2D); -- 画图内容
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_MC_SystemChat_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_SystemChat_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_SYSTEMCHAT_NTF;
+	data.content=Proto.parseChatContent(entry); -- 聊天内容
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_ZC_SystemChat_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_SystemChat_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_SYSTEMCHAT_NTF;
+	data.content=Proto.parseChatContent(entry); -- 聊天内容
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CZ_UseSpaceBugle_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_UseSpaceBugle_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_USESPACEBUGLE_REQ);
+	Proto.writeChatContent(msg,data.content); -- 聊天内容
+	Proto.writeBYTE(msg,data.color); -- 颜色
+	Proto.writeBYTE(msg,data.useItem); -- 是否使用道具
+	if (data.useItem~=0) then
+		Proto.writeWORD(msg,data.pos); -- 道具位置
+	end
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_UseSpaceBugle_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UseSpaceBugle_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_USESPACEBUGLE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.index=Proto.parseWORD(entry); -- 聊天位置
+	end
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CZ_UseBigBugle_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_UseBigBugle_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_USEBIGBUGLE_REQ);
+	Proto.writeChatContent(msg,data.content); -- 聊天内容
+	Proto.writeBYTE(msg,data.color); -- 颜色
+	Proto.writeBYTE(msg,data.useItem); -- 是否使用道具
+	if (data.useItem~=0) then
+		Proto.writeWORD(msg,data.pos); -- 道具位置
+	end
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_UseBigBugle_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UseBigBugle_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_USEBIGBUGLE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.index=Proto.parseWORD(entry); -- 聊天位置
+	end
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CZ_UseSmallBugle_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_UseSmallBugle_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_USESMALLBUGLE_REQ);
+	Proto.writeChatContent(msg,data.content); -- 聊天内容
+	Proto.writeBYTE(msg,data.color); -- 颜色
+	Proto.writeBYTE(msg,data.useItem); -- 是否使用道具
+	if (data.useItem~=0) then
+		Proto.writeWORD(msg,data.pos); -- 道具位置
+	end
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_UseSmallBugle_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UseSmallBugle_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_USESMALLBUGLE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.index=Proto.parseWORD(entry); -- 聊天位置
+	end
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_SpaceBugle_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_SpaceBugle_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SPACEBUGLE_NTF;
+	data.characterID=Proto.parseDWORD(entry); -- 玩家ID
+	data.name=Proto.parseNickName(entry); -- 玩家昵称
+	data.content=Proto.parseChatContent(entry); -- 聊天内容
+	data.color=Proto.parseBYTE(entry); -- 颜色
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_BigBugle_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_BigBugle_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BIGBUGLE_NTF;
+	data.name=Proto.parseNickName(entry); -- 玩家昵称
+	data.content=Proto.parseChatContent(entry); -- 聊天内容
+	data.color=Proto.parseBYTE(entry); -- 颜色
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_SmallBugle_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_SmallBugle_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SMALLBUGLE_NTF;
+	data.name=Proto.parseNickName(entry); -- 玩家昵称
+	data.content=Proto.parseChatContent(entry); -- 聊天内容
+	data.color=Proto.parseBYTE(entry); -- 颜色
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_IngameBulletin_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_IngameBulletin_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_INGAMEBULLETIN_NTF;
+	data.type=Proto.parseBYTE(entry); -- 公告类型
+	data.content=Proto.parseChatContent(entry); -- 公告内容
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_HC_SystemNotice_Ntf(entry)`
+
+```lua
+function Proto.parseP_HC_SystemNotice_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.HC_SYSTEMNOTICE_NTF;
+	data.sbid=Proto.parseDWORD(entry); -- 广播内容编号
+	data.sbParam=Proto.parseString(entry); -- 广播参数信息
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CJ_QueryCharacterInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CJ_QueryCharacterInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CJ_QUERYCHARACTERINFO_REQ);
+	Proto.writeDWORD(msg,data.pointWarID); -- 积分战ID
+	Proto.writeDWORD(msg,data.charid); -- 角色ID
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_JC_QueryCharacterInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_JC_QueryCharacterInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.JC_QUERYCHARACTERINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petUnits=Proto.parseVarArray(entry,Proto.parseBattleUnitInfo,Proto.parseWORD); -- 宠物信息
+		data.equipUnits=Proto.parseVector(entry,Proto.parseItemUnit); -- 装备信息
+	end
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CM_QueryStageArenaCharacterInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_QueryStageArenaCharacterInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_QUERYSTAGEARENACHARACTERINFO_REQ);
+	Proto.writeDWORD(msg,data.stageid); -- 关卡ID
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_MC_QueryStageArenaCharacterInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_QueryStageArenaCharacterInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_QUERYSTAGEARENACHARACTERINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petUnits=Proto.parseVarArray(entry,Proto.parseBattleUnitInfo,Proto.parseWORD); -- 宠物信息
+		data.equipUnits=Proto.parseVector(entry,Proto.parseItemUnit); -- 装备信息
+	end
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CZ_QueryChatCharacterInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_QueryChatCharacterInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_QUERYCHATCHARACTERINFO_REQ);
+	Proto.writeRoleHandle(msg,data.roleHandle); -- 角色handle
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_ZC_QueryChatCharacterInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_QueryChatCharacterInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_QUERYCHATCHARACTERINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petUnits=Proto.parseVarArray(entry,Proto.parseBattleUnitInfo,Proto.parseWORD); -- 宠物信息
+		data.equipUnits=Proto.parseVector(entry,Proto.parseItemUnit); -- 装备信息
+	end
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.writeP_CG_Chat_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_Chat_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHAT_REQ);
+	Proto.writeString(msg,data.charID); -- 私聊用 角色id
+	Proto.writeString(msg,data.channel); -- 频道
+	Proto.writeString(msg,data.concent); -- 内容
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_Chat_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_Chat_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHAT_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Chat.lua` — `Proto.parseP_GC_Chat_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_Chat_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHAT_NTF;
+	data.charIDFrom=Proto.parseString(entry); -- 来源角色id 0表示系统
+	data.charIDFromName=Proto.parseString(entry); -- 来源角色id 0表示系统
+	data.charIDTo=Proto.parseString(entry); -- 私聊用 角色id
+	data.channel=Proto.parseString(entry); -- 频道
+	data.concent=Proto.parseString(entry); -- 内容
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_GetMyFriends_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMyFriends_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYFRIENDS_REQ);
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_GetMyFriends_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyFriends_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYFRIENDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.friendNum=Proto.parseDWORD(entry); -- 好友数量
+	end
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_GetMyFriends_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyFriends_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYFRIENDS_NTF;
+	data.friends=Proto.parseVector(entry,Proto.parseString); -- 好友
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_GetMyRedHearts_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMyRedHearts_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYREDHEARTS_REQ);
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_GetMyRedHearts_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyRedHearts_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYREDHEARTS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.redHearts=Proto.parseDWORD(entry); -- 好友点赞数量
+	end
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_GetMyRedHearts_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyRedHearts_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYREDHEARTS_NTF;
+	data.redHearts=Proto.parseVector(entry,Proto.parseString); -- 好友
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_AddFriend_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_AddFriend_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ADDFRIEND_REQ);
+	Proto.writeString(msg,data.friendID); -- 好友ID
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_AddFriend_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_AddFriend_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ADDFRIEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.newfriend=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_AddFriend_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_AddFriend_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ADDFRIEND_NTF;
+	data.needConfirm=Proto.parseDWORD(entry); -- 是否需要确认
+	data.newfriend=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_ConfirmAddFriend_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ConfirmAddFriend_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CONFIRMADDFRIEND_REQ);
+	Proto.writeString(msg,data.friendID); -- 好友ID
+	Proto.writeDWORD(msg,data.isConfirm); -- 是否确认
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_ConfirmAddFriend_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ConfirmAddFriend_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CONFIRMADDFRIEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_GetFriendDetail_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetFriendDetail_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETFRIENDDETAIL_REQ);
+	Proto.writeString(msg,data.friendID); -- 好友ID
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_GetFriendDetail_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetFriendDetail_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETFRIENDDETAIL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.detail=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_UpdateFriendDetail_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UpdateFriendDetail_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_UPDATEFRIENDDETAIL_REQ);
+	Proto.writeString(msg,data.friendID); -- 好友ID
+	Proto.writeString(msg,data.detail); --
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_UpdateFriendDetail_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateFriendDetail_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEFRIENDDETAIL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_RedHeart_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RedHeart_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_REDHEART_REQ);
+	Proto.writeString(msg,data.friendID); -- 好友ID
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_RedHeart_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RedHeart_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_REDHEART_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.friendID=Proto.parseString(entry); -- 
+		data.lastRedHeartTime=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_DelFriend_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DelFriend_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DELFRIEND_REQ);
+	Proto.writeString(msg,data.friendID); -- 好友ID
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_DelFriend_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DelFriend_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DELFRIEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_GetRecommendFriend_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetRecommendFriend_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETRECOMMENDFRIEND_REQ);
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_GetRecommendFriend_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetRecommendFriend_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETRECOMMENDFRIEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.recommends=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_DisbandAllFriendApply_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DisbandAllFriendApply_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DISBANDALLFRIENDAPPLY_REQ);
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_DisbandAllFriendApply_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DisbandAllFriendApply_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DISBANDALLFRIENDAPPLY_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_FriendFull_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_FriendFull_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FRIENDFULL_NTF;
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_FBSharePower_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FBSharePower_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FBSHAREPOWER_REQ);
+	Proto.writeString(msg,data.shareUser); --
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_FBSharePower_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FBSharePower_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FBSHAREPOWER_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.writeP_CG_FBFriendAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FBFriendAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FBFRIENDAWARD_REQ);
+	Proto.writeDWORD(msg,data.fbFriendID); --
+end
+```
+
+### `Proto_ChatUser.lua` — `Proto.parseP_GC_FBFriendAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FBFriendAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FBFRIENDAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_Family_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_Family_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FAMILY_REQ);
+	Proto.writeString(msg,data.cmd); -- 命令
+	Proto.writeString(msg,data.concent); -- 内容
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_Family_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_Family_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FAMILY_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.cmd=Proto.parseString(entry); -- 命令
+		data.ackConcent=Proto.parseString(entry); -- 内容
+	end
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_Family_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_Family_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FAMILY_NTF;
+	data.cmd=Proto.parseString(entry); -- 命令
+	data.ackConcent=Proto.parseString(entry); -- 内容
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_GetDungeon_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetDungeon_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETDUNGEON_REQ);
+	Proto.writeWORD(msg,data.type); -- 类型1家族副本,2组队副本
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_GetDungeon_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetDungeon_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETDUNGEON_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.cellNum=Proto.parseDWORD(entry); -- 副本格子数
+		data.membersNum=Proto.parseDWORD(entry); -- 成员个数
+		data.buffNum=Proto.parseDWORD(entry); -- buff个数
+		data.battleNum=Proto.parseDWORD(entry); -- 战斗个数
+		data.advID=Proto.parseDWORD(entry); -- 副本ID
+		data.maxKilled=Proto.parseDWORD(entry); -- 最大击杀怪物个数
+	end
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_CurrentFloorAllMebers_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_CurrentFloorAllMebers_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CURRENTFLOORALLMEBERS_NTF;
+	data.membersList=Proto.parseVector(entry,Proto.parseString); -- 
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_AllBuff_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_AllBuff_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ALLBUFF_NTF;
+	data.buffList=Proto.parseVector(entry,Proto.parseString); -- 
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_AllBattle_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_AllBattle_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ALLBATTLE_NTF;
+	data.battleList=Proto.parseVector(entry,Proto.parseString); -- 
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_DungeonCells_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_DungeonCells_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DUNGEONCELLS_NTF;
+	data.cells=Proto.parseVector(entry,Proto.parseString); -- 格子信息
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_DungeonMoveCell_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DungeonMoveCell_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DUNGEONMOVECELL_REQ);
+	Proto.writeDWORD(msg,data.x); -- x
+	Proto.writeDWORD(msg,data.y); -- y
+	Proto.writeString(msg,data.path); -- 路径
+	Proto.writeWORD(msg,data.type); -- 副本类型1家族副本,2组队副本
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_DungeonMoveCell_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DungeonMoveCell_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DUNGEONMOVECELL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_FireDungeonCell_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FireDungeonCell_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FIREDUNGEONCELL_REQ);
+	Proto.writeDWORD(msg,data.x); -- x
+	Proto.writeDWORD(msg,data.y); -- y
+	Proto.writeWORD(msg,data.type); -- 副本类型1家族副本,2组队副本
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_FireDungeonCell_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FireDungeonCell_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FIREDUNGEONCELL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_DungeonChangeFloor_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DungeonChangeFloor_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DUNGEONCHANGEFLOOR_REQ);
+	Proto.writeDWORD(msg,data.type); -- 0回到上一层,1去下一层
+	Proto.writeWORD(msg,data.mapType); -- 副本类型1家族副本,2组队副本
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_DungeonChangeFloor_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DungeonChangeFloor_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DUNGEONCHANGEFLOOR_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_FamilyDisplayCell_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FamilyDisplayCell_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FAMILYDISPLAYCELL_REQ);
+	Proto.writeDWORD(msg,data.x); -- x
+	Proto.writeDWORD(msg,data.y); -- y
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_FamilyDisplayCell_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FamilyDisplayCell_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FAMILYDISPLAYCELL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_FamilyRandomChestAward_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_FamilyRandomChestAward_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FAMILYRANDOMCHESTAWARD_NTF;
+	data.contribute=Proto.parseDWORD(entry); -- 贡献度
+	data.awardContent=Proto.parseString(entry); -- 奖励内容
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_FamilyBattleInfo_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_FamilyBattleInfo_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FAMILYBATTLEINFO_NTF;
+	data.monsters=Proto.parseVector(entry,Proto.parseString); -- 怪物信息列表
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_DungeonBattleEnd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DungeonBattleEnd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DUNGEONBATTLEEND_REQ);
+	Proto.writeWORD(msg,data.isWin); -- 0 败 1 胜 2平
+	Proto.writeDWORD(msg,data.battleID); -- 战斗ID
+	Proto.writeDWORD(msg,data.monsterHp); -- 怪物剩余血量
+	Proto.writeDWORD(msg,data.dps); -- 伤害统计
+	Proto.writeDWORD(msg,data.x); -- x
+	Proto.writeDWORD(msg,data.y); -- y
+	Proto.writeWORD(msg,data.type); -- 副本类型1家族副本,2组队副本
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_DungeonBattleEnd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DungeonBattleEnd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DUNGEONBATTLEEND_ACK;
+	data.code=Proto.parseWORD(entry); -- code
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_FamilyKillBoss_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_FamilyKillBoss_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FAMILYKILLBOSS_NTF;
+	data.x=Proto.parseDWORD(entry); -- x
+	data.y=Proto.parseDWORD(entry); -- y
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_CharacterMoveCell_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_CharacterMoveCell_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHARACTERMOVECELL_NTF;
+	data.charID=Proto.parseDWORD(entry); -- 玩家ID 
+	data.x=Proto.parseDWORD(entry); -- x
+	data.y=Proto.parseDWORD(entry); -- y
+	data.gender=Proto.parseDWORD(entry); -- 性别
+	data.level=Proto.parseDWORD(entry); -- 等级
+	data.name=Proto.parseString(entry); -- 姓名
+	data.floor=Proto.parseDWORD(entry); -- 楼层
+	data.fashions=Proto.parseVector(entry,Proto.parseDWORD); -- 时装
+	data.path=Proto.parseString(entry); -- 路径
+	data.state=Proto.parseDWORD(entry); -- 状态
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_AddBuff_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_AddBuff_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ADDBUFF_NTF;
+	data.buffID=Proto.parseDWORD(entry); -- buffID
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_OpenChest_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_OpenChest_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_OPENCHEST_NTF;
+	data.lockedTime=Proto.parseDWORD(entry); -- 锁定时间
+	data.x=Proto.parseDWORD(entry); -- x
+	data.y=Proto.parseDWORD(entry); -- y
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_CleanCell_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_CleanCell_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CLEANCELL_NTF;
+	data.x=Proto.parseDWORD(entry); -- x
+	data.y=Proto.parseDWORD(entry); -- y
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_BattleStartLocked_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_BattleStartLocked_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BATTLESTARTLOCKED_NTF;
+	data.x=Proto.parseDWORD(entry); -- x
+	data.y=Proto.parseDWORD(entry); -- y
+	data.isLocked=Proto.parseDWORD(entry); -- 是否锁定
+	data.lockedTime=Proto.parseDWORD(entry); -- 锁定时间
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_LeaveFloor_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_LeaveFloor_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LEAVEFLOOR_NTF;
+	data.charID=Proto.parseDWORD(entry); -- 玩家ID
+	data.floor=Proto.parseDWORD(entry); -- 楼层
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_DisplayCell_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_DisplayCell_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DISPLAYCELL_NTF;
+	data.x=Proto.parseDWORD(entry); -- x
+	data.y=Proto.parseDWORD(entry); -- y
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_GetDungeonCreateTime_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetDungeonCreateTime_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETDUNGEONCREATETIME_REQ);
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_GetDungeonCreateTime_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetDungeonCreateTime_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETDUNGEONCREATETIME_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.createTime=Proto.parseDWORD(entry); -- 创建时间
+	end
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_ResetDungeon_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResetDungeon_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETDUNGEON_REQ);
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_ResetDungeon_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResetDungeon_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETDUNGEON_ACK;
+	data.code=Proto.parseWORD(entry); --  返回码
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_GetDungeonAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetDungeonAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETDUNGEONAWARD_REQ);
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_GetDungeonAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetDungeonAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETDUNGEONAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.awardContent=Proto.parseString(entry); -- 奖励内容
+	end
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_GetDungeonAwardInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetDungeonAwardInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETDUNGEONAWARDINFO_REQ);
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_GetDungeonAwardInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetDungeonAwardInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETDUNGEONAWARDINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	data.awardFloor=Proto.parseDWORD(entry); -- 奖励层数
+	data.canTakeAward=Proto.parseDWORD(entry); -- 0不能领奖励，1能领奖励
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_GetDungeonLog_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetDungeonLog_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETDUNGEONLOG_REQ);
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_GetDungeonLog_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetDungeonLog_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETDUNGEONLOG_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.logList=Proto.parseVector(entry,Proto.parseDungeonLogData); -- 日志列表
+	end
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_GetFamilyShopData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetFamilyShopData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETFAMILYSHOPDATA_REQ);
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_GetFamilyShopData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetFamilyShopData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETFAMILYSHOPDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if ( data.code ==Proto.Error.ERROR_OK) then
+		data.reflashTime=Proto.parseDWORD(entry); -- 刷新时间
+		data.purchased=Proto.parseVector(entry,Proto.parseDWORD); -- 已购买商品
+		data.levelReflashTime=Proto.parseDWORD(entry); -- 等级刷新时间
+	end
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_BuyFamilyShopGoods_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyFamilyShopGoods_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYFAMILYSHOPGOODS_REQ);
+	Proto.writeDWORD(msg,data.goodsID); -- 商品ID
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_BuyFamilyShopGoods_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyFamilyShopGoods_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYFAMILYSHOPGOODS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_RefalshFamilyShop_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RefalshFamilyShop_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_REFALSHFAMILYSHOP_REQ);
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_RefalshFamilyShop_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RefalshFamilyShop_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_REFALSHFAMILYSHOP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.writeP_CG_LevelReflashFamilyShop_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_LevelReflashFamilyShop_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_LEVELREFLASHFAMILYSHOP_REQ);
+end
+```
+
+### `Proto_Confraternity.lua` — `Proto.parseP_GC_LevelReflashFamilyShop_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_LevelReflashFamilyShop_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LEVELREFLASHFAMILYSHOP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.writeP_CG_GetExpeditionData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetExpeditionData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETEXPEDITIONDATA_REQ);
+	Proto.writeDWORD(msg,data.type); -- 类型,0当前,1普通难度,2困难难度,3噩梦难度
+	Proto.writeVector(msg,data.petList,Proto.writeDWORD); -- 宠物列表
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.parseP_GC_GetExpeditionData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetExpeditionData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETEXPEDITIONDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.expeditionData=Proto.parseExpeditionData(entry); -- 远征数据
+	end
+	return data;
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.writeP_CG_ExpeditionBattleEnd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ExpeditionBattleEnd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_EXPEDITIONBATTLEEND_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 战斗宠物ID
+	Proto.writeDWORD(msg,data.petHP); -- 战斗宠物血量
+	Proto.writeDWORD(msg,data.damage); -- 伤害
+	Proto.writeVector(msg,data.quests,Proto.writeDWORD); -- 任务ID
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.parseP_GC_ExpeditionBattleEnd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ExpeditionBattleEnd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_EXPEDITIONBATTLEEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.writeP_CG_GetPointLotteryData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPointLotteryData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPOINTLOTTERYDATA_REQ);
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.parseP_GC_GetPointLotteryData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPointLotteryData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPOINTLOTTERYDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.maxCount=Proto.parseDWORD(entry); -- 最大次数
+		data.usedCount=Proto.parseDWORD(entry); -- 使用过次数
+		data.buyCount=Proto.parseDWORD(entry); -- 已购买次数
+		data.maxBuyCount=Proto.parseDWORD(entry); -- 最大购买次数
+		data.currentPos=Proto.parseDWORD(entry); -- 当前位置
+	end
+	return data;
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.writeP_CG_RollDice_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RollDice_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ROLLDICE_REQ);
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.parseP_GC_RollDice_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RollDice_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ROLLDICE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.stepNumber=Proto.parseDWORD(entry); -- 步数
+	end
+	return data;
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.writeP_CG_BuyRollCount_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyRollCount_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYROLLCOUNT_REQ);
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.parseP_GC_BuyRollCount_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyRollCount_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYROLLCOUNT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.parseP_GC_ExpeditionAward_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_ExpeditionAward_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_EXPEDITIONAWARD_NTF;
+	data.awards=Proto.parseVector(entry,Proto.parseString); -- 奖励信息
+	return data;
+end
+```
+
+### `Proto_Expedition.lua` — `Proto.parseP_GC_PetDetail_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PetDetail_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETDETAIL_NTF;
+	data.pets=Proto.parseVector(entry,Proto.parseString); -- 宠物列表
+	return data;
+end
+```
+
+### `Proto_Explore.lua` — `Proto.writeP_CG_GetExploreData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetExploreData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETEXPLOREDATA_REQ);
+end
+```
+
+### `Proto_Explore.lua` — `Proto.parseP_GC_GetExploreData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetExploreData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETEXPLOREDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.exploreDatas=Proto.parseVector(entry,Proto.parseString); -- 
+		data.exploreDiffcultDatas=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Explore.lua` — `Proto.writeP_CG_Explore_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_Explore_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_EXPLORE_REQ);
+	Proto.writeDWORD(msg,data.exploreIndex); -- 探索编号
+	Proto.writeDWORD(msg,data.difficulty); -- 
+	Proto.writeDWORD(msg,data.option); -- 0,1
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 探索宠物列表 第一个为队长
+end
+```
+
+### `Proto_Explore.lua` — `Proto.parseP_GC_Explore_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_Explore_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_EXPLORE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.exploreIndex=Proto.parseDWORD(entry); -- 
+		data.exploreData=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Explore.lua` — `Proto.writeP_CG_EndExplore_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_EndExplore_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ENDEXPLORE_REQ);
+	Proto.writeDWORD(msg,data.exploreIndex); -- 探索编号
+end
+```
+
+### `Proto_Explore.lua` — `Proto.parseP_GC_EndExplore_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_EndExplore_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ENDEXPLORE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.exploreIndex=Proto.parseDWORD(entry); -- 
+		data.exploreData=Proto.parseString(entry); -- 
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 
+		data.exploreDiffcultDatas=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Explore.lua` — `Proto.parseP_GC_UpdateExploreDiffcultDatas_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateExploreDiffcultDatas_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEEXPLOREDIFFCULTDATAS_NTF;
+	data.exploreDiffcultDatas=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Explore.lua` — `Proto.parseP_GC_UpdateExploreData_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateExploreData_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEEXPLOREDATA_NTF;
+	data.exploreData=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Explore.lua` — `Proto.writeP_CG_BuyExplorePacket_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyExplorePacket_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYEXPLOREPACKET_REQ);
+end
+```
+
+### `Proto_Explore.lua` — `Proto.parseP_GC_BuyExplorePacket_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyExplorePacket_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYEXPLOREPACKET_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.explorePacketNum=Proto.parseDWORD(entry); -- 
+		data.exploreData=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Fashion.lua` — `Proto.writeP_CG_GetFashions_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetFashions_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETFASHIONS_REQ);
+end
+```
+
+### `Proto_Fashion.lua` — `Proto.parseP_GC_GetFashions_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetFashions_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETFASHIONS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.FashionInfo=Proto.parseString(entry); -- 角色时装信息
+	end
+	return data;
+end
+```
+
+### `Proto_Fashion.lua` — `Proto.writeP_CG_SetFashions_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SetFashions_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SETFASHIONS_REQ);
+	Proto.writeVector(msg,data.FashionInfo,Proto.writeDWORD); -- 角色时装信息
+end
+```
+
+### `Proto_Fashion.lua` — `Proto.parseP_GC_SetFashions_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SetFashions_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SETFASHIONS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.FashionInfo=Proto.parseString(entry); -- 角色时装信息
+	end
+	return data;
+end
+```
+
+### `Proto_Fashion.lua` — `Proto.writeP_CG_RestoreFashions_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RestoreFashions_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESTOREFASHIONS_REQ);
+end
+```
+
+### `Proto_Fashion.lua` — `Proto.parseP_GC_RestoreFashions_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RestoreFashions_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESTOREFASHIONS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.FashionInfo=Proto.parseString(entry); -- 角色时装信息
+	end
+	return data;
+end
+```
+
+### `Proto_Fashion.lua` — `Proto.parseP_GC_Fashions_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_Fashions_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FASHIONS_NTF;
+	data.FashionInfo=Proto.parseString(entry); -- 角色时装信息
+	return data;
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.writeP_CG_GetFashionShowRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetFashionShowRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETFASHIONSHOWRANK_REQ);
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.parseP_GC_GetFashionShowRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetFashionShowRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETFASHIONSHOWRANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.rankInfo=Proto.parseString(entry); -- 排行信息
+	end
+	return data;
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.writeP_CG_SaveFashionShow_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SaveFashionShow_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SAVEFASHIONSHOW_REQ);
+	Proto.writeVector(msg,data.fashions,Proto.writeDWORD); -- 时装信息
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ID
+	Proto.writeDWORD(msg,data.sceneID); -- 场景ID
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.parseP_GC_SaveFashionShow_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SaveFashionShow_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SAVEFASHIONSHOW_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.writeP_CG_GetSingleFashionShow_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetSingleFashionShow_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETSINGLEFASHIONSHOW_REQ);
+	Proto.writeDWORD(msg,data.charID); -- 玩家ID
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.parseP_GC_GetSingleFashionShow_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetSingleFashionShow_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSINGLEFASHIONSHOW_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.fashions=Proto.parseVector(entry,Proto.parseDWORD); -- 时装信息
+		data.petObjID=Proto.parseDWORD(entry); -- 宠物ObjID
+		data.point=Proto.parseDWORD(entry); -- 点赞分数
+		data.rank=Proto.parseDWORD(entry); -- 排名
+		data.petID=Proto.parseDWORD(entry); -- 宠物ID
+		data.vipLevel=Proto.parseDWORD(entry); -- vip等级
+		data.familyName=Proto.parseString(entry); -- 家族名称
+		data.sceneID=Proto.parseDWORD(entry); -- 场景ID
+		data.skin=Proto.parseDWORD(entry); -- 皮肤
+	end
+	return data;
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.writeP_CG_TakeFashionShowRankAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TakeFashionShowRankAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TAKEFASHIONSHOWRANKAWARD_REQ);
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.parseP_GC_TakeFashionShowRankAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TakeFashionShowRankAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TAKEFASHIONSHOWRANKAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.writeP_CG_GetFashionShowPeopers_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetFashionShowPeopers_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETFASHIONSHOWPEOPERS_REQ);
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.parseP_GC_GetFashionShowPeopers_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetFashionShowPeopers_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETFASHIONSHOWPEOPERS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.fashionShow=Proto.parseVector(entry,Proto.parseFashionShowInfo); -- 时装大赛人物列表
+	end
+	return data;
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.writeP_CG_LikeFashionShow_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_LikeFashionShow_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_LIKEFASHIONSHOW_REQ);
+	Proto.writeDWORD(msg,data.charID); -- 玩家ID
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.parseP_GC_LikeFashionShow_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_LikeFashionShow_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LIKEFASHIONSHOW_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.writeP_CG_GetLikeList_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetLikeList_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETLIKELIST_REQ);
+end
+```
+
+### `Proto_FashionShow.lua` — `Proto.parseP_GC_GetLikeList_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetLikeList_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETLIKELIST_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.likeList=Proto.parseString(entry); -- 点赞列表
+	end
+	return data;
+end
+```
+
+### `Proto_Garden.lua` — `Proto.writeP_CG_GetHome_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetHome_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETHOME_REQ);
+	Proto.writeDWORD(msg,data.charID); --
+end
+```
+
+### `Proto_Garden.lua` — `Proto.parseP_GC_GetHome_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetHome_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETHOME_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.home=Proto.parseString(entry); -- 
+		data.charID=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Garden.lua` — `Proto.writeP_CG_SetHome_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SetHome_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SETHOME_REQ);
+	Proto.writeString(msg,data.homeName); -- 
+	Proto.writeVector(msg,data.addFurnitures,Proto.writeString); -- {objID:xxx,otherParam:{...}}
+	Proto.writeDWORD(msg,data.delFurnitureObjID); -- 不删填0
+	Proto.writeVector(msg,data.moveFurnitures,Proto.writeString); -- {objID:xxx,otherParam:{...}}
+end
+```
+
+### `Proto_Garden.lua` — `Proto.parseP_GC_SetHome_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SetHome_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SETHOME_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.home=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Garden.lua` — `Proto.writeP_CG_BuyHome_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyHome_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYHOME_REQ);
+end
+```
+
+### `Proto_Garden.lua` — `Proto.parseP_GC_BuyHome_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyHome_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYHOME_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.home=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_IM.lua` — `Proto.parseP_GC_Message_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_Message_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MESSAGE_NTF;
+	data.command=Proto.parsestring(entry); -- 消息命令
+	data.param=Proto.parsestring(entry); -- 消息参数
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_GetItemPacket_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetItemPacket_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETITEMPACKET_REQ);
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_GetItemPacket_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetItemPacket_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETITEMPACKET_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.itemNum=Proto.parseDWORD(entry); -- 道具总数
+		data.equipNum=Proto.parseDWORD(entry); -- 装备总数
+		data.furnitureNum=Proto.parseDWORD(entry); -- 家具总数
+		data.skillItemNum=Proto.parseDWORD(entry); -- 技能书总数
+		data.petPieceItemNum=Proto.parseDWORD(entry); -- 宠物碎片总数
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_GetItemPacket_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetItemPacket_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETITEMPACKET_NTF;
+	data.items=Proto.parseVector(entry,Proto.parseString); -- 道具
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_GetEquipPacket_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetEquipPacket_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETEQUIPPACKET_NTF;
+	data.equips=Proto.parseVector(entry,Proto.parseString); -- 装备
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_GetFurniturePacket_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetFurniturePacket_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETFURNITUREPACKET_NTF;
+	data.furnitures=Proto.parseVector(entry,Proto.parseString); -- 家具
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_GetSkillItemPacket_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetSkillItemPacket_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSKILLITEMPACKET_NTF;
+	data.skillItems=Proto.parseVector(entry,Proto.parseString); -- 家具
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_GetPetPieceItemPacket_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetPetPieceItemPacket_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPETPIECEITEMPACKET_NTF;
+	data.petPieceItems=Proto.parseVector(entry,Proto.parseString); -- 宠物碎片
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_UpdateItems_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateItems_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEITEMS_NTF;
+	data.items=Proto.parseVector(entry,Proto.parseString); -- 道具
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_UpdateEquips_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateEquips_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEEQUIPS_NTF;
+	data.equips=Proto.parseVector(entry,Proto.parseString); -- 装备
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_UpdateFurnitures_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateFurnitures_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEFURNITURES_NTF;
+	data.furnitures=Proto.parseVector(entry,Proto.parseString); -- 家具
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_UpdateSkillItems_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateSkillItems_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATESKILLITEMS_NTF;
+	data.skillItems=Proto.parseVector(entry,Proto.parseString); -- 技能道具
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_UseItem_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UseItem_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_USEITEM_REQ);
+	Proto.writeDWORD(msg,data.itemID); -- 道具ID
+	Proto.writeDWORD(msg,data.targetNum); -- 使用目标
+	Proto.writeString(msg,data.targetStr); -- 使用目标
+	Proto.writeDWORD(msg,data.useNum); -- 使用目标
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_UseItem_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UseItem_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_USEITEM_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.itemID=Proto.parseDWORD(entry); -- 道具总数
+		data.itemNum=Proto.parseDWORD(entry); -- 道具总数
+	end
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_StrengthenEquip_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_StrengthenEquip_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_STRENGTHENEQUIP_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物objID
+	Proto.writeDWORD(msg,data.equipObjID); -- 装备objID
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_StrengthenEquip_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_StrengthenEquip_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_STRENGTHENEQUIP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petObjID=Proto.parseDWORD(entry); -- 宠物objID
+		data.equipObjID=Proto.parseDWORD(entry); -- 装备objID
+		data.js=Proto.parseString(entry); -- 
+		data.strengthenAddNum=Proto.parseDWORD(entry); -- 增加的强化值
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_EvoEquip_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_EvoEquip_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_EVOEQUIP_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物objID
+	Proto.writeDWORD(msg,data.equipObjID); -- 装备objID
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_EvoEquip_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_EvoEquip_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_EVOEQUIP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petObjID=Proto.parseDWORD(entry); -- 宠物objID
+		data.equipObjID=Proto.parseDWORD(entry); -- 装备objID
+		data.js=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_WashEquip_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_WashEquip_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_WASHEQUIP_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物objID
+	Proto.writeDWORD(msg,data.equipObjID); -- 装备objID
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_WashEquip_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_WashEquip_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_WASHEQUIP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petObjID=Proto.parseDWORD(entry); -- 宠物objID
+		data.equipObjID=Proto.parseDWORD(entry); -- 装备objID
+		data.js=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_MoveEquip_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_MoveEquip_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_MOVEEQUIP_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物objID
+	Proto.writeDWORD(msg,data.equipObjID); -- 装备objID
+	Proto.writeDWORD(msg,data.onoff); -- 0 卸下 1 装备到第一格 2 装备到第二格
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_MoveEquip_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_MoveEquip_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MOVEEQUIP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petObjID=Proto.parseDWORD(entry); -- 宠物objID
+		data.equipObjID=Proto.parseDWORD(entry); -- 装备objID
+		data.onoff=Proto.parseDWORD(entry); -- 0 卸下 1 装备到第一格 2 装备到第二格
+		data.equips=Proto.parseVector(entry,Proto.parseString); -- 
+		data.pet=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_UseWashEquip_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UseWashEquip_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_USEWASHEQUIP_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物objID
+	Proto.writeDWORD(msg,data.equipObjID); -- 装备objID
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_UseWashEquip_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UseWashEquip_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_USEWASHEQUIP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petObjID=Proto.parseDWORD(entry); -- 宠物objID
+		data.equipObjID=Proto.parseDWORD(entry); -- 装备objID
+		data.js=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_BuyPacket_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyPacket_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYPACKET_REQ);
+	Proto.writeDWORD(msg,data.packetType); -- 1 道具 2 宠物
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_BuyPacket_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyPacket_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYPACKET_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.packetType=Proto.parseDWORD(entry); -- 1 道具 2 宠物
+		data.num=Proto.parseDWORD(entry); -- 当前数量
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_SellItem_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SellItem_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SELLITEM_REQ);
+	Proto.writeDWORD(msg,data.itemID); -- 物品ID
+	Proto.writeDWORD(msg,data.objID); -- objID
+	Proto.writeDWORD(msg,data.num); -- 数量
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_SellItem_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SellItem_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SELLITEM_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.goldNum=Proto.parseDWORD(entry); -- 金币数量
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_QuerySomeItems_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QuerySomeItems_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYSOMEITEMS_REQ);
+	Proto.writeVector(msg,data.itemIDs,Proto.writeDWORD); -- 物品ID
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_QuerySomeItems_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QuerySomeItems_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYSOMEITEMS_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.itemIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 物品ID
+		data.nums=Proto.parseVector(entry,Proto.parseDWORD); -- 数量
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_GetSevenDayAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetSevenDayAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETSEVENDAYAWARD_REQ);
+	Proto.writeDWORD(msg,data.sevenDayID); -- 
+	Proto.writeDWORD(msg,data.selectIndex); --
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_GetSevenDayAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetSevenDayAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSEVENDAYAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 物品ID
+	end
+	return data;
+end
+```
+
+### `Proto_Item.lua` — `Proto.writeP_CG_ChangeName_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangeName_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGENAME_REQ);
+	Proto.writeString(msg,data.nickname); --
+end
+```
+
+### `Proto_Item.lua` — `Proto.parseP_GC_ChangeName_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangeName_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGENAME_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.writeP_CG_GetLifeSkillData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetLifeSkillData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETLIFESKILLDATA_REQ);
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.parseP_GC_GetLifeSkillData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetLifeSkillData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETLIFESKILLDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.lifeSkillData=Proto.parseString(entry); -- 角色生活技能信息
+	end
+	return data;
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.writeP_CG_ChangeLifeCareer_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangeLifeCareer_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGELIFECAREER_REQ);
+	Proto.writeBYTE(msg,data.career); -- 新职业
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.parseP_GC_ChangeLifeCareer_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangeLifeCareer_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGELIFECAREER_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.lifeSkillData=Proto.parseString(entry); -- 生活信息
+	end
+	return data;
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.writeP_CG_Manufacture_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_Manufacture_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_MANUFACTURE_REQ);
+	Proto.writeDWORD(msg,data.drawingID); -- 配方ID
+	Proto.writeDWORD(msg,data.count); -- 制作数量
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.parseP_GC_Manufacture_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_Manufacture_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MANUFACTURE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.lifeSkillData=Proto.parseString(entry); -- 生活信息
+	end
+	return data;
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.parseP_GC_LifeSkillUpdate_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_LifeSkillUpdate_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LIFESKILLUPDATE_NTF;
+	data.lifeSkillData=Proto.parseString(entry); -- 角色生活技能信息
+	return data;
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.writeP_CG_UnlockLifeSkill_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UnlockLifeSkill_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_UNLOCKLIFESKILL_REQ);
+	Proto.writeBYTE(msg,data.career); -- 初始生活职业
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.parseP_GC_UnlockLifeSkill_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UnlockLifeSkill_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UNLOCKLIFESKILL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.lifeSkillData=Proto.parseString(entry); -- 生活信息
+	end
+	return data;
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.writeP_CG_BuyDrawings_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyDrawings_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYDRAWINGS_REQ);
+	Proto.writeDWORD(msg,data.drawingID); -- 图纸ID
+end
+```
+
+### `Proto_LifeSkill.lua` — `Proto.parseP_GC_BuyDrawings_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyDrawings_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYDRAWINGS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_GetLoginValidate_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetLoginValidate_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETLOGINVALIDATE_REQ);
+	Proto.writeBYTE(msg,data.temp); -- 无作用
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_GetLoginValidate_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetLoginValidate_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETLOGINVALIDATE_ACK;
+	data.pic=Proto.parseValidatePicBuff(entry); -- 验证码图片buffer
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_Login_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_Login_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_LOGIN_REQ);
+	Proto.writeUserName(msg,data.username); -- 用户名
+	Proto.writePassWord(msg,data.password); -- 密码
+	Proto.writeCharacterID(msg,data.userID); -- 玩家ID
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_Login_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_Login_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LOGIN_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.chars=Proto.parseVector(entry,Proto.parseCharBriefInfo); -- 玩家列表
+		data.serverTime=Proto.parseQWORD(entry); -- 
+		data.serverTimeZone=Proto.parsefloat(entry); -- 时区秒数 (例 +8时区为8*3600) 
+	end
+	if ((data.code+0)==Proto.Error.ERROR_QUEUE) then
+		data.num=Proto.parseDWORD(entry); -- 排在第几位
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_NewAccountBindOldRoleID_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_NewAccountBindOldRoleID_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_NEWACCOUNTBINDOLDROLEID_REQ);
+	Proto.writeString(msg,data.QRCode); -- 角色二维码
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_NewAccountBindOldRoleID_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_NewAccountBindOldRoleID_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_NEWACCOUNTBINDOLDROLEID_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	data.world=Proto.parseDWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_GetCountries_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetCountries_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETCOUNTRIES_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_GetCountries_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetCountries_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETCOUNTRIES_ACK;
+	data.countries=Proto.parseVector(entry,Proto.parseCountryID); -- 可选择的国家
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_CreateChar_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_CreateChar_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_CREATECHAR_REQ);
+	Proto.writeNickName(msg,data.nickname); -- 玩家昵称
+	Proto.writeBYTE(msg,data.gender); -- 玩家性别(0:女,1:男)
+	Proto.writeBYTE(msg,data.country); -- 国家
+	Proto.writeBYTE(msg,data.cullPet); -- 宠物蛋编号
+	Proto.writeBYTE(msg,data.iconID); -- 头像编号
+	Proto.writeint(msg,data.world); -- 所在世界
+	Proto.writeString(msg,data.spreader); -- 推广员编号
+	Proto.writeVector(msg,data.initFashionInfos,Proto.writeDWORD); -- 初始服装
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_CreateChar_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_CreateChar_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_CREATECHAR_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	if (data.code.value==Proto.Error.ERROR_OK) then
+		data.charID=Proto.parseCharacterID(entry); -- 玩家ID
+		data.baseInfo=Proto.parseCharBaseInfo(entry); -- 基本信息
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_SNSServerStatus_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_SNSServerStatus_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SNSSERVERSTATUS_NTF;
+	data.status=Proto.parseBYTE(entry); -- 当前状态
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_LoginSNS_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_LoginSNS_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_LOGINSNS_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_LoginSNS_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_LoginSNS_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LOGINSNS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_CloseClient_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_CloseClient_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CLOSECLIENT_NTF;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_QueueNum_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_QueueNum_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_QUEUENUM_NTF;
+	data.num=Proto.parseDWORD(entry); -- 前方排队人数
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_GetUserNickFromID_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_GetUserNickFromID_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_GETUSERNICKFROMID_REQ);
+	Proto.writeUserID(msg,data.roleID); -- 玩家ID
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_GetUserNickFromID_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_GetUserNickFromID_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_GETUSERNICKFROMID_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.nickname=Proto.parseNickName(entry); -- 玩家昵称
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_GetUserIDFromNick_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_GetUserIDFromNick_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_GETUSERIDFROMNICK_REQ);
+	Proto.writeNickName(msg,data.nickname); -- 玩家昵称
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_GetUserIDFromNick_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_GetUserIDFromNick_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_GETUSERIDFROMNICK_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.roleID=Proto.parseUserID(entry); -- 玩家ID
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_ResetClientFlag_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_ResetClientFlag_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_RESETCLIENTFLAG_REQ);
+	Proto.writeDWORD(msg,data.flag); -- 客户端标志
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_ResetClientFlag_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_ResetClientFlag_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_RESETCLIENTFLAG_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_SystemSetting_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_SystemSetting_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_SYSTEMSETTING_NTF;
+	data.seasonTime=Proto.parseDWORD(entry); -- 一个季节所占的秒数
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_IndulgeClean_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_IndulgeClean_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_INDULGECLEAN_NTF;
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_IndulgeThree_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_IndulgeThree_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_INDULGETHREE_NTF;
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_IndulgeFive_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_IndulgeFive_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_INDULGEFIVE_NTF;
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_QuitZone_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_QuitZone_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUITZONE_NTF;
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CZ_TestServerSpeed_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_TestServerSpeed_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_TESTSERVERSPEED_REQ);
+	Proto.writeDWORD(msg,data.pingID); -- 测试pingid
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_ZC_TestServerSpeed_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_TestServerSpeed_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_TESTSERVERSPEED_ACK;
+	data.pingID=Proto.parseDWORD(entry); -- 测试pingid
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_UserBanInfo_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_UserBanInfo_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_USERBANINFO_NTF;
+	data.unlockTime=Proto.parseTIME_SEC(entry); -- 解封时刻
+	data.reason=Proto.parseString(entry); -- 停封原因
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_SystemTime_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_SystemTime_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_SYSTEMTIME_NTF;
+	data.time=Proto.parseTIME_SEC(entry); -- 系统时间
+	data.timeZone=Proto.parseString(entry); -- 时区
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_ChangeStorgePassword_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_ChangeStorgePassword_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_CHANGESTORGEPASSWORD_REQ);
+	Proto.writePassWord(msg,data.oldPassword); -- 旧密码(无密码可为空串)
+	Proto.writePassWord(msg,data.newPassword); -- 新密码
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_ChangeStorgePassword_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_ChangeStorgePassword_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_CHANGESTORGEPASSWORD_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_LoginStorgePassword_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_LoginStorgePassword_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_LOGINSTORGEPASSWORD_REQ);
+	Proto.writePassWord(msg,data.password); -- 密码
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_LoginStorgePassword_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_LoginStorgePassword_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_LOGINSTORGEPASSWORD_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CA_GetConfigScript_Req(msg,data)`
+
+```lua
+function Proto.writeP_CA_GetConfigScript_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CA_GETCONFIGSCRIPT_REQ);
+	Proto.writeDWORD(msg,data.index); -- 脚本序列号
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_AC_GetConfigScript_Ack(entry)`
+
+```lua
+function Proto.parseP_AC_GetConfigScript_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.AC_GETCONFIGSCRIPT_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	data.index=Proto.parseDWORD(entry); -- 脚本序列号
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.script=Proto.parseString(entry); -- 脚本代码
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_AC_GetConfigScriptOver_Ntf(entry)`
+
+```lua
+function Proto.parseP_AC_GetConfigScriptOver_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.AC_GETCONFIGSCRIPTOVER_NTF;
+	data.index=Proto.parseDWORD(entry); -- 脚本序列号
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_GetConfigScriptUpdate_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetConfigScriptUpdate_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETCONFIGSCRIPTUPDATE_NTF;
+	data.index=Proto.parseDWORD(entry); -- 脚本序列号
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_UserOnlineTime_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_UserOnlineTime_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_USERONLINETIME_NTF;
+	data.userOnlineTime=Proto.parseDWORD(entry); -- 玩家在线时长
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_QueryCharBriefInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_QueryCharBriefInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_QUERYCHARBRIEFINFO_REQ);
+	Proto.writeVector(msg,data.users,Proto.writeUserID); -- 玩家列表
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_QueryCharBriefInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_QueryCharBriefInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_QUERYCHARBRIEFINFO_ACK;
+	data.users=Proto.parseVector(entry,Proto.parseCharBriefInfo); -- 玩家列表
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_KickChar_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_KickChar_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_KICKCHAR_REQ);
+	Proto.writeCharacterID(msg,data.charID); -- 玩家ID
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_KickChar_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_KickChar_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_KICKCHAR_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_AllowLogin_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_AllowLogin_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_ALLOWLOGIN_NTF;
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_AppointNickName_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_AppointNickName_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_APPOINTNICKNAME_REQ);
+	Proto.writeNickName(msg,data.nickname); -- 昵称
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_AppointNickName_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_AppointNickName_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_APPOINTNICKNAME_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_ZC_Mobility_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_Mobility_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_MOBILITY_NTF;
+	data.mobility=Proto.parseWORD(entry); -- 当前行动力
+	data.maxMobility=Proto.parseWORD(entry); -- 行动力上线
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_RewardCoding_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_RewardCoding_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_REWARDCODING_REQ);
+	Proto.writeCharacterID(msg,data.charid); -- 玩家编号
+	Proto.writeWORD(msg,data.rewardType); -- 奖励编码类型
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_RewardCoding_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_RewardCoding_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_REWARDCODING_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.rewardCodingInfo=Proto.parseRewardCodingInfo(entry); -- 奖励code
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_ExchangeRewardCoding_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_ExchangeRewardCoding_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_EXCHANGEREWARDCODING_REQ);
+	Proto.writeString(msg,data.rewardCode); -- 奖励编码
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_ExchangeRewardCoding_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_ExchangeRewardCoding_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_EXCHANGEREWARDCODING_ACK;
+	data.charid=Proto.parseCharacterID(entry); -- 玩家编号
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CJ_login_Req(msg,data)`
+
+```lua
+function Proto.writeP_CJ_login_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CJ_LOGIN_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_JC_login_Ack(entry)`
+
+```lua
+function Proto.parseP_JC_login_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.JC_LOGIN_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_RenameCharacterNickname_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_RenameCharacterNickname_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_RENAMECHARACTERNICKNAME_REQ);
+	Proto.writeNickName(msg,data.nickname); -- 昵称
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_RenameCharacterNickname_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_RenameCharacterNickname_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_RENAMECHARACTERNICKNAME_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_CharacterValuesUpdate_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_CharacterValuesUpdate_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHARACTERVALUESUPDATE_NTF;
+	data.jsCode=Proto.parseString(entry); -- json格式
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_SelectPokemon_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SelectPokemon_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SELECTPOKEMON_REQ);
+	Proto.writeDWORD(msg,data.pokemonID); -- 宠物ID
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_SelectPokemon_Ack(msg,data)`
+
+```lua
+function Proto.writeP_CG_SelectPokemon_Ack(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SELECTPOKEMON_ACK);
+	Proto.writeWORD(msg,data.code); --
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_ChangeInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_ChangeInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_CHANGEINFO_REQ);
+	Proto.writeDWORD(msg,data.charId); -- 玩家id
+	Proto.writeString(msg,data.key); -- 关键字
+	Proto.writeString(msg,data.content); -- 内容
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_ChangeInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_ChangeInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_CHANGEINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CM_ReadInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_ReadInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_READINFO_REQ);
+	Proto.writeString(msg,data.key); -- 关键字
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_MC_ReadInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_ReadInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_READINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	data.content=Proto.parseString(entry); -- 内容
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_GetServerTime_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetServerTime_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETSERVERTIME_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_GetServerTime_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetServerTime_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSERVERTIME_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.serverTime=Proto.parseQWORD(entry); -- 内容
+		data.serverTimeZone=Proto.parsefloat(entry); -- 时区秒数 (例 +8时区为8*3600) 
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_GetCharacterValues_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetCharacterValues_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETCHARACTERVALUES_REQ);
+	Proto.writeVector(msg,data.keys,Proto.writeString); --
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_GetCharacterValues_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetCharacterValues_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETCHARACTERVALUES_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.js=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_ClientInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ClientInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CLIENTINFO_REQ);
+	Proto.writeString(msg,data.ip); -- Ipv4地址
+	Proto.writeString(msg,data.device_model); -- 设备型号
+	Proto.writeString(msg,data.os_name); -- 操作系统
+	Proto.writeString(msg,data.os_ver); -- 操作系统版本
+	Proto.writeString(msg,data.mac_addr); -- 设备mac地址
+	Proto.writeString(msg,data.udid); -- 设备唯一标示符
+	Proto.writeString(msg,data.app_channel); -- 运营渠道
+	Proto.writeString(msg,data.app_ver); -- 客户端版本号
+	Proto.writeString(msg,data.network); -- 网络连接
+	Proto.writeString(msg,data.device_screen); -- 屏幕高度X宽度 如100X80
+	Proto.writeString(msg,data.platform_tag); -- 发行平台标记
+	Proto.writeDWORD(msg,data.group_id); -- 操作系统ID
+	Proto.writeDWORD(msg,data.channel_id); -- 运营渠道ID
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_ClientInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ClientInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CLIENTINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_HaveDinner_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_HaveDinner_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_HAVEDINNER_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_HaveDinner_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_HaveDinner_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_HAVEDINNER_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.js=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_GetReloginKey_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetReloginKey_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETRELOGINKEY_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_GetReloginKey_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetReloginKey_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETRELOGINKEY_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.js=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_BuyPower_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyPower_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYPOWER_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_BuyPower_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyPower_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYPOWER_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_BuyGCash_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyGCash_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYGCASH_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_BuyGCash_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyGCash_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYGCASH_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.rate=Proto.parseWORD(entry); -- 倍率
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_SetCharSign_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SetCharSign_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SETCHARSIGN_REQ);
+	Proto.writeString(msg,data.charSign); -- 签名
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_SetCharSign_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SetCharSign_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SETCHARSIGN_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_GetCharSign_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetCharSign_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETCHARSIGN_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_GetCharSign_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetCharSign_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETCHARSIGN_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.charSign=Proto.parseString(entry); -- 签名
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_SetCountry_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SetCountry_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SETCOUNTRY_REQ);
+	Proto.writeDWORD(msg,data.country); -- 国家信息ID
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_SetCountry_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SetCountry_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SETCOUNTRY_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_GetPlayerPointRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPlayerPointRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPLAYERPOINTRANK_REQ);
+	Proto.writeDWORD(msg,data.rankMin); -- 
+	Proto.writeDWORD(msg,data.rankMax); --
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_GetPlayerPointRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPlayerPointRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPLAYERPOINTRANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.ranks=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_GetMyPlayerPoint_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMyPlayerPoint_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYPLAYERPOINT_REQ);
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_GetMyPlayerPoint_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyPlayerPoint_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYPLAYERPOINT_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.point=Proto.parseDWORD(entry); -- 
+		data.rank=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_CheckUserCode_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CheckUserCode_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHECKUSERCODE_REQ);
+	Proto.writeString(msg,data.code); --
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_CheckUserCode_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CheckUserCode_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHECKUSERCODE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_PasswordGift_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PasswordGift_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PASSWORDGIFT_REQ);
+	Proto.writeString(msg,data.password); -- 
+	Proto.writeDWORD(msg,data.useMCash); --
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_PasswordGift_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PasswordGift_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PASSWORDGIFT_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.passwordProducts=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Login.lua` — `Proto.writeP_CG_BuyPasswordProduct_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyPasswordProduct_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYPASSWORDPRODUCT_REQ);
+	Proto.writeDWORD(msg,data.productID); --
+end
+```
+
+### `Proto_Login.lua` — `Proto.parseP_GC_BuyPasswordProduct_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyPasswordProduct_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYPASSWORDPRODUCT_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.passwordProducts=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_GetLostTowerData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetLostTowerData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETLOSTTOWERDATA_REQ);
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_GetLostTowerData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetLostTowerData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETLOSTTOWERDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.lostTowerData=Proto.parseCharacterLostTowerData(entry); -- 玩家迷失之塔数据
+	end
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_resetData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_resetData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETDATA_REQ);
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_resetData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_resetData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_moveNewCell_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_moveNewCell_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_MOVENEWCELL_REQ);
+	Proto.writeDWORD(msg,data.x); -- x坐标
+	Proto.writeDWORD(msg,data.y); -- y坐标
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_moveNewCell_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_moveNewCell_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MOVENEWCELL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_ChangeFloor_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangeFloor_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGEFLOOR_REQ);
+	Proto.writeDWORD(msg,data.floor); -- 0表示上一层，1表示下一次层
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_ChangeFloor_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangeFloor_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGEFLOOR_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_fireEventCell_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_fireEventCell_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FIREEVENTCELL_REQ);
+	Proto.writeDWORD(msg,data.x); -- 坐标x
+	Proto.writeDWORD(msg,data.y); -- 坐标y
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_MoneyOpenChest_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_MoneyOpenChest_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_MONEYOPENCHEST_REQ);
+	Proto.writeDWORD(msg,data.x); -- 坐标x
+	Proto.writeDWORD(msg,data.y); -- 坐标y
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_MoneyOpenChest_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_MoneyOpenChest_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MONEYOPENCHEST_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_fireEventCell_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_fireEventCell_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FIREEVENTCELL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_changeReadyPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_changeReadyPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGEREADYPET_REQ);
+	Proto.writeVector(msg,data.activityArmysList,Proto.writeDWORD); -- 上阵宠物列表
+	Proto.writeVector(msg,data.activityHelpArmysList,Proto.writeDWORD); -- 援助
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_changeReadyPet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_changeReadyPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGEREADYPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_EventAward_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_EventAward_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_EVENTAWARD_NTF;
+	data.awards=Proto.parseVector(entry,Proto.parseString); -- 奖励信息
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_RandomEvent_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_RandomEvent_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RANDOMEVENT_NTF;
+	data.type=Proto.parseDWORD(entry); -- 事件类型
+	data.eventID=Proto.parseDWORD(entry); -- 表现ID
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_LostTowerPointChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_LostTowerPointChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LOSTTOWERPOINTCHANGE_NTF;
+	data.points=Proto.parseDWORD(entry); -- 变化后总数
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_LostTowerWeekPointChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_LostTowerWeekPointChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LOSTTOWERWEEKPOINTCHANGE_NTF;
+	data.points=Proto.parseDWORD(entry); -- 变化后总数
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_TransferFloor_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TransferFloor_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TRANSFERFLOOR_REQ);
+	Proto.writeDWORD(msg,data.floor); -- 层数
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_TransferFloor_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TransferFloor_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TRANSFERFLOOR_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_RecoverState_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RecoverState_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RECOVERSTATE_REQ);
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_RecoverState_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RecoverState_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RECOVERSTATE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_enemyPets_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_enemyPets_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ENEMYPETS_NTF;
+	data.enemys=Proto.parseVector(entry,Proto.parseString); -- 地方宠物信息
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_MoveObstacle_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_MoveObstacle_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_MOVEOBSTACLE_REQ);
+	Proto.writePOS(msg,data.fromPos); -- 移动障碍物坐标
+	Proto.writePOS(msg,data.toPos); -- 目标坐标
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_MoveObstacle_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_MoveObstacle_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MOVEOBSTACLE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_onTrap_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_onTrap_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ONTRAP_REQ);
+	Proto.writePOS(msg,data.position); -- 位置
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_onTrap_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_onTrap_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ONTRAP_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.pets=Proto.parseVector(entry,Proto.parseLostTowerPet); -- 宠物列表
+	end
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_LostTowerPVPBattleEnd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_LostTowerPVPBattleEnd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_LOSTTOWERPVPBATTLEEND_REQ);
+	Proto.writeWORD(msg,data.isWin); -- 0 败 1 胜 2平
+	Proto.writeVector(msg,data.battleDetails,Proto.writeString); -- 战斗信息
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_LostTowerPVPBattleEnd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_LostTowerPVPBattleEnd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LOSTTOWERPVPBATTLEEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_QueryFloorRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryFloorRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYFLOORRANK_REQ);
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_QueryFloorRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryFloorRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYFLOORRANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.rankInfo=Proto.parseString(entry); -- 排行信息
+	end
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_QueryPointRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryPointRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYPOINTRANK_REQ);
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_QueryPointRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryPointRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYPOINTRANK_ACK;
+	data.code=Proto.parseWORD(entry); --  返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.rankInfo=Proto.parseString(entry); -- 排行信息
+	end
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_EnterTransferDoor_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_EnterTransferDoor_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ENTERTRANSFERDOOR_REQ);
+	Proto.writeDWORD(msg,data.x); -- x坐标
+	Proto.writeDWORD(msg,data.y); -- y坐标
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_EnterTransferDoor_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_EnterTransferDoor_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ENTERTRANSFERDOOR_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_TransferCell_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_TransferCell_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TRANSFERCELL_NTF;
+	data.x=Proto.parseDWORD(entry); -- x坐标
+	data.y=Proto.parseDWORD(entry); -- y坐标
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_UseLostTowerItem_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UseLostTowerItem_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_USELOSTTOWERITEM_REQ);
+	Proto.writeDWORD(msg,data.itemID); -- 道具ID
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_UseLostTowerItem_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UseLostTowerItem_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_USELOSTTOWERITEM_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_LostTowerItemUpdate_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_LostTowerItemUpdate_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LOSTTOWERITEMUPDATE_NTF;
+	data.items=Proto.parseVector(entry,Proto.parseDWORD); -- 道具列表
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_LostTowerStepNumberUpdate_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_LostTowerStepNumberUpdate_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LOSTTOWERSTEPNUMBERUPDATE_NTF;
+	data.setpNumber=Proto.parseDWORD(entry); -- 步数
+	data.lastUpdateTime=Proto.parseDWORD(entry); -- 最后恢复时间
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.writeP_CG_RecoverStepNumber_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RecoverStepNumber_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RECOVERSTEPNUMBER_REQ);
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_RecoverStepNumber_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RecoverStepNumber_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RECOVERSTEPNUMBER_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_AddLostTowerPets_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_AddLostTowerPets_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ADDLOSTTOWERPETS_NTF;
+	data.objID=Proto.parseDWORD(entry); -- 宠物objID
+	data.hp=Proto.parseDWORD(entry); -- 血量
+	return data;
+end
+```
+
+### `Proto_LostTower.lua` — `Proto.parseP_GC_LostTowerEvents_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_LostTowerEvents_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LOSTTOWEREVENTS_NTF;
+	data.events=Proto.parseVector(entry,Proto.parseString); -- 事件
+	return data;
+end
+```
+
+### `Proto_Mail.lua` — `Proto.writeP_CG_CheckUnReadMail_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CheckUnReadMail_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHECKUNREADMAIL_REQ);
+end
+```
+
+### `Proto_Mail.lua` — `Proto.parseP_GC_CheckUnReadMail_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CheckUnReadMail_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHECKUNREADMAIL_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.hasUnReadGroupMail=Proto.parseWORD(entry); -- 有未读群邮件吗
+		data.hasUnReadPersonMail=Proto.parseWORD(entry); -- 有未读个人邮件吗
+	end
+	return data;
+end
+```
+
+### `Proto_Mail.lua` — `Proto.writeP_CG_GetMail_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMail_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMAIL_REQ);
+	Proto.writeString(msg,data.mailIndex); -- 邮件索引
+	Proto.writeWORD(msg,data.mailType); -- 邮件类型
+end
+```
+
+### `Proto_Mail.lua` — `Proto.parseP_GC_GetMail_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMail_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMAIL_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.mailInfo=Proto.parseString(entry); -- 邮件内容
+	end
+	return data;
+end
+```
+
+### `Proto_Mail.lua` — `Proto.writeP_CG_GetMailAttach_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMailAttach_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMAILATTACH_REQ);
+	Proto.writeString(msg,data.mailIndex); -- 邮件索引
+	Proto.writeWORD(msg,data.mailType); -- 邮件类型
+end
+```
+
+### `Proto_Mail.lua` — `Proto.parseP_GC_GetMailAttach_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMailAttach_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMAILATTACH_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Mail.lua` — `Proto.writeP_CG_GetSomeMails_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetSomeMails_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETSOMEMAILS_REQ);
+	Proto.writeString(msg,data.GruopTimeTip); -- 时间线索，查询晚于这个时间的邮件。0代表最新
+	Proto.writeDWORD(msg,data.personCount); -- 时间线索，查询晚于这个时间的邮件。0代表最新
+	Proto.writeWORD(msg,data.mailCount); -- 邮件数量
+end
+```
+
+### `Proto_Mail.lua` — `Proto.parseP_GC_GetSomeMails_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetSomeMails_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSOMEMAILS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.mails=Proto.parseString(entry); -- 多个邮件
+	end
+	return data;
+end
+```
+
+### `Proto_Mail.lua` — `Proto.writeP_CG_DelMail_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DelMail_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DELMAIL_REQ);
+	Proto.writeString(msg,data.mailIndex); -- 邮件索引
+	Proto.writeWORD(msg,data.mailType); -- 邮件类型
+end
+```
+
+### `Proto_Mail.lua` — `Proto.parseP_GC_DelMail_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DelMail_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DELMAIL_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Mail.lua` — `Proto.parseP_GC_NewMailNotify_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_NewMailNotify_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_NEWMAILNOTIFY_NTF;
+	return data;
+end
+```
+
+### `Proto_Mail.lua` — `Proto.parseP_GC_CleanPersonMailNTF_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_CleanPersonMailNTF_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CLEANPERSONMAILNTF_NTF;
+	return data;
+end
+```
+
+### `Proto_Market.lua` — `Proto.writeP_CG_GetMyMarket_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMyMarket_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYMARKET_REQ);
+end
+```
+
+### `Proto_Market.lua` — `Proto.parseP_GC_GetMyMarket_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyMarket_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYMARKET_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.products=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Market.lua` — `Proto.writeP_CG_SellOnMarket_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SellOnMarket_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SELLONMARKET_REQ);
+	Proto.writeDWORD(msg,data.itemID); -- 
+	Proto.writeDWORD(msg,data.objID); -- 非家具填0
+	Proto.writeDWORD(msg,data.sellNum); -- 数量
+	Proto.writeDWORD(msg,data.unitPrice); -- 单价
+end
+```
+
+### `Proto_Market.lua` — `Proto.parseP_GC_SellOnMarket_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SellOnMarket_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SELLONMARKET_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.product=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Market.lua` — `Proto.writeP_CG_SearchProducts_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SearchProducts_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SEARCHPRODUCTS_REQ);
+	Proto.writeDWORD(msg,data.itemType); -- 道具类型
+	Proto.writeDWORD(msg,data.itemSubType); -- 道具子类型
+	Proto.writeDWORD(msg,data.itemID); -- 搜索道具id
+	Proto.writeDWORD(msg,data.sortType); -- 排序规则
+	Proto.writeDWORD(msg,data.startIndex); -- 开始
+	Proto.writeDWORD(msg,data.searchNum); -- 数量
+	Proto.writeString(msg,data.selectID); -- 特定标签
+end
+```
+
+### `Proto_Market.lua` — `Proto.parseP_GC_SearchProducts_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SearchProducts_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SEARCHPRODUCTS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.products=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Market.lua` — `Proto.writeP_CG_BuyProduct_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyProduct_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYPRODUCT_REQ);
+	Proto.writeString(msg,data.productID); -- 商品ID
+	Proto.writeDWORD(msg,data.num); -- 购买数量
+end
+```
+
+### `Proto_Market.lua` — `Proto.parseP_GC_BuyProduct_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyProduct_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYPRODUCT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Market.lua` — `Proto.writeP_CG_DelMyProduct_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DelMyProduct_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DELMYPRODUCT_REQ);
+	Proto.writeString(msg,data.productID); -- 商品ID
+end
+```
+
+### `Proto_Market.lua` — `Proto.parseP_GC_DelMyProduct_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DelMyProduct_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DELMYPRODUCT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Market.lua` — `Proto.writeP_CG_BuyMarketItem_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyMarketItem_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYMARKETITEM_REQ);
+	Proto.writeDWORD(msg,data.marketInfoID); -- 商品ID
+	Proto.writeDWORD(msg,data.num); -- 数量
+end
+```
+
+### `Proto_Market.lua` — `Proto.parseP_GC_BuyMarketItem_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyMarketItem_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYMARKETITEM_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.writeP_CG_PostMessagePet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PostMessagePet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_POSTMESSAGEPET_REQ);
+	Proto.writeString(msg,data.sContent); -- 评论信息
+	Proto.writeDWORD(msg,data.pokeID); -- 宠物pokeID
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.parseP_GC_PostMessagePet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PostMessagePet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_POSTMESSAGEPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.writeP_CG_PostMessageFB_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PostMessageFB_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_POSTMESSAGEFB_REQ);
+	Proto.writeString(msg,data.sContent); -- 评论信息
+	Proto.writeWORD(msg,data.mapID); -- 
+	Proto.writeWORD(msg,data.nodeID); -- 
+	Proto.writeBYTE(msg,data.diffi); -- 难度：1,2,3
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.parseP_GC_PostMessageFB_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PostMessageFB_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_POSTMESSAGEFB_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.writeP_CG_PostApprovePet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PostApprovePet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_POSTAPPROVEPET_REQ);
+	Proto.writeString(msg,data.sCommentID); -- 评论ID
+	Proto.writeBYTE(msg,data.bApprove); -- 1赞0踩
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.parseP_GC_PostApprovePet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PostApprovePet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_POSTAPPROVEPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.writeP_CG_PostApproveFB_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PostApproveFB_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_POSTAPPROVEFB_REQ);
+	Proto.writeString(msg,data.sCommentID); -- 评论ID
+	Proto.writeBYTE(msg,data.bApprove); -- 1赞0踩
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.parseP_GC_PostApproveFB_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PostApproveFB_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_POSTAPPROVEFB_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.writeP_CG_GetMessagesPetByTime_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMessagesPetByTime_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMESSAGESPETBYTIME_REQ);
+	Proto.writeDWORD(msg,data.pokeID); -- 宠物pokeID
+	Proto.writeString(msg,data.startIndex); -- 起始评论ID
+	Proto.writeDWORD(msg,data.num); -- 要获取的评论数量
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.parseP_GC_GetMessagesPetByTime_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMessagesPetByTime_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMESSAGESPETBYTIME_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.comments=Proto.parseString(entry); -- 评论组
+	end
+	return data;
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.writeP_CG_GetMessagesPetByApprove_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMessagesPetByApprove_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMESSAGESPETBYAPPROVE_REQ);
+	Proto.writeDWORD(msg,data.pokeID); -- 宠物pokeID
+	Proto.writeDWORD(msg,data.tipNum); -- 提示点赞量
+	Proto.writeDWORD(msg,data.skipNum); -- 跳过多少个评论
+	Proto.writeDWORD(msg,data.num); -- 要获取的评论数量
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.parseP_GC_GetMessagesPetByApprove_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMessagesPetByApprove_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMESSAGESPETBYAPPROVE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.comments=Proto.parseString(entry); -- 评论组
+	end
+	return data;
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.writeP_CG_GetMessagesFBByTime_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMessagesFBByTime_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMESSAGESFBBYTIME_REQ);
+	Proto.writeWORD(msg,data.mapID); -- 
+	Proto.writeWORD(msg,data.nodeID); -- 
+	Proto.writeBYTE(msg,data.diffi); -- 难度：1,2,3
+	Proto.writeString(msg,data.startIndex); -- 起始评论ID
+	Proto.writeDWORD(msg,data.num); -- 要获取的评论数量
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.parseP_GC_GetMessagesFBByTime_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMessagesFBByTime_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMESSAGESFBBYTIME_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.comments=Proto.parseString(entry); -- 评论组
+	end
+	return data;
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.writeP_CG_GetMessagesFBByApprove_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMessagesFBByApprove_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMESSAGESFBBYAPPROVE_REQ);
+	Proto.writeWORD(msg,data.mapID); -- 
+	Proto.writeWORD(msg,data.nodeID); -- 
+	Proto.writeBYTE(msg,data.diffi); -- 难度：1,2,3
+	Proto.writeDWORD(msg,data.tipNum); -- 提示点赞量
+	Proto.writeDWORD(msg,data.skipNum); -- 跳过多少个评论
+	Proto.writeDWORD(msg,data.num); -- 要获取的评论数量
+end
+```
+
+### `Proto_MessageBoard.lua` — `Proto.parseP_GC_GetMessagesFBByApprove_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMessagesFBByApprove_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMESSAGESFBBYAPPROVE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.comments=Proto.parseString(entry); -- 评论组
+	end
+	return data;
+end
+```
+
+### `Proto_MonthCard.lua` — `Proto.writeP_CZ_LoadMonthCard_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_LoadMonthCard_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_LOADMONTHCARD_REQ);
+end
+```
+
+### `Proto_MonthCard.lua` — `Proto.parseP_ZC_LoadMonthCard_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_LoadMonthCard_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_LOADMONTHCARD_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	if (data.code.value==Proto.Error.ERROR_OK) then
+		data.infos=Proto.parseVector(entry,Proto.parseMonthCard); -- 月卡数据
+		data.isNeverBuy=Proto.parseDWORD(entry); -- 是否从没买过
+	end
+	return data;
+end
+```
+
+### `Proto_MonthCard.lua` — `Proto.writeP_CZ_TakeMonthCardAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_TakeMonthCardAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_TAKEMONTHCARDAWARD_REQ);
+	Proto.writeint(msg,data.id); -- 月卡ID
+end
+```
+
+### `Proto_MonthCard.lua` — `Proto.parseP_ZC_TakeMonthCardAward_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_TakeMonthCardAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_TAKEMONTHCARDAWARD_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.writeP_CZ_QuestList_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_QuestList_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_QUESTLIST_REQ);
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.parseP_ZC_QuestList_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_QuestList_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_QUESTLIST_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.questNum=Proto.parseDWORD(entry); -- 任务数量
+	end
+	return data;
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.writeP_CZ_CommitQuest_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_CommitQuest_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_COMMITQUEST_REQ);
+	Proto.writeDWORD(msg,data.questID); -- 任务ID
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.parseP_ZC_CommitQuest_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_CommitQuest_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_COMMITQUEST_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.questID=Proto.parseDWORD(entry); -- 任务ID
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 奖励元素表
+	end
+	return data;
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.parseP_ZC_NewQuest_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_NewQuest_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_NEWQUEST_NTF;
+	data.questList=Proto.parseVector(entry,Proto.parseQuestData); -- 新任务列表
+	return data;
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.parseP_ZC_UpdateQuest_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_UpdateQuest_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_UPDATEQUEST_NTF;
+	data.quest=Proto.parseQuestData(entry); -- 新任务列表
+	return data;
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.parseP_ZC_NewDeleteQuest_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_NewDeleteQuest_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_NEWDELETEQUEST_NTF;
+	data.questID=Proto.parseDWORD(entry); -- 任务ID
+	return data;
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.writeP_CZ_UpdateQuest_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_UpdateQuest_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_UPDATEQUEST_REQ);
+	Proto.writeQuestData(msg,data.quest); -- 任务
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.parseP_ZC_UpdateQuest_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_UpdateQuest_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_UPDATEQUEST_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.writeP_CG_StepLog_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_StepLog_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_STEPLOG_REQ);
+	Proto.writeString(msg,data.key); -- 
+	Proto.writeString(msg,data.value); --
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.parseP_GC_StepLog_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_StepLog_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_STEPLOG_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.writeP_CG_GetDailyQuestStepAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetDailyQuestStepAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETDAILYQUESTSTEPAWARD_REQ);
+	Proto.writeDWORD(msg,data.stepIndex); --
+end
+```
+
+### `Proto_NewQuest.lua` — `Proto.parseP_GC_GetDailyQuestStepAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetDailyQuestStepAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETDAILYQUESTSTEPAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.stepIndex=Proto.parseDWORD(entry); -- 
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_getShop_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_getShop_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETSHOP_REQ);
+	Proto.writeDWORD(msg,data.type); -- 类型
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_getShop_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_getShop_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSHOP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.shop=Proto.parseShop(entry); -- 商品信息
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_RefreshGoods_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RefreshGoods_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_REFRESHGOODS_REQ);
+	Proto.writeDWORD(msg,data.type); -- 商品类型
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_RefreshGoods_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RefreshGoods_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_REFRESHGOODS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.shopList=Proto.parseVector(entry,Proto.parseShopList); -- 商品信息列表
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_BuyGoods_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyGoods_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYGOODS_REQ);
+	Proto.writeDWORD(msg,data.type); -- 商店类型
+	Proto.writeDWORD(msg,data.index); -- 商品索引
+	Proto.writeDWORD(msg,data.buyCount); -- 购买次数
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_BuyGoods_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyGoods_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYGOODS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_SystemRefreshGoods_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SystemRefreshGoods_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SYSTEMREFRESHGOODS_REQ);
+	Proto.writeDWORD(msg,data.type); -- 商品类型
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_SystemRefreshGoods_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SystemRefreshGoods_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SYSTEMREFRESHGOODS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.shopList=Proto.parseVector(entry,Proto.parseShopList); -- 商品信息列表
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_ResetShop_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResetShop_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETSHOP_REQ);
+	Proto.writeDWORD(msg,data.type); -- 商店类型
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_ResetShop_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResetShop_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETSHOP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_GetRedHeartShopInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetRedHeartShopInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETREDHEARTSHOPINFO_REQ);
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_GetRedHeartShopInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetRedHeartShopInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETREDHEARTSHOPINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.goodsList=Proto.parseVector(entry,Proto.parseRedHeartGoods); -- 商品信息列表
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_BuyRedHeartGoods_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyRedHeartGoods_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYREDHEARTGOODS_REQ);
+	Proto.writeWORD(msg,data.pos); -- 商品位置
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_BuyRedHeartGoods_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyRedHeartGoods_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYREDHEARTGOODS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_GetMyRedHeartShopInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMyRedHeartShopInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYREDHEARTSHOPINFO_REQ);
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_GetMyRedHeartShopInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyRedHeartShopInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYREDHEARTSHOPINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	data.data=Proto.parseString(entry); -- 友情商店记录
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_RedHeartShopRefreshNTF_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_RedHeartShopRefreshNTF_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_REDHEARTSHOPREFRESHNTF_NTF;
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_MyRedHeartShopInfoNTF_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_MyRedHeartShopInfoNTF_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_MYREDHEARTSHOPINFONTF_NTF;
+	data.data=Proto.parseString(entry); -- 友情商店记录
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_GetOneMCashShop_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetOneMCashShop_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETONEMCASHSHOP_REQ);
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_GetOneMCashShop_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetOneMCashShop_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETONEMCASHSHOP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.itemNum=Proto.parseDWORD(entry); -- 商店道具数量
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_GetOneMCashShop_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetOneMCashShop_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETONEMCASHSHOP_NTF;
+	data.itemInfos=Proto.parseVector(entry,Proto.parseString); -- 商店道具
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_BuyOneMCashShop_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyOneMCashShop_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYONEMCASHSHOP_REQ);
+	Proto.writeDWORD(msg,data.itemID); -- 
+	Proto.writeDWORD(msg,data.buyNum); --
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_BuyOneMCashShop_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyOneMCashShop_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYONEMCASHSHOP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.itemInfo=Proto.parseString(entry); -- 道具
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_GetOneMCashShopDetail_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetOneMCashShopDetail_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETONEMCASHSHOPDETAIL_REQ);
+	Proto.writeDWORD(msg,data.itemID); --
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_GetOneMCashShopDetail_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetOneMCashShopDetail_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETONEMCASHSHOPDETAIL_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.itemInfo=Proto.parseString(entry); -- 道具
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_GetOneMCashShopLog_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetOneMCashShopLog_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETONEMCASHSHOPLOG_REQ);
+	Proto.writeDWORD(msg,data.startIndex); -- 
+	Proto.writeDWORD(msg,data.endIndex); --
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_GetOneMCashShopLog_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetOneMCashShopLog_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETONEMCASHSHOPLOG_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.startIndex=Proto.parseDWORD(entry); -- 
+		data.endIndex=Proto.parseDWORD(entry); -- 
+		data.wins=Proto.parseVector(entry,Proto.parseString); -- 获胜玩家
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_GetSelfActivityShopData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetSelfActivityShopData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETSELFACTIVITYSHOPDATA_REQ);
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_GetSelfActivityShopData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetSelfActivityShopData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSELFACTIVITYSHOPDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.lastBuyTime=Proto.parseDWORD(entry); -- 购买时间
+		data.vecData=Proto.parseVector(entry,Proto.parseActivityShopData); -- 商品信息列表
+	end
+	return data;
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.writeP_CG_BuyActivityShopItem_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyActivityShopItem_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYACTIVITYSHOPITEM_REQ);
+	Proto.writeDWORD(msg,data.itemID); -- 商品ID
+	Proto.writeDWORD(msg,data.count); -- 购买次数
+end
+```
+
+### `Proto_NewShop.lua` — `Proto.parseP_GC_BuyActivityShopItem_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyActivityShopItem_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYACTIVITYSHOPITEM_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_StartPVP_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_StartPVP_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_STARTPVP_REQ);
+	Proto.writeDWORD(msg,data.bechallengeCharID); -- 对手角色ID
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_StartPVP_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_StartPVP_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_STARTPVP_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.battleID=Proto.parseQWORD(entry); -- 
+		data.zoneID=Proto.parseDWORD(entry); -- 
+		data.challengerID=Proto.parseDWORD(entry); -- 
+		data.bechallengeCharID=Proto.parseDWORD(entry); -- 
+		data.serverID=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_PVPInfo_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PVPInfo_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PVPINFO_NTF;
+	data.battleID=Proto.parseQWORD(entry); -- 
+	data.zoneID=Proto.parseDWORD(entry); -- 
+	data.challengerID=Proto.parseDWORD(entry); -- 
+	data.bechallengeCharID=Proto.parseDWORD(entry); -- 
+	data.battleStatus=Proto.parseDWORD(entry); -- 
+	data.challengerPets=Proto.parseVector(entry,Proto.parseString); -- 战斗宠物列表
+	data.bechallengePets=Proto.parseVector(entry,Proto.parseString); -- 战斗宠物列表
+	data.name=Proto.parseString(entry); -- 挑战者昵称
+	data.serverID=Proto.parseDWORD(entry); -- 服务器ID
+	data.challengerHelperPets=Proto.parseVector(entry,Proto.parseString); -- 战斗宠物列表
+	data.bechallengeHelperPets=Proto.parseVector(entry,Proto.parseString); -- 战斗宠物列表
+	data.bossID=Proto.parseQWORD(entry); -- bossID
+	data.bossHP=Proto.parseString(entry); -- bossID
+	data.isPVPArenaBattle=Proto.parseWORD(entry); -- 是否为pvp竞技场战斗
+	data.challengerGrade=Proto.parseDWORD(entry); -- 等阶
+	data.challengerPoint=Proto.parseDWORD(entry); -- 积分
+	data.bechallengeGrade=Proto.parseDWORD(entry); -- 等阶
+	data.bechallengePoint=Proto.parseDWORD(entry); -- 积分
+	data.challengerOtherParam=Proto.parseString(entry); -- 挑战者其他信息
+	data.bechallengeOtherParam=Proto.parseString(entry); -- 被挑战者其他信息
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_ReadyPVP_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ReadyPVP_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_READYPVP_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 战场id
+	Proto.writeVector(msg,data.pets,Proto.writeString); -- 战斗宠物列表
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+	Proto.writeVector(msg,data.helperPets,Proto.writeString); -- 战斗宠物列表
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_ReadyPVP_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ReadyPVP_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_READYPVP_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.battleID=Proto.parseQWORD(entry); -- 
+		data.zoneID=Proto.parseDWORD(entry); -- 
+		data.challengerID=Proto.parseDWORD(entry); -- 
+		data.bechallengeCharID=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_JoinPVP_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_JoinPVP_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_JOINPVP_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_JoinPVP_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_JoinPVP_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_JOINPVP_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_PVPBattleCommand_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PVPBattleCommand_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PVPBATTLECOMMAND_NTF;
+	data.battleID=Proto.parseQWORD(entry); -- 
+	data.zoneID=Proto.parseDWORD(entry); -- 
+	data.roundIndex=Proto.parseDWORD(entry); -- 
+	data.battleCommandStatus=Proto.parseDWORD(entry); -- 
+	data.battleCommands=Proto.parseVector(entry,Proto.parseString); -- 战斗指令
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_PVPBattleCommand_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PVPBattleCommand_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PVPBATTLECOMMAND_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 
+	Proto.writeDWORD(msg,data.roundIndex); -- 
+	Proto.writeDWORD(msg,data.skillIndex); -- 技能索引
+	Proto.writeDWORD(msg,data.petID); -- 更换宠物ID 不换填0
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_PVPBattleCommand_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PVPBattleCommand_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PVPBATTLECOMMAND_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_PVPBattleStart_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PVPBattleStart_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PVPBATTLESTART_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_PVPBattleStart_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PVPBattleStart_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PVPBATTLESTART_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_LeavePVP_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_LeavePVP_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_LEAVEPVP_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_LeavePVP_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_LeavePVP_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LEAVEPVP_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_GetPVPRecords_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPVPRecords_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPVPRECORDS_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+	Proto.writeDWORD(msg,data.startIndex); -- 开始索引
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_GetPVPRecords_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPVPRecords_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPVPRECORDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_JumpPVPTurn_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_JumpPVPTurn_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_JUMPPVPTURN_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+	Proto.writeDWORD(msg,data.startIndex); -- 开始索引
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_JumpPVPTurn_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_JumpPVPTurn_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_JUMPPVPTURN_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_GetPVPOneRecode_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPVPOneRecode_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPVPONERECODE_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+	Proto.writeDWORD(msg,data.turnIndex); -- turnIndex
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_GetPVPOneRecode_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPVPOneRecode_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPVPONERECODE_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.battleID=Proto.parseQWORD(entry); -- 
+		data.serverID=Proto.parseDWORD(entry); -- 服务器ID
+		data.turnIndex=Proto.parseDWORD(entry); -- turnIndex
+		data.report=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_GetPVPCurrentBattleInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPVPCurrentBattleInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPVPCURRENTBATTLEINFO_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_GetPVPCurrentBattleInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPVPCurrentBattleInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPVPCURRENTBATTLEINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.battleID=Proto.parseQWORD(entry); -- 
+		data.serverID=Proto.parseDWORD(entry); -- 服务器ID
+		data.turnIndex=Proto.parseDWORD(entry); -- turnIndex
+		data.battleInfo=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_RefusePVPRequest_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RefusePVPRequest_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_REFUSEPVPREQUEST_REQ);
+	Proto.writeQWORD(msg,data.battleID); -- 
+	Proto.writeDWORD(msg,data.serverID); -- 服务器ID
+	Proto.writeDWORD(msg,data.charID); -- 角色ID
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_RefusePVPRequest_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RefusePVPRequest_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_REFUSEPVPREQUEST_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.battleID=Proto.parseQWORD(entry); -- 
+		data.serverID=Proto.parseDWORD(entry); -- 服务器ID
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_JoinPVPArena_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_JoinPVPArena_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_JOINPVPARENA_REQ);
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 
+	Proto.writeVector(msg,data.helperPetObjIDs,Proto.writeDWORD); -- 
+	Proto.writeDWORD(msg,data.level); --
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_JoinPVPArena_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_JoinPVPArena_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_JOINPVPARENA_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_CancelJoinPVPArena_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CancelJoinPVPArena_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CANCELJOINPVPARENA_REQ);
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_CancelJoinPVPArena_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CancelJoinPVPArena_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CANCELJOINPVPARENA_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_GetPVPArenaAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPVPArenaAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPVPARENAAWARD_REQ);
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_GetPVPArenaAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPVPArenaAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPVPARENAAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_GetPVPArenaRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPVPArenaRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPVPARENARANK_REQ);
+	Proto.writeDWORD(msg,data.rankMin); -- 
+	Proto.writeDWORD(msg,data.rankMax); --
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_GetPVPArenaRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPVPArenaRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPVPARENARANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.soldiers=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_GetMYPVPArenaRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMYPVPArenaRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYPVPARENARANK_REQ);
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_GetMYPVPArenaRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMYPVPArenaRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYPVPARENARANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_GetMYPVPArenaQuests_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMYPVPArenaQuests_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYPVPARENAQUESTS_REQ);
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_GetMYPVPArenaQuests_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMYPVPArenaQuests_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYPVPARENAQUESTS_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.pvpArenaQuestData=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_CommitPVPArenaQuest_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CommitPVPArenaQuest_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_COMMITPVPARENAQUEST_REQ);
+	Proto.writeDWORD(msg,data.questID); --
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_CommitPVPArenaQuest_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CommitPVPArenaQuest_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_COMMITPVPARENAQUEST_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.pvpArenaQuestData=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_ResetPVPArenaQuest_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResetPVPArenaQuest_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETPVPARENAQUEST_REQ);
+	Proto.writeDWORD(msg,data.questID); --
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_ResetPVPArenaQuest_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResetPVPArenaQuest_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETPVPARENAQUEST_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.pvpArenaQuestData=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PVP.lua` — `Proto.writeP_CG_GetPVPArenaQuestPowerAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPVPArenaQuestPowerAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPVPARENAQUESTPOWERAWARD_REQ);
+end
+```
+
+### `Proto_PVP.lua` — `Proto.parseP_GC_GetPVPArenaQuestPowerAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPVPArenaQuestPowerAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPVPARENAQUESTPOWERAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.pvpArenaQuestData=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_QueryPokemons_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryPokemons_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYPOKEMONS_REQ);
+	Proto.writeQWORD(msg,data.characterID); -- 角色ID
+	Proto.writeDWORD(msg,data.startIndex); -- 开始索引
+	Proto.writeDWORD(msg,data.endIndex); -- 结束索引
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_QueryPokemons_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryPokemons_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYPOKEMONS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.characterID=Proto.parseQWORD(entry); -- 角色ID
+		data.startIndex=Proto.parseDWORD(entry); -- 开始索引
+		data.endIndex=Proto.parseDWORD(entry); -- 结束索引
+		data.activePets=Proto.parseVector(entry,Proto.parseString); -- 战斗宠物列表
+		data.unactivePets=Proto.parseVector(entry,Proto.parseString); -- 未战斗宠物列表
+		data.unactivePetNum=Proto.parseDWORD(entry); -- 未战斗宠物数量
+		data.activeHelperPets=Proto.parseVector(entry,Proto.parseString); -- 战斗宠物列表
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_UpdatePokemon_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdatePokemon_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEPOKEMON_NTF;
+	data.objID=Proto.parseQWORD(entry); -- 
+	data.pet=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_DelPokemon_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_DelPokemon_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DELPOKEMON_NTF;
+	data.objID=Proto.parseQWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_UpdateActivityPokemons_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateActivityPokemons_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEACTIVITYPOKEMONS_NTF;
+	data.activePets=Proto.parseVector(entry,Proto.parseString); -- 战斗宠物列表
+	data.activeHelperPets=Proto.parseVector(entry,Proto.parseString); -- 战斗宠物列表
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CM_LoadPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_LoadPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_LOADPET_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_MC_LoadPet_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_LoadPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_LOADPET_ACK;
+	data.pets=Proto.parseVector(entry,Proto.parsePetID); -- 宠物列表
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_PutPetInBag_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_PutPetInBag_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_PUTPETINBAG_REQ);
+	Proto.writePetID(msg,data.petid); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_PutPetInBag_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_PutPetInBag_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_PUTPETINBAG_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_BeginEnclosePet_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_BeginEnclosePet_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_BEGINENCLOSEPET_BRD;
+	data.master=Proto.parseRoleHandle(entry); -- 宠物主人句柄
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_EndEnclosePet_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_EndEnclosePet_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_ENDENCLOSEPET_BRD;
+	data.master=Proto.parseRoleHandle(entry); -- 宠物主人句柄
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_PetEnclosed_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_PetEnclosed_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_PETENCLOSED_BRD;
+	data.pet=Proto.parseRoleHandle(entry); -- 被收宠物句柄
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_InBagPetOrder_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_InBagPetOrder_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_INBAGPETORDER_NTF;
+	data.petOrders=Proto.parseVector(entry,Proto.parseInBagPetOrder); -- 宠物袋顺序
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_LoadPetBag_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_LoadPetBag_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_LOADPETBAG_REQ);
+	Proto.writePetID(msg,data.petID); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_LoadPetBag_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_LoadPetBag_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_LOADPETBAG_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.petInfo=Proto.parsePetInfo(entry); -- 宠物描述
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_LoadPetBag_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_LoadPetBag_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_LOADPETBAG_BRD;
+	data.master=Proto.parseRoleHandle(entry); -- 宠物主人句柄
+	data.info=Proto.parsePetBriefInfo(entry); -- 袋中宠物信息
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_FreePet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_FreePet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_FREEPET_REQ);
+	Proto.writeDWORD(msg,data.petID); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_FreePet_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_FreePet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_FREEPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.petID=Proto.parseDWORD(entry); -- 宠物ID
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_FreePet_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_FreePet_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_FREEPET_BRD;
+	data.master=Proto.parseRoleHandle(entry); -- 宠物主人句柄
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CM_QueryPetInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_QueryPetInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_QUERYPETINFO_REQ);
+	Proto.writePetID(msg,data.petid); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_MC_QueryPetInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_QueryPetInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_QUERYPETINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.info=Proto.parsePetInfo	(entry); -- 宠物信息
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CM_QueryPetOwner_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_QueryPetOwner_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_QUERYPETOWNER_REQ);
+	Proto.writeVector(msg,data.petid,Proto.writePetID); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_MC_QueryPetOwner_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_QueryPetOwner_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_QUERYPETOWNER_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petids=Proto.parseVector(entry,Proto.parsePetID); -- 宠物id
+		data.info=Proto.parseVector(entry,Proto.parseCharBriefInfo); -- 主人简要信息
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_MC_ActiveModeShifted_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_ActiveModeShifted_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_ACTIVEMODESHIFTED_NTF;
+	data.petid=Proto.parsePetID(entry); -- 宠物ID
+	data.mode=Proto.parseBYTE(entry); -- AI模式(AIMode)
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_CreatePet_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_CreatePet_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_CREATEPET_NTF;
+	data.petID=Proto.parsePetID(entry); -- 宠物ID
+	data.isInBag=Proto.parseBYTE(entry); -- 是否在宠物袋中
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_RenameBagPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_RenameBagPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_RENAMEBAGPET_REQ);
+	Proto.writeDWORD(msg,data.petID); -- 宠物ID
+	Proto.writeLifeNick(msg,data.name); -- 宠物昵称
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_RenameBagPet_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_RenameBagPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_RENAMEBAGPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.petID=Proto.parseDWORD(entry); -- 宠物ID
+		data.name=Proto.parseLifeNick(entry); -- 宠物昵称
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_RenameBagPet_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_RenameBagPet_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_RENAMEBAGPET_BRD;
+	data.master=Proto.parseRoleHandle(entry); -- 宠物主人句柄
+	data.name=Proto.parseLifeNick(entry); -- 宠物昵称
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CM_LoadInWarehousePet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_LoadInWarehousePet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_LOADINWAREHOUSEPET_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_MC_LoadInWarehousePet_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_LoadInWarehousePet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_LOADINWAREHOUSEPET_ACK;
+	data.count=Proto.parseWORD(entry); -- 宠物列表
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_MC_InWarehousePetData_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_InWarehousePetData_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_INWAREHOUSEPETDATA_NTF;
+	data.pets=Proto.parseVector(entry,Proto.parseInWarhousePetDesc); -- 宠物列表
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_PutPetInWarehouse_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_PutPetInWarehouse_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_PUTPETINWAREHOUSE_REQ);
+	Proto.writeDWORD(msg,data.petID); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_PutPetInWarehouse_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_PutPetInWarehouse_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_PUTPETINWAREHOUSE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.petID=Proto.parseDWORD(entry); -- 宠物ID
+		data.status=Proto.parseBYTE(entry); -- 状态
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_RetakeInWarehousePet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_RetakeInWarehousePet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_RETAKEINWAREHOUSEPET_REQ);
+	Proto.writePetID(msg,data.petid); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_RetakeInWarehousePet_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_RetakeInWarehousePet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_RETAKEINWAREHOUSEPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CM_LoadDiscardPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CM_LoadDiscardPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_LOADDISCARDPET_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_MC_LoadDiscardPet_Ack(entry)`
+
+```lua
+function Proto.parseP_MC_LoadDiscardPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_LOADDISCARDPET_ACK;
+	data.pets=Proto.parseVector(entry,Proto.parsePetID); -- 宠物列表
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_DiscardPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_DiscardPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_DISCARDPET_REQ);
+	Proto.writeDWORD(msg,data.petID); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_DiscardPet_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_DiscardPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_DISCARDPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_RedeemPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_RedeemPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_REDEEMPET_REQ);
+	Proto.writePetID(msg,data.petid); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_RedeemPet_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_RedeemPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_REDEEMPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_EvolutionQuery_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_EvolutionQuery_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_EVOLUTIONQUERY_REQ);
+	Proto.writeDWORD(msg,data.raceType); -- 进化种族
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_EvolutionQuery_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_EvolutionQuery_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_EVOLUTIONQUERY_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.evolutions=Proto.parseVector(entry,Proto.parsePetRaceEvolution); -- 进化列表
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_EvolutionPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_EvolutionPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_EVOLUTIONPET_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 请求进化的宠物ID
+	Proto.writeWORD(msg,data.choice); -- 进化的方向
+	Proto.writeBYTE(msg,data.bProtectSkin); -- 保留形态对应的属性
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_EvolutionPet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_EvolutionPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_EVOLUTIONPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.objID=Proto.parseDWORD(entry); -- 请求进化的宠物ID
+		data.newRace=Proto.parseDWORD(entry); -- 进化后的种族
+		data.addSkills=Proto.parseVector(entry,Proto.parseEvoSkillInfo); -- 额外的可替换技能
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_SuperEvolutionPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SuperEvolutionPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SUPEREVOLUTIONPET_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 请求超进化的宠物ID
+	Proto.writeWORD(msg,data.choice); -- 超进化的方向
+	Proto.writeBYTE(msg,data.bProtectSkin); -- 保留形态对应的属性
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_SuperEvolutionPet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SuperEvolutionPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SUPEREVOLUTIONPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.objID=Proto.parseDWORD(entry); -- 请求超进化的宠物ID
+		data.newRace=Proto.parseDWORD(entry); -- 超进化后的种族
+		data.addSkills=Proto.parseVector(entry,Proto.parseEvoSkillInfo); -- 额外的可替换技能
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_EvolutionPet_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_EvolutionPet_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_EVOLUTIONPET_BRD;
+	data.master=Proto.parseRoleHandle(entry); -- 宠物主人句柄
+	data.raceType=Proto.parseDWORD_(entry); -- 宠物种族
+	data.gender=Proto.parseBYTE(entry); -- 宠物性别
+	data.geneApperLeft=Proto.parseWORD(entry); -- 外表天性
+	data.geneApperRight=Proto.parseWORD(entry); -- 外表天性
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_InsertPetFoodState_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_InsertPetFoodState_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_INSERTPETFOODSTATE_NTF;
+	data.petID=Proto.parseDWORD(entry); -- 宠物ID
+	data.foodID=Proto.parseDWORD(entry); -- 食物ID
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_RemovePetFoodState_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_RemovePetFoodState_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_REMOVEPETFOODSTATE_NTF;
+	data.petID=Proto.parseDWORD(entry); -- 宠物ID
+	data.foodID=Proto.parseDWORD(entry); -- 食物ID
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_InsertPetConfraternityNpcState_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_InsertPetConfraternityNpcState_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_INSERTPETCONFRATERNITYNPCSTATE_NTF;
+	data.petID=Proto.parseDWORD(entry); -- 宠物ID
+	data.confraternityNpcID=Proto.parseDWORD(entry); -- 帮派NPCID
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_RemovePetConfraternityNpcState_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_RemovePetConfraternityNpcState_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_REMOVEPETCONFRATERNITYNPCSTATE_NTF;
+	data.petID=Proto.parseDWORD(entry); -- 宠物ID
+	data.confraternityNpcID=Proto.parseDWORD(entry); -- 帮派NPCID
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_BagPetSpawnGamete_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_BagPetSpawnGamete_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_BAGPETSPAWNGAMETE_REQ);
+	Proto.writeDWORD(msg,data.petID); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_BagPetSpawnGamete_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_BagPetSpawnGamete_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_BAGPETSPAWNGAMETE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.petID=Proto.parseDWORD(entry); -- 宠物ID
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_MateGamete_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_MateGamete_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_MATEGAMETE_REQ);
+	Proto.writeWORD(msg,data.pos1); -- 配子1
+	Proto.writeWORD(msg,data.pos2); -- 配子2
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_MateGamete_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_MateGamete_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_MATEGAMETE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_AllelePowerUp_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_AllelePowerUp_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_ALLELEPOWERUP_REQ);
+	Proto.writePetID(msg,data.petID); -- 宠物ID
+	Proto.writeItemPacketID(msg,data.bag); -- 行囊ID
+	Proto.writeWORD(msg,data.allelePos); -- 基因位置
+	Proto.writeWORD(msg,data.itemPos); -- 道具位置
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_AllelePowerUp_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_AllelePowerUp_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_ALLELEPOWERUP_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_ActivatePet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_ActivatePet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_ACTIVATEPET_REQ);
+	Proto.writePetID(msg,data.petID); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_ActivatePet_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_ActivatePet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_ACTIVATEPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_QueryRaceClass_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_QueryRaceClass_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_QUERYRACECLASS_REQ);
+	Proto.writeWORD(msg,data.raceType); -- 宠物类型
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_QueryRaceClass_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_QueryRaceClass_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_QUERYRACECLASS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	data.classNum=Proto.parseBYTE(entry); -- 阶数
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_InBagPetWarInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_InBagPetWarInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_INBAGPETWARINFO_REQ);
+	Proto.writeDWORD(msg,data.petID); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_InBagPetWarInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_InBagPetWarInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_INBAGPETWARINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.petID=Proto.parseDWORD(entry); -- 宠物ID
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_QuerySacredInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_QuerySacredInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_QUERYSACREDINFO_REQ);
+	Proto.writeDWORD(msg,data.raceType); -- 宠物类型
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_QuerySacredInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_QuerySacredInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_QUERYSACREDINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.info=Proto.parseVector(entry,Proto.parseSacredPetInfo); -- 宠物祭祀信息
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_SacredPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_SacredPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_SACREDPET_REQ);
+	Proto.writeDWORD(msg,data.petID); -- 目标宠物ID
+	Proto.writeDWORD(msg,data.sacredID); -- 祭祀宠物id
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_SacredPet_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_SacredPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_SACREDPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.petID=Proto.parseDWORD(entry); -- 目标宠物ID
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_PetModelChanged_Brd(entry)`
+
+```lua
+function Proto.parseP_ZC_PetModelChanged_Brd(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_PETMODELCHANGED_BRD;
+	data.master=Proto.parseRoleHandle(entry); -- 宠物主人句柄
+	data.raceType=Proto.parseDWORD_(entry); -- 宠物种族
+	data.gender=Proto.parseBYTE(entry); -- 宠物性别
+	data.pos=Proto.parseWORD(entry); -- 天性位置
+	data.geneLeft=Proto.parseWORD(entry); -- 天性左
+	data.geneRight=Proto.parseWORD(entry); -- 天性右
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_SwapInBagPetOrder_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_SwapInBagPetOrder_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_SWAPINBAGPETORDER_REQ);
+	Proto.writePetID(msg,data.petID_a); -- 宠物ID
+	Proto.writePetID(msg,data.petID_b); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_SwapInBagPetOrder_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_SwapInBagPetOrder_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_SWAPINBAGPETORDER_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_UpdatePetPower_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_UpdatePetPower_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_UPDATEPETPOWER_NTF;
+	data.id=Proto.parsePetID(entry); -- 宠物ID
+	data.power=Proto.parseDWORD(entry); -- 战斗力
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_QueryPetInBagInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_QueryPetInBagInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_QUERYPETINBAGINFO_REQ);
+	Proto.writeCharacterID(msg,data.charid); -- 玩家ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_QueryPetInBagInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_QueryPetInBagInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_QUERYPETINBAGINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.infos=Proto.parseVector(entry,Proto.parsePetInfo); -- 宠物信息
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_LoadPotential_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_LoadPotential_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_LOADPOTENTIAL_REQ);
+	Proto.writeVector(msg,data.pets,Proto.writePetID); -- 宠物信息
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_LoadPotential_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_LoadPotential_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_LOADPOTENTIAL_ACK;
+	data.infos=Proto.parseVector(entry,Proto.parsePetPotentialInfo); -- 宠物信息
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_UpdatePotential_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_UpdatePotential_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_UPDATEPOTENTIAL_NTF;
+	data.info=Proto.parsePetPotentialInfo(entry); -- 潜力信息
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_EatEgg_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_EatEgg_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_EATEGG_REQ);
+	Proto.writePetID(msg,data.petID); -- 宠物ID
+	Proto.writeVector(msg,data.itemPos,Proto.writeWORD); -- 道具位置
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_EatEgg_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_EatEgg_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_EATEGG_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_EatPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_EatPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_EATPET_REQ);
+	Proto.writePetID(msg,data.petID); -- 宠物ID
+	Proto.writePetID(msg,data.eatPetID); -- 被吃宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_EatPet_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_EatPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_EATPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CM_CheckPetUpgradeInWarehouse_Ntf(msg,data)`
+
+```lua
+function Proto.writeP_CM_CheckPetUpgradeInWarehouse_Ntf(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CM_CHECKPETUPGRADEINWAREHOUSE_NTF);
+	Proto.writePetID(msg,data.petID); -- 宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_QuerySubstitute_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_QuerySubstitute_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_QUERYSUBSTITUTE_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_QuerySubstitute_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_QuerySubstitute_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_QUERYSUBSTITUTE_ACK;
+	data.substitutes=Proto.parseBYTE(entry); -- 已开启替补位置
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_GetSubstitute_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_GetSubstitute_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_GETSUBSTITUTE_REQ);
+	Proto.writeBYTE(msg,data.moneyType); -- 币种
+	Proto.writeBYTE(msg,data.substitutePos); -- 替补位置
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_GetSubstitute_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_GetSubstitute_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_GETSUBSTITUTE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CZ_GetPetDepotsCount_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_GetPetDepotsCount_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_GETPETDEPOTSCOUNT_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_ZC_GetPetDepotsCount_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_GetPetDepotsCount_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_GETPETDEPOTSCOUNT_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	data.count=Proto.parseWORD(entry); -- 数量
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_PokemonEvo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PokemonEvo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_POKEMONEVO_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 宠物objID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_PokemonEvo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PokemonEvo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_POKEMONEVO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.pet=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_UpdateActivePetList_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UpdateActivePetList_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_UPDATEACTIVEPETLIST_REQ);
+	Proto.writeString(msg,data.petsIndexStr); -- 要激活的宠物的序列
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_UpdateActivePetList_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateActivePetList_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEACTIVEPETLIST_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_PokemonAdvaStageLevel_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PokemonAdvaStageLevel_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_POKEMONADVASTAGELEVEL_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 要进阶的宠物索引(非表格)
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_PokemonAdvaStageLevel_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PokemonAdvaStageLevel_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_POKEMONADVASTAGELEVEL_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.objID=Proto.parseDWORD(entry); -- 
+		data.stage=Proto.parseWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_PokemonSkillLevelUp_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PokemonSkillLevelUp_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_POKEMONSKILLLEVELUP_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 宠物objID
+	Proto.writeDWORD(msg,data.skillIndex); -- 技能索引 0 1 2 3 4
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_PokemonSkillLevelUp_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PokemonSkillLevelUp_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_POKEMONSKILLLEVELUP_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.objID=Proto.parseDWORD(entry); -- 
+		data.skillIndex=Proto.parseDWORD(entry); -- 技能索引 0 1 2 3 4
+		data.newSkillID=Proto.parseDWORD(entry); -- 技能ID
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_PokemonSkillChange_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PokemonSkillChange_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_POKEMONSKILLCHANGE_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 宠物objID
+	Proto.writeDWORD(msg,data.skillIndex); -- 技能索引 0 1 2 3 4
+	Proto.writeDWORD(msg,data.itemID); -- 使用的道具ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_PokemonSkillChange_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PokemonSkillChange_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_POKEMONSKILLCHANGE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.objID=Proto.parseDWORD(entry); -- 
+		data.skillIndex=Proto.parseDWORD(entry); -- 
+		data.newSkillID=Proto.parseDWORD(entry); -- 技能ID
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_SkillItemUpgrade_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SkillItemUpgrade_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SKILLITEMUPGRADE_REQ);
+	Proto.writeDWORD(msg,data.itemID); -- 使用的道具ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_SkillItemUpgrade_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SkillItemUpgrade_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SKILLITEMUPGRADE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.newItemID=Proto.parseDWORD(entry); -- 新道具ID
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_CapsuleEgg_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CapsuleEgg_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CAPSULEEGG_REQ);
+	Proto.writeWORD(msg,data.optType); -- 扭蛋类型
+	Proto.writeWORD(msg,data.choice); -- 选择1: 1次、2: 10次或者3: 附加值方式（心愿之力）
+	Proto.writeWORD(msg,data.bFree); -- 是否免费抽取
+	Proto.writeWORD(msg,data.choiceEx); -- 附加值方式（心愿之力）时选择的宠物索引
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_CapsuleEgg_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CapsuleEgg_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CAPSULEEGG_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.awardVecStr=Proto.parseVector(entry,Proto.parseString); -- 奖励元素表
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_CapsuleEggCDs_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CapsuleEggCDs_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CAPSULEEGGCDS_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_CapsuleEggCDs_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CapsuleEggCDs_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CAPSULEEGGCDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.capsuleEggTimeAndCDsVec=Proto.parseVector(entry,Proto.parseCapsuleEggTimesAndCD); -- 免费次数使用值和冷却时间组
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_CapsuleEggAllInfoCmd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CapsuleEggAllInfoCmd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CAPSULEEGGALLINFOCMD_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_CapsuleEggAllInfoCmd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CapsuleEggAllInfoCmd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CAPSULEEGGALLINFOCMD_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.capsuleEggAllInfo=Proto.parseString(entry); -- 扭蛋全部信息
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_PetFreedom_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetFreedom_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETFREEDOM_REQ);
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 宠物ObjIDs
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_PetFreedom_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetFreedom_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETFREEDOM_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_PetStarPour_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetStarPour_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETSTARPOUR_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ObjID
+	Proto.writeDWORD(msg,data.itemID); -- 物品ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_PetStarPour_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetStarPour_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETSTARPOUR_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	data.pourExp=Proto.parseDWORD(entry); -- 灌注经验
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_PetStarPourAuto_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetStarPourAuto_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETSTARPOURAUTO_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ObjID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_PetStarPourAuto_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetStarPourAuto_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETSTARPOURAUTO_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	data.pourExp=Proto.parseDWORD(entry); -- 灌注经验
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_PetStarUp_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetStarUp_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETSTARUP_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ObjID
+	Proto.writeVector(msg,data.costPetObjIDs,Proto.writeDWORD); -- 消耗宠物ObjIDs
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_PetStarUp_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetStarUp_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETSTARUP_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ChangePetEvoSkill_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangePetEvoSkill_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGEPETEVOSKILL_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ObjID
+	Proto.writeDWORD(msg,data.skillIndex); -- 要替换的技能格
+	Proto.writeDWORD(msg,data.skillID); -- 新技能ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ChangePetEvoSkill_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangePetEvoSkill_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGEPETEVOSKILL_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.petObjID=Proto.parseDWORD(entry); -- 宠物ObjID
+		data.skillIndex=Proto.parseDWORD(entry); -- 要替换的技能格
+		data.skillID=Proto.parseDWORD(entry); -- 新技能ID
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_UpdatePetArmys_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UpdatePetArmys_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_UPDATEPETARMYS_REQ);
+	Proto.writeVector(msg,data.petArmys,Proto.writePetArmyInfo); -- 宠物队伍成员组
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_UpdatePetArmys_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UpdatePetArmys_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEPETARMYS_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_GetPetArmys_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPetArmys_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPETARMYS_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_GetPetArmys_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPetArmys_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPETARMYS_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	data.petArmys=Proto.parseString(entry); -- 宠物队伍成员组
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ActivePetArmy_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ActivePetArmy_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ACTIVEPETARMY_REQ);
+	Proto.writeDWORD(msg,data.petArmyIndex); -- 宠物编队索引
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ActivePetArmy_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ActivePetArmy_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ACTIVEPETARMY_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_AddYokePet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_AddYokePet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ADDYOKEPET_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 主宠ID
+	Proto.writeWORD(msg,data.yokeID); -- 羁绊编号
+	Proto.writeWORD(msg,data.yokeCellID); -- 羁绊格子位置，从0开始
+	Proto.writeDWORD(msg,data.assistObjID); -- 羁绊宠ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_AddYokePet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_AddYokePet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ADDYOKEPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_DelYokePet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DelYokePet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DELYOKEPET_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 主宠ID
+	Proto.writeWORD(msg,data.yokeID); -- 羁绊编号
+	Proto.writeWORD(msg,data.yokeCellID); -- 羁绊格子位置，从0开始
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_DelYokePet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DelYokePet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DELYOKEPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ChangeYokePet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangeYokePet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGEYOKEPET_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 主宠ID
+	Proto.writeWORD(msg,data.yokeID); -- 羁绊编号
+	Proto.writeWORD(msg,data.yokeCellID); -- 羁绊格子位置，从0开始
+	Proto.writeDWORD(msg,data.assistObjID); -- 替换宠ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ChangeYokePet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangeYokePet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGEYOKEPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_UpdatePetYokeInfo_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdatePetYokeInfo_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEPETYOKEINFO_NTF;
+	data.petsYoke=Proto.parseString(entry); -- 羁绊
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_GetCapsuleEggAddValuePets_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetCapsuleEggAddValuePets_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETCAPSULEEGGADDVALUEPETS_REQ);
+	Proto.writeBYTE(msg,data.type); -- 扭蛋类型
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_GetCapsuleEggAddValuePets_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetCapsuleEggAddValuePets_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETCAPSULEEGGADDVALUEPETS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.addPets=Proto.parseString(entry); -- 宠物组
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_GetPetSkillWiki_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPetSkillWiki_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPETSKILLWIKI_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_GetPetSkillWiki_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPetSkillWiki_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPETSKILLWIKI_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.skillBookNum=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_GetPetSkillWiki_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetPetSkillWiki_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPETSKILLWIKI_NTF;
+	data.skillBookIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_UpdatePetSkillWiki_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdatePetSkillWiki_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEPETSKILLWIKI_NTF;
+	data.skillBookIDs=Proto.parseVector(entry,Proto.parseDWORD); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_CompoundPetSkill_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CompoundPetSkill_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_COMPOUNDPETSKILL_REQ);
+	Proto.writeDWORD(msg,data.SkillBookID); -- 技能书ID
+	Proto.writeDWORD(msg,data.num); -- 数量
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_CompoundPetSkill_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CompoundPetSkill_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_COMPOUNDPETSKILL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ResolvePetSkill_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResolvePetSkill_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESOLVEPETSKILL_REQ);
+	Proto.writeVector(msg,data.SkillBookInfo,Proto.writeResolveSkillInfo); -- 技能书信息
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ResolvePetSkill_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResolvePetSkill_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESOLVEPETSKILL_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_GetPetWiki_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPetWiki_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPETWIKI_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_GetPetWiki_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPetWiki_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPETWIKI_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.num=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_GetPetWikiActivity_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetPetWikiActivity_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETPETWIKIACTIVITY_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_GetPetWikiActivity_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetPetWikiActivity_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPETWIKIACTIVITY_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.num=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_GetPetWiki_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetPetWiki_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPETWIKI_NTF;
+	data.petWiki=Proto.parseVector(entry,Proto.parseDWORD); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_GetPetWikiActivity_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetPetWikiActivity_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETPETWIKIACTIVITY_NTF;
+	data.petWiki=Proto.parseVector(entry,Proto.parseDWORD); -- 
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_CompoundPetPiece_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CompoundPetPiece_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_COMPOUNDPETPIECE_REQ);
+	Proto.writeDWORD(msg,data.PetPieceID); -- 碎片ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_CompoundPetPiece_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CompoundPetPiece_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_COMPOUNDPETPIECE_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ChangePetName_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangePetName_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGEPETNAME_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物objID
+	Proto.writeString(msg,data.newName); -- 新名字
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ChangePetName_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangePetName_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGEPETNAME_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.isModify=Proto.parseBYTE(entry); -- 属性提升了吗
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_IwatchCatchPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_IwatchCatchPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_IWATCHCATCHPET_REQ);
+	Proto.writeDWORD(msg,data.petID); -- 宠物ID
+	Proto.writeDWORD(msg,data.itemID); -- 精灵球类型
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_IwatchCatchPet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_IwatchCatchPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_IWATCHCATCHPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_EatPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_EatPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_EATPET_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ID
+	Proto.writeDWORD(msg,data.eatPetObjID); -- 被吃宠物ID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_EatPet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_EatPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_EATPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ResetPetStar_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResetPetStar_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETPETSTAR_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 宠物objID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ResetPetStar_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResetPetStar_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETPETSTAR_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ClearEvoSkills_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ClearEvoSkills_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CLEAREVOSKILLS_REQ);
+	Proto.writeDWORD(msg,data.objID); -- 宠物ObjID
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ClearEvoSkills_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ClearEvoSkills_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CLEAREVOSKILLS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_GetScienceDatas_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetScienceDatas_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETSCIENCEDATAS_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_GetScienceDatas_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetScienceDatas_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSCIENCEDATAS_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.datas=Proto.parseVector(entry,Proto.parseScienceData); -- 
+		data.consumeDatas=Proto.parseVector(entry,Proto.parseDWORD); -- 
+		data.consumedDatas=Proto.parseVector(entry,Proto.parseDWORD); -- 
+		data.updateTime=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ScienceLevelUp_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ScienceLevelUp_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SCIENCELEVELUP_REQ);
+	Proto.writeDWORD(msg,data.scienceID); --
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ScienceLevelUp_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ScienceLevelUp_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SCIENCELEVELUP_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.data=Proto.parseScienceData(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ScienceStarUp_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ScienceStarUp_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SCIENCESTARUP_REQ);
+	Proto.writeDWORD(msg,data.scienceID); --
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ScienceStarUp_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ScienceStarUp_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SCIENCESTARUP_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.data=Proto.parseScienceData(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ScienceConsume_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ScienceConsume_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SCIENCECONSUME_REQ);
+	Proto.writeDWORD(msg,data.consumeID); -- 
+	Proto.writeDWORD(msg,data.consumeNum); --
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ScienceConsume_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ScienceConsume_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SCIENCECONSUME_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.consumeDatas=Proto.parseVector(entry,Proto.parseDWORD); -- 
+		data.consumedDatas=Proto.parseVector(entry,Proto.parseDWORD); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ResetScienceConsumes_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResetScienceConsumes_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETSCIENCECONSUMES_REQ);
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ResetScienceConsumes_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResetScienceConsumes_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETSCIENCECONSUMES_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.consumeDatas=Proto.parseVector(entry,Proto.parseDWORD); -- 
+		data.consumedDatas=Proto.parseVector(entry,Proto.parseDWORD); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Pet.lua` — `Proto.writeP_CG_ImportEthPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ImportEthPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_IMPORTETHPET_REQ);
+	Proto.writeString(msg,data.address); --
+end
+```
+
+### `Proto_Pet.lua` — `Proto.parseP_GC_ImportEthPet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ImportEthPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_IMPORTETHPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.pet=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.writeP_CG_PetEquipOn_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetEquipOn_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETEQUIPON_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 
+	Proto.writeDWORD(msg,data.equipObjID); --
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.parseP_GC_PetEquipOn_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetEquipOn_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETEQUIPON_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.writeP_CG_PetEquipOff_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetEquipOff_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETEQUIPOFF_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 
+	Proto.writeWORD(msg,data.pos); -- 装备位置
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.parseP_GC_PetEquipOff_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetEquipOff_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETEQUIPOFF_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.writeP_CG_PetEquipCompose_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetEquipCompose_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETEQUIPCOMPOSE_REQ);
+	Proto.writeDWORD(msg,data.itemID); --
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.parseP_GC_PetEquipCompose_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetEquipCompose_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETEQUIPCOMPOSE_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.writeP_CG_PetEquipStrengthen_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetEquipStrengthen_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETEQUIPSTRENGTHEN_REQ);
+	Proto.writeDWORD(msg,data.ObjID); -- pet/equip
+	Proto.writeBYTE(msg,data.pos); -- 部位,0代表没有装备在宠物上
+	Proto.writeDWORD(msg,data.luckStoneID); -- 幸运石
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.parseP_GC_PetEquipStrengthen_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetEquipStrengthen_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETEQUIPSTRENGTHEN_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.writeP_CG_PetEquipBaptism_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetEquipBaptism_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETEQUIPBAPTISM_REQ);
+	Proto.writeDWORD(msg,data.ObjID); -- pet/equip
+	Proto.writeBYTE(msg,data.pos); -- 部位,0代表没有装备在宠物上
+	Proto.writeString(msg,data.strengthenLevel); -- 哪个强化等级的词条
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.parseP_GC_PetEquipBaptism_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetEquipBaptism_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETEQUIPBAPTISM_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.effect=Proto.parseDWORD(entry); -- 新属性内容
+	end
+	return data;
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.writeP_CG_PetEquipPurify_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetEquipPurify_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETEQUIPPURIFY_REQ);
+	Proto.writeDWORD(msg,data.ObjID); -- pet/equip
+	Proto.writeBYTE(msg,data.pos); -- 部位,0代表没有装备在宠物上
+	Proto.writeDWORD(msg,data.purifyStoneNum); -- 淬炼石数量
+	Proto.writeVector(msg,data.equips,Proto.writeString); -- 淬炼消耗用装备
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.parseP_GC_PetEquipPurify_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetEquipPurify_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETEQUIPPURIFY_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.writeP_CG_PetEquipRestore_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetEquipRestore_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETEQUIPRESTORE_REQ);
+	Proto.writeDWORD(msg,data.objID); -- pet/equip
+	Proto.writeBYTE(msg,data.pos); -- 部位,0代表没有装备在宠物上
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.parseP_GC_PetEquipRestore_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetEquipRestore_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETEQUIPRESTORE_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.parseP_GC_UpdatePetEquip_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_UpdatePetEquip_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEPETEQUIP_NTF;
+	data.bDelete=Proto.parseBYTE(entry); -- 删除还是更新，添加
+	data.equipInfo=Proto.parseString(entry); -- 宠物装备信息, 删除时不发
+	return data;
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.writeP_CG_PetEquipAppraise_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetEquipAppraise_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETEQUIPAPPRAISE_REQ);
+	Proto.writeDWORD(msg,data.itemID); -- 未鉴定装备的道具ID
+end
+```
+
+### `Proto_PetEquip.lua` — `Proto.parseP_GC_PetEquipAppraise_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetEquipAppraise_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETEQUIPAPPRAISE_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	data.equipInfo=Proto.parseString(entry); -- 装备信息
+	return data;
+end
+```
+
+### `Proto_PetStreng.lua` — `Proto.writeP_CG_PetStreng_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetStreng_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETSTRENG_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ObjID
+	Proto.writeString(msg,data.addPoints); -- 增加的值的json （例：{"hpx":1,"atk":1,...}）
+end
+```
+
+### `Proto_PetStreng.lua` — `Proto.parseP_GC_PetStreng_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetStreng_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETSTRENG_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.updatePet=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PetStreng.lua` — `Proto.writeP_CG_ResetPetStreng_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ResetPetStreng_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RESETPETSTRENG_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ObjID
+end
+```
+
+### `Proto_PetStreng.lua` — `Proto.parseP_GC_ResetPetStreng_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ResetPetStreng_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RESETPETSTRENG_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.updatePet=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_PetStreng.lua` — `Proto.writeP_CG_PetStrengOverflow_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetStrengOverflow_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETSTRENGOVERFLOW_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ObjID
+	Proto.writeString(msg,data.oName); -- 增加的值类型名 ohp,oatk,ospeed,osatk,odef,osdef,oall
+end
+```
+
+### `Proto_PetStreng.lua` — `Proto.parseP_GC_PetStrengOverflow_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetStrengOverflow_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETSTRENGOVERFLOW_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.updatePet=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Portal.lua` — `Proto.writeP_CG_PlatformLogin_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PlatformLogin_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PLATFORMLOGIN_REQ);
+	Proto.writestring(msg,data.username); -- 账号
+	Proto.writestring(msg,data.token); -- 令牌
+end
+```
+
+### `Proto_Portal.lua` — `Proto.parseP_GC_PlatformLogin_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PlatformLogin_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLATFORMLOGIN_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	if (data.code.value==Proto.Error.ERROR_OK) then
+		data.devices=Proto.parseVector(entry,Proto.parsePlatformDeviceInfo); -- 设备列表
+	end
+	return data;
+end
+```
+
+### `Proto_Portal.lua` — `Proto.writeP_CG_DeviceLogin_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DeviceLogin_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DEVICELOGIN_REQ);
+	Proto.writestring(msg,data.id); -- 设备ID
+	Proto.writestring(msg,data.world); -- 世界
+	Proto.writestring(msg,data.token); -- 设备令牌
+end
+```
+
+### `Proto_Portal.lua` — `Proto.parseP_GC_DeviceLogin_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DeviceLogin_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DEVICELOGIN_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	if (data.code.value==Proto.Error.ERROR_OK) then
+		data.roleID=Proto.parseint(entry); -- 角色ID,如果角色不存在roleID等于0
+		data.serverTime=Proto.parseQWORD(entry); -- 
+		data.serverTimeZone=Proto.parseint(entry); -- 时区秒数 (例 +8时区为8*3600) 
+		data.userToken=Proto.parsestring(entry); -- 角色令牌
+	end
+	if (data.code.value==Proto.Error.ERROR_OK and data.roleID~=0) then
+		data.baseInfo=Proto.parseCharBaseInfo(entry); -- 基本信息
+	end
+	return data;
+end
+```
+
+### `Proto_Portal.lua` — `Proto.writeP_CG_DeviceBind_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DeviceBind_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DEVICEBIND_REQ);
+	Proto.writestring(msg,data.id); -- 设备ID
+	Proto.writestring(msg,data.world); -- 世界
+	Proto.writestring(msg,data.token); -- 设备令牌
+end
+```
+
+### `Proto_Portal.lua` — `Proto.parseP_GC_DeviceBind_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DeviceBind_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DEVICEBIND_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Portal.lua` — `Proto.writeP_CG_DeviceRelogin_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DeviceRelogin_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DEVICERELOGIN_REQ);
+	Proto.writeint(msg,data.userID); -- 角色ID
+	Proto.writestring(msg,data.userToken); -- 角色令牌
+end
+```
+
+### `Proto_Portal.lua` — `Proto.parseP_GC_DeviceRelogin_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DeviceRelogin_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DEVICERELOGIN_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	if (data.code.value==Proto.Error.ERROR_OK) then
+		data.roleID=Proto.parseint(entry); -- 角色ID,如果角色不存在roleID等于0
+	end
+	if (data.code.value==Proto.Error.ERROR_OK and data.roleID~=0) then
+		data.baseInfo=Proto.parseCharBaseInfo(entry); -- 基本信息
+	end
+	return data;
+end
+```
+
+### `Proto_Recharge.lua` — `Proto.writeP_CG_RechargeCD_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RechargeCD_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RECHARGECD_REQ);
+end
+```
+
+### `Proto_Recharge.lua` — `Proto.parseP_GC_RechargeCD_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RechargeCD_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RECHARGECD_ACK;
+	data.code=Proto.parseCode(entry); -- 返回码
+	if (data.code.value==Proto.Error.ERROR_OK) then
+		data.jsCD=Proto.parseString(entry); -- CD数据
+	end
+	return data;
+end
+```
+
+### `Proto_SetInfo.lua` — `Proto.writeP_CG_PetFreedomLock_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PetFreedomLock_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PETFREEDOMLOCK_REQ);
+	Proto.writeDWORD(msg,data.setType); -- 设置类型:1,设置。2，解锁
+	Proto.writeString(msg,data.password); -- 密码
+end
+```
+
+### `Proto_SetInfo.lua` — `Proto.parseP_GC_PetFreedomLock_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PetFreedomLock_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PETFREEDOMLOCK_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_Signin.lua` — `Proto.writeP_CG_LoadSigninData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_LoadSigninData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_LOADSIGNINDATA_REQ);
+end
+```
+
+### `Proto_Signin.lua` — `Proto.parseP_GC_LoadSigninData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_LoadSigninData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LOADSIGNINDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	data.signinData=Proto.parseString(entry); -- 签到数据
+	return data;
+end
+```
+
+### `Proto_Signin.lua` — `Proto.parseP_GC_SigninData_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_SigninData_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SIGNINDATA_NTF;
+	data.signinData=Proto.parseString(entry); -- 签到数据
+	return data;
+end
+```
+
+### `Proto_Signin.lua` — `Proto.writeP_CG_Signin_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_Signin_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SIGNIN_REQ);
+end
+```
+
+### `Proto_Signin.lua` — `Proto.parseP_GC_Signin_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_Signin_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SIGNIN_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.signinData=Proto.parseString(entry); -- 签到数据
+	end
+	return data;
+end
+```
+
+### `Proto_Signin.lua` — `Proto.writeP_CG_SigninRepair_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SigninRepair_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SIGNINREPAIR_REQ);
+	Proto.writeBYTE(msg,data.day); -- 需要补签的日期
+end
+```
+
+### `Proto_Signin.lua` — `Proto.parseP_GC_SigninRepair_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SigninRepair_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SIGNINREPAIR_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.signinData=Proto.parseString(entry); -- 签到数据
+	end
+	return data;
+end
+```
+
+### `Proto_SurvivalBattle.lua` — `Proto.writeP_CG_GetSurvivalBattleData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetSurvivalBattleData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETSURVIVALBATTLEDATA_REQ);
+end
+```
+
+### `Proto_SurvivalBattle.lua` — `Proto.parseP_GC_GetSurvivalBattleData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetSurvivalBattleData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSURVIVALBATTLEDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if ( data.code ==Proto.Error.ERROR_OK) then
+		data.currentFloor=Proto.parseDWORD(entry); -- 当前层数
+		data.boss=Proto.parseString(entry); -- 当前boss
+		data.vecUsedPets=Proto.parseVector(entry,Proto.parseDWORD); -- 使用过的宠物
+	end
+	return data;
+end
+```
+
+### `Proto_SurvivalBattle.lua` — `Proto.writeP_CG_SurvivalBattleEnd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SurvivalBattleEnd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SURVIVALBATTLEEND_REQ);
+	Proto.writeDWORD(msg,data.damage); -- 伤害
+	Proto.writeDWORD(msg,data.usePetID); -- 使用宠物objID
+end
+```
+
+### `Proto_SurvivalBattle.lua` — `Proto.parseP_GC_SurvivalBattleEnd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SurvivalBattleEnd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SURVIVALBATTLEEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_AutoJoinTeam_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_AutoJoinTeam_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_AUTOJOINTEAM_REQ);
+	Proto.writeDWORD(msg,data.adventureID); -- 
+	Proto.writeDWORD(msg,data.leaderID); --
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_AutoJoinTeam_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_AutoJoinTeam_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_AUTOJOINTEAM_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_AutoJoinTeam_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_AutoJoinTeam_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_AUTOJOINTEAM_NTF;
+	data.teamData=Proto.parseTeamData(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_CancelAutoJoinTeam_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CancelAutoJoinTeam_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CANCELAUTOJOINTEAM_REQ);
+	Proto.writeDWORD(msg,data.adventureID); --
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_CancelAutoJoinTeam_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CancelAutoJoinTeam_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CANCELAUTOJOINTEAM_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_CreateTeam_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_CreateTeam_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CREATETEAM_REQ);
+	Proto.writeDWORD(msg,data.adventureID); -- 
+	Proto.writeDWORD(msg,data.canAutoJoin); -- 0不能 1能
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_CreateTeam_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_CreateTeam_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CREATETEAM_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.teamData=Proto.parseTeamData(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_GetTeamMembers_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetTeamMembers_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETTEAMMEMBERS_REQ);
+	Proto.writeVector(msg,data.memberIndexs,Proto.writeDWORD); -- [0,1,2]
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_GetTeamMembers_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetTeamMembers_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETTEAMMEMBERS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.memberIndexs=Proto.parseVector(entry,Proto.parseDWORD); -- [0,1,2]
+		data.teamMemberDatas=Proto.parseVector(entry,Proto.parseTeamMemberData); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_SetTeamReady_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SetTeamReady_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SETTEAMREADY_REQ);
+	Proto.writeDWORD(msg,data.isReady); -- 0:notReady 1:ready
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_SetTeamReady_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SetTeamReady_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SETTEAMREADY_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.isReady=Proto.parseDWORD(entry); -- 0:notReady 1:ready
+	end
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_SetTeamPets_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SetTeamPets_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SETTEAMPETS_REQ);
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 
+	Proto.writeVector(msg,data.helperPetObjIDs,Proto.writeDWORD); --
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_SetTeamPets_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SetTeamPets_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SETTEAMPETS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.teamMemberData=Proto.parseTeamMemberData(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_KickTeamMember_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_KickTeamMember_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_KICKTEAMMEMBER_REQ);
+	Proto.writeDWORD(msg,data.charID); --
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_KickTeamMember_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_KickTeamMember_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_KICKTEAMMEMBER_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.charID=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_KickTeamMember_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_KickTeamMember_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_KICKTEAMMEMBER_NTF;
+	data.charID=Proto.parseDWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_InviteTeamMember_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_InviteTeamMember_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_INVITETEAMMEMBER_REQ);
+	Proto.writeDWORD(msg,data.charID); --
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_InviteTeamMember_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_InviteTeamMember_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_INVITETEAMMEMBER_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_RefuseJoinTeam_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RefuseJoinTeam_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_REFUSEJOINTEAM_REQ);
+	Proto.writeDWORD(msg,data.teamID); --
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_RefuseJoinTeam_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RefuseJoinTeam_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_REFUSEJOINTEAM_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_GetMyTeam_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMyTeam_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYTEAM_REQ);
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_GetMyTeam_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyTeam_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYTEAM_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.teamData=Proto.parseTeamData(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_SetTeamSort_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SetTeamSort_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SETTEAMSORT_REQ);
+	Proto.writeVector(msg,data.teamSort,Proto.writeDWORD); -- 组队位置排列，空数组代表正常排列位置，[0,1,2]正常顺序排列
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_SetTeamSort_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SetTeamSort_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SETTEAMSORT_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	data.teamSort=Proto.parseVector(entry,Proto.parseDWORD); -- 组队位置排列，空数组代表正常排列位置，[0,1,2]正常顺序排列
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_SetTeamAutoJoin_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SetTeamAutoJoin_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SETTEAMAUTOJOIN_REQ);
+	Proto.writeDWORD(msg,data.canAutoJoin); --
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_SetTeamAutoJoin_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SetTeamAutoJoin_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SETTEAMAUTOJOIN_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	data.canAutoJoin=Proto.parseDWORD(entry); -- 
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_TeamDungeonEnd_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_TeamDungeonEnd_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TEAMDUNGEONEND_NTF;
+	data.chestID=Proto.parseDWORD(entry); -- 宝箱ID
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_EnterTeamDungeon_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_EnterTeamDungeon_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ENTERTEAMDUNGEON_REQ);
+	Proto.writeDWORD(msg,data.mapID); -- 地图ID
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_EnterTeamDungeon_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_EnterTeamDungeon_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ENTERTEAMDUNGEON_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_TeamBattleEnd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TeamBattleEnd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TEAMBATTLEEND_REQ);
+	Proto.writeWORD(msg,data.isWin); -- 0 败 1 胜 2平
+	Proto.writeVector(msg,data.battleDetails,Proto.writeString); -- 战斗信息
+	Proto.writeDWORD(msg,data.monsterHP); -- 怪物血量
+	Proto.writeDWORD(msg,data.battleID); -- 战斗ID
+	Proto.writeDWORD(msg,data.x); -- x坐标
+	Proto.writeDWORD(msg,data.y); -- y坐标
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_TeamBattleEnd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TeamBattleEnd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TEAMBATTLEEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.exp=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_LeaveTeamDungeon_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_LeaveTeamDungeon_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_LEAVETEAMDUNGEON_REQ);
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_LeaveTeamDungeon_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_LeaveTeamDungeon_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_LEAVETEAMDUNGEON_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_CharacterLeaveDungeon_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_CharacterLeaveDungeon_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHARACTERLEAVEDUNGEON_NTF;
+	data.charID=Proto.parseDWORD(entry); -- 玩家ID
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_ChangeArmyPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangeArmyPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGEARMYPET_REQ);
+	Proto.writeVector(msg,data.pets,Proto.writeDWORD); -- 出站宠物列表
+	Proto.writeVector(msg,data.helperPets,Proto.writeDWORD); -- 援助宠物列表
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_ChangeArmyPet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangeArmyPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGEARMYPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_ReviveCharacter_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ReviveCharacter_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_REVIVECHARACTER_REQ);
+	Proto.writeDWORD(msg,data.charID); -- 玩家ID
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_ReviveCharacter_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ReviveCharacter_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_REVIVECHARACTER_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_TeamDungeonBattleStart_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TeamDungeonBattleStart_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TEAMDUNGEONBATTLESTART_REQ);
+	Proto.writeDWORD(msg,data.monsterID); -- 怪物ID
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_TeamDungeonBattleStart_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TeamDungeonBattleStart_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TEAMDUNGEONBATTLESTART_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Team.lua` — `Proto.writeP_CG_QueryTeamDungeonMonsterHp_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryTeamDungeonMonsterHp_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYTEAMDUNGEONMONSTERHP_REQ);
+end
+```
+
+### `Proto_Team.lua` — `Proto.parseP_GC_QueryTeamDungeonMonsterHp_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryTeamDungeonMonsterHp_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYTEAMDUNGEONMONSTERHP_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.vecMonsterHp=Proto.parseVector(entry,Proto.parseTeamMonsterHp); -- 组队副本怪物血量列表
+	end
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.writeP_CG_TerritoryInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TerritoryInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TERRITORYINFO_REQ);
+	Proto.writeVector(msg,data.adventureIDs,Proto.writeDWORD); -- 副本ID
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_TerritoryInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TerritoryInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TERRITORYINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.terrInfo=Proto.parseVector(entry,Proto.parseString); -- 领地信息
+	end
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.writeP_CG_TerritoryInfoNoPets_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TerritoryInfoNoPets_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TERRITORYINFONOPETS_REQ);
+	Proto.writeVector(msg,data.adventureIDs,Proto.writeDWORD); -- 副本ID
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_TerritoryInfoNoPets_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TerritoryInfoNoPets_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TERRITORYINFONOPETS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.terrInfo=Proto.parseDWORD(entry); -- 领地信息条数
+	end
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.writeP_CG_TerritoryFight_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TerritoryFight_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TERRITORYFIGHT_REQ);
+	Proto.writeDWORD(msg,data.adventureID); -- 副本ID
+	Proto.writeVector(msg,data.petsID,Proto.writeDWORD); -- 宠物ID
+	Proto.writeVector(msg,data.helpPetsID,Proto.writeDWORD); -- 援助宠物ID
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_TerritoryFight_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TerritoryFight_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TERRITORYFIGHT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.territoryBattleID=Proto.parseString(entry); --   
+		data.self=Proto.parseVector(entry,Proto.parseString); -- 自己宠物
+		data.enemy=Proto.parseVector(entry,Proto.parseString); -- 敌方宠物
+		data.selfHelp=Proto.parseVector(entry,Proto.parseString); -- 自己援助宠物
+		data.enemyHelp=Proto.parseVector(entry,Proto.parseString); -- 敌方援助宠物
+		data.battleID=Proto.parseString(entry); -- 
+		data.serverID=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.writeP_CG_FightEnd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_FightEnd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_FIGHTEND_REQ);
+	Proto.writeDWORD(msg,data.isWin); -- 是否胜利
+	Proto.writeDWORD(msg,data.adventureID); -- 副本ID
+	Proto.writeString(msg,data.territoryBattleID); --
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_FightEnd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_FightEnd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_FIGHTEND_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.writeP_CG_TerritoryRankInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TerritoryRankInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TERRITORYRANKINFO_REQ);
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_TerritoryRankInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TerritoryRankInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TERRITORYRANKINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseVector(entry,Proto.parseString); -- 排行榜
+	end
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.writeP_CG_TerritorialResetInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TerritorialResetInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TERRITORIALRESETINFO_REQ);
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_TerritorialResetInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TerritorialResetInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TERRITORIALRESETINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.writeP_CG_SelfTerritoryInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SelfTerritoryInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SELFTERRITORYINFO_REQ);
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_SelfTerritoryInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SelfTerritoryInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SELFTERRITORYINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseString(entry); -- 排行榜
+	end
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.writeP_CG_TerritoryCountInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TerritoryCountInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TERRITORYCOUNTINFO_REQ);
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_TerritoryCountInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TerritoryCountInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TERRITORYCOUNTINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.Tcount=Proto.parseDWORD(entry); -- 挑战总次数
+		data.buyCount=Proto.parseDWORD(entry); -- 购买次数
+		data.maxCount=Proto.parseDWORD(entry); -- 最大挑战次数
+	end
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.writeP_CG_QuerySelfTerritoryIDInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QuerySelfTerritoryIDInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYSELFTERRITORYIDINFO_REQ);
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_QuerySelfTerritoryIDInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QuerySelfTerritoryIDInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYSELFTERRITORYIDINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.adventureID=Proto.parseDWORD(entry); -- 领地ID
+		data.familyID=Proto.parseVector(entry,Proto.parseDWORD); -- 家族ID
+	end
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_TerritoryChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_TerritoryChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TERRITORYCHANGE_NTF;
+	data.charID=Proto.parseDWORD(entry); -- 擂主ID
+	data.oldcharID=Proto.parseDWORD(entry); -- 原擂主ID
+	data.adventureID=Proto.parseDWORD(entry); -- 领地ID
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_TerritoryCountChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_TerritoryCountChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TERRITORYCOUNTCHANGE_NTF;
+	data.count=Proto.parseString(entry); -- 次数变化
+	return data;
+end
+```
+
+### `Proto_Territorial.lua` — `Proto.parseP_GC_TerritoryInfoWiki_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_TerritoryInfoWiki_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TERRITORYINFOWIKI_NTF;
+	data.territoryInfo=Proto.parseVector(entry,Proto.parseString); -- 领主信息
+	return data;
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.writeP_CG_GetTreasureBoxData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetTreasureBoxData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETTREASUREBOXDATA_REQ);
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.parseP_GC_GetTreasureBoxData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetTreasureBoxData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETTREASUREBOXDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.boxes=Proto.parseString(entry); -- 宝箱数据
+	end
+	return data;
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.writeP_CG_OpenTreasureBox_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_OpenTreasureBox_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_OPENTREASUREBOX_REQ);
+	Proto.writeBYTE(msg,data.boxID); -- 宝箱编号0~3
+	Proto.writeBYTE(msg,data.bFree); -- 0：收费。 1：免费
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.parseP_GC_OpenTreasureBox_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_OpenTreasureBox_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_OPENTREASUREBOX_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 奖励
+	end
+	return data;
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.parseP_GC_TreasureBoxNTF_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_TreasureBoxNTF_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TREASUREBOXNTF_NTF;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.boxes=Proto.parseString(entry); -- 宝箱数据
+	end
+	return data;
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.writeP_CG_UnlockTreasureBox_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UnlockTreasureBox_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_UNLOCKTREASUREBOX_REQ);
+	Proto.writeBYTE(msg,data.boxID); -- 宝箱编号0~3
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.parseP_GC_UnlockTreasureBox_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UnlockTreasureBox_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UNLOCKTREASUREBOX_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.parseP_GC_NewTreasureBox_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_NewTreasureBox_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_NEWTREASUREBOX_NTF;
+	data.boxes=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.writeP_CG_SelectTreasureBox_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_SelectTreasureBox_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_SELECTTREASUREBOX_REQ);
+	Proto.writeBYTE(msg,data.boxID); -- 宝箱编号 0~N
+end
+```
+
+### `Proto_TreasureBox.lua` — `Proto.parseP_GC_SelectTreasureBox_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_SelectTreasureBox_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_SELECTTREASUREBOX_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Vip.lua` — `Proto.writeP_CG_GetVipAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetVipAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETVIPAWARD_REQ);
+	Proto.writeDWORD(msg,data.vipID); -- vipID
+	Proto.writeVector(msg,data.awardID,Proto.writeDWORD); -- awardID
+end
+```
+
+### `Proto_Vip.lua` — `Proto.parseP_GC_GetVipAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetVipAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETVIPAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_Vip.lua` — `Proto.writeP_CG_VipAwardInfo_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_VipAwardInfo_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_VIPAWARDINFO_REQ);
+end
+```
+
+### `Proto_Vip.lua` — `Proto.parseP_GC_VipAwardInfo_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_VipAwardInfo_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_VIPAWARDINFO_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	data.vipAwardsInfo=Proto.parseVector(entry,Proto.parseDWORD); -- VIP已领取奖励
+	return data;
+end
+```
+
+### `Proto_Vip.lua` — `Proto.writeP_CG_RechargeTestCmd_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RechargeTestCmd_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RECHARGETESTCMD_REQ);
+	Proto.writeDWORD(msg,data.payID); -- 充值ID
+	Proto.writeString(msg,data.appID); -- appID
+end
+```
+
+### `Proto_Vip.lua` — `Proto.parseP_GC_RechargeTestCmd_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RechargeTestCmd_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RECHARGETESTCMD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_QueryWArenaData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryWArenaData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYWARENADATA_REQ);
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_QueryWArenaData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryWArenaData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYWARENADATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.pets=Proto.parseVector(entry,Proto.parseString); -- 防守宠物
+		data.helperPets=Proto.parseVector(entry,Proto.parseString); -- 援助防守宠物
+	end
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_QueryMyWArenaRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryMyWArenaRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYMYWARENARANK_REQ);
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_QueryMyWArenaRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryMyWArenaRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYMYWARENARANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseDWORD(entry); -- 排名
+	end
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_WArenaRankChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_WArenaRankChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_WARENARANKCHANGE_NTF;
+	data.rank=Proto.parseDWORD(entry); -- 排名
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_RandomWArenaEnemys_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_RandomWArenaEnemys_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_RANDOMWARENAENEMYS_REQ);
+	Proto.writeDWORD(msg,data.nowRank); -- 自己当前的排名
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_RandomWArenaEnemys_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_RandomWArenaEnemys_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_RANDOMWARENAENEMYS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.enemys=Proto.parseVector(entry,Proto.parseString); -- 对手
+	end
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_ChangeWArenaPetObjIDs_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ChangeWArenaPetObjIDs_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CHANGEWARENAPETOBJIDS_REQ);
+	Proto.writeVector(msg,data.petObjIDs,Proto.writeDWORD); -- 防守宠物objIDs
+	Proto.writeVector(msg,data.helperPetObjIDs,Proto.writeDWORD); -- 援助防守宠物objIDs
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_ChangeWArenaPetObjIDs_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ChangeWArenaPetObjIDs_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHANGEWARENAPETOBJIDS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_JoinWArena_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_JoinWArena_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_JOINWARENA_REQ);
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_JoinWArena_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_JoinWArena_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_JOINWARENA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseDWORD(entry); -- 排名
+		data.pets=Proto.parseVector(entry,Proto.parseString); -- 
+		data.helperPets=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_WArenaRankFight_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_WArenaRankFight_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_WARENARANKFIGHT_REQ);
+	Proto.writeDWORD(msg,data.rank); -- 挑战的排名
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_WArenaRankFight_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_WArenaRankFight_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_WARENARANKFIGHT_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.arenaBattleID=Proto.parseString(entry); -- 
+		data.self=Proto.parseVector(entry,Proto.parseString); -- 
+		data.enemys=Proto.parseVector(entry,Proto.parseString); -- 
+		data.battleID=Proto.parseString(entry); -- 
+		data.serverID=Proto.parseDWORD(entry); -- 
+		data.selfHelper=Proto.parseVector(entry,Proto.parseString); -- 
+		data.enemysHelper=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_QueryWArenaRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryWArenaRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYWARENARANK_REQ);
+	Proto.writeDWORD(msg,data.rankMin); -- 
+	Proto.writeDWORD(msg,data.rankMax); --
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_QueryWArenaRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryWArenaRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYWARENARANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.soldiers=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_QueryWArenaSoldierDetail_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_QueryWArenaSoldierDetail_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_QUERYWARENASOLDIERDETAIL_REQ);
+	Proto.writeDWORD(msg,data.charID); --
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_QueryWArenaSoldierDetail_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_QueryWArenaSoldierDetail_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_QUERYWARENASOLDIERDETAIL_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.charID=Proto.parseDWORD(entry); -- 
+		data.pets=Proto.parseVector(entry,Proto.parseString); -- 
+		data.helperPets=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_ClearWArenaCD_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_ClearWArenaCD_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_CLEARWARENACD_REQ);
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_ClearWArenaCD_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_ClearWArenaCD_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CLEARWARENACD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_BuyWArenaFightTimes_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BuyWArenaFightTimes_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BUYWARENAFIGHTTIMES_REQ);
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_BuyWArenaFightTimes_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BuyWArenaFightTimes_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BUYWARENAFIGHTTIMES_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_GetWArenaAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetWArenaAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETWARENAAWARD_REQ);
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_GetWArenaAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetWArenaAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETWARENAAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_GetWArenaRecode_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetWArenaRecode_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETWARENARECODE_REQ);
+	Proto.writeDWORD(msg,data.startIndex); -- 
+	Proto.writeDWORD(msg,data.endIndex); --
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_GetWArenaRecode_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetWArenaRecode_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETWARENARECODE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.isNew=Proto.parseDWORD(entry); -- 
+		data.recodes=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.writeP_CG_PlayWArenaRecode_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PlayWArenaRecode_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PLAYWARENARECODE_REQ);
+	Proto.writeString(msg,data.t); --
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_PlayWArenaRecode_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PlayWArenaRecode_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYWARENARECODE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.recodeNum=Proto.parseDWORD(entry); -- 
+		data.recodeInfo=Proto.parseString(entry); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_PlayWArenaRecode_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayWArenaRecode_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYWARENARECODE_NTF;
+	data.turnIndex=Proto.parseDWORD(entry); -- 
+	data.recode=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_GetWArenaRecode_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_GetWArenaRecode_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETWARENARECODE_NTF;
+	data.isNew=Proto.parseDWORD(entry); -- 
+	data.recodes=Proto.parseVector(entry,Proto.parseString); -- 
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_PlayWArenaRecode2_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayWArenaRecode2_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYWARENARECODE2_NTF;
+	data.recodeInfo=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_PlayWArenaRecode3_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayWArenaRecode3_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYWARENARECODE3_NTF;
+	data.recodeInfo=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_WArena.lua` — `Proto.parseP_GC_PlayWArenaRecode4_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlayWArenaRecode4_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLAYWARENARECODE4_NTF;
+	data.recodeInfo=Proto.parseString(entry); -- 
+	return data;
+end
+```
+
+### `Proto_WishingTree.lua` — `Proto.writeP_CG_GetWishingTreesData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetWishingTreesData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETWISHINGTREESDATA_REQ);
+end
+```
+
+### `Proto_WishingTree.lua` — `Proto.parseP_GC_GetWishingTreesData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetWishingTreesData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETWISHINGTREESDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.treesData=Proto.parseVector(entry,Proto.parseWishingTreeIDObj); -- 许愿树数据
+	end
+	return data;
+end
+```
+
+### `Proto_WishingTree.lua` — `Proto.parseP_GC_PlantTreeNTF_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_PlantTreeNTF_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PLANTTREENTF_NTF;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WishingTree.lua` — `Proto.writeP_CG_PrayToTree_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_PrayToTree_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_PRAYTOTREE_REQ);
+	Proto.writeDWORD(msg,data.treeID); -- 树ID
+end
+```
+
+### `Proto_WishingTree.lua` — `Proto.parseP_GC_PrayToTree_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_PrayToTree_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_PRAYTOTREE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.awards=Proto.parseVector(entry,Proto.parseString); -- 祈愿奖励
+	end
+	return data;
+end
+```
+
+### `Proto_World.lua` — `Proto.parseP_ZC_Season_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_Season_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_SEASON_NTF;
+	data.season=Proto.parseBYTE(entry); -- 季节
+	data.offset=Proto.parseDWORD(entry); -- 度过时间
+	return data;
+end
+```
+
+### `Proto_World.lua` — `Proto.parseP_ZC_LocalTime_Ntf(entry)`
+
+```lua
+function Proto.parseP_ZC_LocalTime_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_LOCALTIME_NTF;
+	data.time=Proto.parseDWORD(entry); -- 时间
+	return data;
+end
+```
+
+### `Proto_World.lua` — `Proto.writeP_CZ_ExecuteCommand_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_ExecuteCommand_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_EXECUTECOMMAND_REQ);
+	Proto.writeRanaCommand(msg,data.command); -- 命令脚本
+end
+```
+
+### `Proto_World.lua` — `Proto.parseP_ZC_ExecuteCommand_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_ExecuteCommand_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_EXECUTECOMMAND_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	return data;
+end
+```
+
+### `Proto_World.lua` — `Proto.parseP_MC_Bulletin_Ntf(entry)`
+
+```lua
+function Proto.parseP_MC_Bulletin_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.MC_BULLETIN_NTF;
+	data.text=Proto.parseBulletinText(entry); -- 公告
+	return data;
+end
+```
+
+### `Proto_World.lua` — `Proto.writeP_CZ_GetComingFestaPeriod_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_GetComingFestaPeriod_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_GETCOMINGFESTAPERIOD_REQ);
+end
+```
+
+### `Proto_World.lua` — `Proto.parseP_ZC_GetComingFestaPeriod_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_GetComingFestaPeriod_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_GETCOMINGFESTAPERIOD_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.festas=Proto.parseVector(entry,Proto.parseFestaPeriod); -- 节日表
+	end
+	return data;
+end
+```
+
+### `Proto_World.lua` — `Proto.writeP_CZ_ListOnlineBulletinCaption_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_ListOnlineBulletinCaption_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_LISTONLINEBULLETINCAPTION_REQ);
+end
+```
+
+### `Proto_World.lua` — `Proto.parseP_ZC_ListOnlineBulletinCaption_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_ListOnlineBulletinCaption_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_LISTONLINEBULLETINCAPTION_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.captions=Proto.parseVector(entry,Proto.parseOnlineBulletinCaption); -- 在线公告标识
+	end
+	return data;
+end
+```
+
+### `Proto_World.lua` — `Proto.writeP_CZ_GetOnlineBulletin_Req(msg,data)`
+
+```lua
+function Proto.writeP_CZ_GetOnlineBulletin_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CZ_GETONLINEBULLETIN_REQ);
+	Proto.writeBulletinCode(msg,data.key_code); -- 关键词
+end
+```
+
+### `Proto_World.lua` — `Proto.parseP_ZC_GetOnlineBulletin_Ack(entry)`
+
+```lua
+function Proto.parseP_ZC_GetOnlineBulletin_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.ZC_GETONLINEBULLETIN_ACK;
+	data.code=Proto.parseWORD(entry); -- 返回码
+	if (data.code ==Proto.Error.ERROR_OK) then
+		data.onlineBulletin=Proto.parseOnlineBulletin(entry); -- 公告内容
+	end
+	return data;
+end
+```
+
+### `Proto_World.lua` — `Proto.writeP_CG_WorldList_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_WorldList_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_WORLDLIST_REQ);
+	Proto.writestring(msg,data.channel); -- 世界频道
+end
+```
+
+### `Proto_World.lua` — `Proto.parseP_GC_WorldList_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_WorldList_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_WORLDLIST_ACK;
+	data.timeZone=Proto.parsestring(entry); -- 时区
+	data.worlds=Proto.parseVector(entry,Proto.parseWorldInfo); -- 世界列表
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_GetWorldBoss_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetWorldBoss_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETWORLDBOSS_REQ);
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_GetWorldBoss_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetWorldBoss_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETWORLDBOSS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if ( data.code ==Proto.Error.ERROR_OK) then
+		data.bossID=Proto.parseDWORD(entry); -- bossID
+		data.mapID=Proto.parseDWORD(entry); -- 地图ID
+		data.duration=Proto.parseDWORD(entry); -- 持续时间
+		data.isLive=Proto.parseDWORD(entry); -- 是否存活
+		data.createTime=Proto.parseDWORD(entry); -- 创建时间
+	end
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_GetSelfWorldBossData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetSelfWorldBossData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETSELFWORLDBOSSDATA_REQ);
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_GetSelfWorldBossData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetSelfWorldBossData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETSELFWORLDBOSSDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if ( data.code ==Proto.Error.ERROR_OK) then
+		data.usedPets=Proto.parseVector(entry,Proto.parseDWORD); -- 使用过的宠物objID
+		data.damage=Proto.parseDWORD(entry); -- 伤害
+		data.state=Proto.parseDWORD(entry); -- 状态
+		data.actionTime=Proto.parseDWORD(entry); -- 上次攻击时间
+	end
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_AttackBoss_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_AttackBoss_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_ATTACKBOSS_REQ);
+	Proto.writeDWORD(msg,data.petObjID); -- 宠物ObjID
+	Proto.writeDWORD(msg,data.pos); -- 位置
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_AttackBoss_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_AttackBoss_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_ATTACKBOSS_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if ( data.code ==Proto.Error.ERROR_OK) then
+		data.damage=Proto.parseDWORD(entry); -- 伤害
+	end
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_TakeAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TakeAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TAKEAWARD_REQ);
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_TakeAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TakeAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TAKEAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_DiamondRecoverPet_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DiamondRecoverPet_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DIAMONDRECOVERPET_REQ);
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_DiamondRecoverPet_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DiamondRecoverPet_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DIAMONDRECOVERPET_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_DiamondRecoverAll_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_DiamondRecoverAll_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_DIAMONDRECOVERALL_REQ);
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_DiamondRecoverAll_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_DiamondRecoverAll_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_DIAMONDRECOVERALL_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_NormalRecover_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_NormalRecover_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_NORMALRECOVER_REQ);
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_NormalRecover_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_NormalRecover_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_NORMALRECOVER_ACK;
+	data.code=Proto.parseWORD(entry); --  错误码
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_BossAttack_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_BossAttack_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_BOSSATTACK_REQ);
+	Proto.writeDWORD(msg,data.damage); -- 伤害
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_BossAttack_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_BossAttack_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_BOSSATTACK_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_CharStateChange_Ntf(entry)`
+
+```lua
+function Proto.parseP_GC_CharStateChange_Ntf(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_CHARSTATECHANGE_NTF;
+	data.state=Proto.parseDWORD(entry); -- 状态
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_GetDamageRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetDamageRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETDAMAGERANK_REQ);
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_GetDamageRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetDamageRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETDAMAGERANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if ( data.code==Proto.Error.ERROR_OK) then
+		data.damageRank=Proto.parseVector(entry,Proto.parseDamageRank); -- 伤害排行
+	end
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_TakeWeekAward_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_TakeWeekAward_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_TAKEWEEKAWARD_REQ);
+	Proto.writeDWORD(msg,data.type); -- 类型
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_TakeWeekAward_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_TakeWeekAward_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_TAKEWEEKAWARD_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.award=Proto.parseVector(entry,Proto.parseString); -- 奖励物品信息
+	end
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_GetWeekChampionData_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetWeekChampionData_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETWEEKCHAMPIONDATA_REQ);
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_GetWeekChampionData_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetWeekChampionData_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETWEEKCHAMPIONDATA_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.charID=Proto.parseDWORD(entry); -- 玩家姓名
+		data.nickName=Proto.parseString(entry); -- 昵称
+		data.familyName=Proto.parseString(entry); -- 家族名称
+		data.fashions=Proto.parseVector(entry,Proto.parseDWORD); -- 时装信息
+		data.message=Proto.parseString(entry); -- 留言
+	end
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_UpdateMessage_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_UpdateMessage_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_UPDATEMESSAGE_REQ);
+	Proto.writeString(msg,data.content); -- 留言内容
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_UpdateMessage_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_UpdateMessage_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_UPDATEMESSAGE_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_GetWeekDamageRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetWeekDamageRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETWEEKDAMAGERANK_REQ);
+	Proto.writeDWORD(msg,data.rankMin); -- 
+	Proto.writeDWORD(msg,data.rankMax); --
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_GetWeekDamageRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetWeekDamageRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETWEEKDAMAGERANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if ( data.code==Proto.Error.ERROR_OK) then
+		data.rankMin=Proto.parseDWORD(entry); -- 
+		data.rankMax=Proto.parseDWORD(entry); -- 
+	end
+	if (data.code==Proto.Error.ERROR_OK) then
+		data.soldiers=Proto.parseVector(entry,Proto.parseString); -- 
+	end
+	return data;
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.writeP_CG_GetMyWeekDamageRank_Req(msg,data)`
+
+```lua
+function Proto.writeP_CG_GetMyWeekDamageRank_Req(msg,data)
+	Proto.writeWORD(msg,Proto.Command.CG_GETMYWEEKDAMAGERANK_REQ);
+end
+```
+
+### `Proto_WorldBoss.lua` — `Proto.parseP_GC_GetMyWeekDamageRank_Ack(entry)`
+
+```lua
+function Proto.parseP_GC_GetMyWeekDamageRank_Ack(entry)
+	local data={};
+	data.msgID=Proto.Command.GC_GETMYWEEKDAMAGERANK_ACK;
+	data.code=Proto.parseWORD(entry); -- 错误码
+	if ( data.code==Proto.Error.ERROR_OK) then
+		data.rank=Proto.parseDWORD(entry); -- 
+	end
+	return data;
+end
+```
+
+## Complete Send call-site routines
+
+These functions show the client-side request builders and the `Proto.writeP_*` routine each invokes. Together with the field routines above they map gameplay call sites to the wire schemas.
+
+### `AchievementSend.lua` — `AchievementSend.sendCG_GetAchievements_Req)`
+
+```lua
+function AchievementSend.sendCG_GetAchievements_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetAchievements_Req, data)
+end
+```
+
+### `AchievementSend.lua` — `AchievementSend.sendCG_FinishAchievement_Req)`
+
+```lua
+function AchievementSend.sendCG_FinishAchievement_Req(params)
+
+    local data = {
+    		achievementID = params.achievementID
+    }
+    NetMgr.send(Proto.writeP_CG_FinishAchievement_Req, data)
+end
+```
+
+### `AchievementSend.lua` — `AchievementSend.sendCG_FinishPokemonAchievement_Req)`
+
+```lua
+function AchievementSend.sendCG_FinishPokemonAchievement_Req(params)
+
+    local data = {
+        pokeAchievementID = params.pokeAchievementID
+    }
+    NetMgr.send(Proto.writeP_CG_FinishPokemonAchievement_Req, data)
+end
+```
+
+### `AchievementSend.lua` — `AchievementSend.sendCG_GetPokemonAchievements_Req)`
+
+```lua
+function AchievementSend.sendCG_GetPokemonAchievements_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPokemonAchievements_Req, data)
+end
+```
+
+### `AchievementSend.lua` — `AchievementSend.sendCG_GetPotentials_Req)`
+
+```lua
+function AchievementSend.sendCG_GetPotentials_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPotentials_Req, data)
+end
+```
+
+### `AchievementSend.lua` — `AchievementSend.sendCG_BuyPotential_Req)`
+
+```lua
+function AchievementSend.sendCG_BuyPotential_Req(params)
+
+    local data = {
+        potentialID = params.potentialID
+    }
+    NetMgr.send(Proto.writeP_CG_BuyPotential_Req, data)
+end
+```
+
+### `AchievementSend.lua` — `AchievementSend.sendCG_ResetAchievement_Req)`
+
+```lua
+function AchievementSend.sendCG_ResetAchievement_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_ResetAchievement_Req, data)
+end
+```
+
+### `ActivateCodeSend.lua` — `ActivateCodeSend.sendCG_UseActivateCode_Req)`
+
+```lua
+function ActivateCodeSend.sendCG_UseActivateCode_Req(params)
+
+    local data = {
+    	strCode = params.strCode
+    }
+    NetMgr.send(Proto.writeP_CG_UseActivateCode_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_GetActivitiesData_Req)`
+
+```lua
+function ActivitySend.sendCG_GetActivitiesData_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetActivitiesData_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchLoginAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchLoginAwards_Req(params)
+
+    local data = {
+        day = params
+    }
+    NetMgr.send(Proto.writeP_CG_FetchLoginAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchFirstLoginAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchFirstLoginAwards_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_FetchFirstLoginAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchUpgradeAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchUpgradeAwards_Req(params)
+
+    local data = {
+        level = params
+    }
+    NetMgr.send(Proto.writeP_CG_FetchUpgradeAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchRechargeAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchRechargeAwards_Req(params)
+
+    local data = {
+        aID = params.aID,
+        mCash = params.mCash
+    }
+    NetMgr.send(Proto.writeP_CG_FetchRechargeAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchDailyActionValue_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchDailyActionValue_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_FetchDailyActionValue_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_BuyGrowthFund_Req)`
+
+```lua
+function ActivitySend.sendCG_BuyGrowthFund_Req(params)
+
+    local data = {
+        aID = params
+    }
+    NetMgr.send(Proto.writeP_CG_BuyGrowthFund_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchGrowthFundAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchGrowthFundAwards_Req(params)
+
+    local data = {
+        level = params
+    }
+    NetMgr.send(Proto.writeP_CG_FetchGrowthFundAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchConsumeAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchConsumeAwards_Req(params)
+
+    local data = {
+        aID = params.aID,
+        mCash = params.mCash
+    }
+    NetMgr.send(Proto.writeP_CG_FetchConsumeAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchSpokesmanGuessAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchSpokesmanGuessAwards_Req(params)
+
+    local data = {
+        aID = params.aID,
+        awardIndex = params.awardIndex, --0~N
+    }
+    NetMgr.send(Proto.writeP_CG_FetchSpokesmanGuessAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_GetSevenDayAward_Req)`
+
+```lua
+function ActivitySend.sendCG_GetSevenDayAward_Req(params)
+
+    local data = {
+        sevenDayID = params.sevenDayID,
+        selectIndex = params.selectIndex
+    }
+    NetMgr.send(Proto.writeP_CG_GetSevenDayAward_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_TimeLimitCapsuleEgg_Req)`
+
+```lua
+function ActivitySend.sendCG_TimeLimitCapsuleEgg_Req(params)
+
+    local data = {
+        aID = params.aID,
+        atype = params.atype
+    }
+    NetMgr.send(Proto.writeP_CG_TimeLimitCapsuleEgg_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchPVPArenaGradePointAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchPVPArenaGradePointAwards_Req(params)
+
+    local data = {
+        aID = params.aID,
+    }
+    NetMgr.send(Proto.writeP_CG_FetchPVPArenaGradePointAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchTeamDungeonAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchTeamDungeonAwards_Req(params)
+
+    local data = {
+        aID = params.aID,
+    }
+    NetMgr.send(Proto.writeP_CG_FetchTeamDungeonAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FinishPokemonAchievementActivity_Req)`
+
+```lua
+function ActivitySend.sendCG_FinishPokemonAchievementActivity_Req(params)
+
+    local data = {
+        pokeAchievementID = params
+    }
+    NetMgr.send(Proto.writeP_CG_FinishPokemonAchievementActivity_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_GetPetWikiActivity_Req)`
+
+```lua
+function ActivitySend.sendCG_GetPetWikiActivity_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPetWikiActivity_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_GetPokemonAchievementsAct_Req)`
+
+```lua
+function ActivitySend.sendCG_GetPokemonAchievementsAct_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPokemonAchievementsAct_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchWorldBossAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchWorldBossAwards_Req(params)
+
+    local data = {
+        aID = params.aID,
+    }
+    NetMgr.send(Proto.writeP_CG_FetchWorldBossAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchContinueLoginAwards_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchContinueLoginAwards_Req(params)
+
+    local data = {
+        aID = params.aID,
+    }
+    NetMgr.send(Proto.writeP_CG_FetchContinueLoginAwards_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_FetchDailyCountActivityAward_Req)`
+
+```lua
+function ActivitySend.sendCG_FetchDailyCountActivityAward_Req(params)
+
+    local data = {
+        aID = params.aID,
+        count = params.count,
+    }
+    NetMgr.send(Proto.writeP_CG_FetchDailyCountActivityAward_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_GetWorldOpenTime_Req)`
+
+```lua
+function ActivitySend.sendCG_GetWorldOpenTime_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetWorldOpenTime_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_GetSurvivalBattleData_Req)`
+
+```lua
+function ActivitySend.sendCG_GetSurvivalBattleData_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetSurvivalBattleData_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_SurvivalBattleEnd_Req)`
+
+```lua
+function ActivitySend.sendCG_SurvivalBattleEnd_Req(params)
+
+    local data = {
+        damage = params.damage,
+        usePetID = params.usePetID,
+    }
+    NetMgr.send(Proto.writeP_CG_SurvivalBattleEnd_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_GetSelfActivityShopData_Req)`
+
+```lua
+function ActivitySend.sendCG_GetSelfActivityShopData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetSelfActivityShopData_Req, data)
+end
+```
+
+### `ActivitySend.lua` — `ActivitySend.sendCG_BuyActivityShopItem_Req)`
+
+```lua
+function ActivitySend.sendCG_BuyActivityShopItem_Req(params)
+
+    local data = {
+        itemID = params.itemID,
+        count = params.count,
+    }
+    NetMgr.send(Proto.writeP_CG_BuyActivityShopItem_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_CreateAdventure_Req)`
+
+```lua
+function AdventureSend.sendCG_CreateAdventure_Req(params)
+
+    local data = {
+        adventureID = params.adventureID
+    }
+    NetMgr.send(Proto.writeP_CG_CreateAdventure_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_GetCurrentAdventrue_Req)`
+
+```lua
+function AdventureSend.sendCG_GetCurrentAdventrue_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetCurrentAdventrue_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_GetFinishedAdventures_Req)`
+
+```lua
+function AdventureSend.sendCG_GetFinishedAdventures_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetFinishedAdventures_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_GetAdventureAward_Req)`
+
+```lua
+function AdventureSend.sendCG_GetAdventureAward_Req(params)
+
+    local data = {
+        floor = params.floor,
+        field = params.field,    --column
+        row   = params.row,      --row
+    }
+    NetMgr.send(Proto.writeP_CG_GetAdventureAward_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_FinishAdventure_Req)`
+
+```lua
+function AdventureSend.sendCG_FinishAdventure_Req(params)
+
+    local data = {
+        star = params.star,
+    }
+    NetMgr.send(Proto.writeP_CG_FinishAdventure_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_AdventureUseSkill_Req)`
+
+```lua
+function AdventureSend.sendCG_AdventureUseSkill_Req(params)
+
+    local data = {
+        objID   = params.objID,
+        skillID = params.skillID,
+    }
+    NetMgr.send(Proto.writeP_CG_AdventureUseSkill_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_AdventureDamage_Req)`
+
+```lua
+function AdventureSend.sendCG_AdventureDamage_Req(params)
+
+    local data = {
+        petObjIDs   = params.petObjIDs,
+        damageTypes = params.damageTypes,
+        damages     = params.damages,
+    }
+    NetMgr.send(Proto.writeP_CG_AdventureDamage_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_QuickClearAdventure_Req)`
+
+```lua
+function AdventureSend.sendCG_QuickClearAdventure_Req(params)
+
+    local data = {
+        adventureID = params.adventureID,
+        clearType   = params.clearType,
+        isManyTimes  = params.isManyTimes,
+    }
+    print("isManyTime",data.isManyTimes)
+    NetMgr.send(Proto.writeP_CG_QuickClearAdventure_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_TriggerNodeEvent_Req)`
+
+```lua
+function AdventureSend.sendCG_TriggerNodeEvent_Req(params)
+
+    local data = {
+        mapIndex = params.mapid,
+        nodeIndex = params.pid,
+    }
+    NetMgr.send(Proto.writeP_CG_TriggerNodeEvent_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_GetAllMapRandEvents_Req)`
+
+```lua
+function AdventureSend.sendCG_GetAllMapRandEvents_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetAllMapRandEvents_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_GetMyMapNodeEventInfo_Req)`
+
+```lua
+function AdventureSend.sendCG_GetMyMapNodeEventInfo_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetMyMapNodeEventInfo_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_FireAdventureEvent_Req)`
+
+```lua
+function AdventureSend.sendCG_FireAdventureEvent_Req(params)
+
+    local data = {
+        adventureID = params.adventureID,
+        events     = params.events,
+    }
+    NetMgr.send(Proto.writeP_CG_FireAdventureEvent_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_RefreshMapNodeEvent_Req)`
+
+```lua
+function AdventureSend.sendCG_RefreshMapNodeEvent_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_RefreshMapNodeEvent_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_BuyNpcShopGoods_Req)`
+
+```lua
+function AdventureSend.sendCG_BuyNpcShopGoods_Req(params)
+
+    local data = {
+        index = params.index,
+    }
+    NetMgr.send(Proto.writeP_CG_BuyNpcShopGoods_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_ResetAdventureTimes_Req)`
+
+```lua
+function AdventureSend.sendCG_ResetAdventureTimes_Req(params)
+
+    local data = {
+        adventureID = params.adventureID,
+    }
+    NetMgr.send(Proto.writeP_CG_ResetAdventureTimes_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_ResetAdventure_Req)`
+
+```lua
+function AdventureSend.sendCG_ResetAdventure_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_ResetAdventure_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_GetMapStarAward_Req)`
+
+```lua
+function AdventureSend.sendCG_GetMapStarAward_Req(params)
+
+    local data = {
+        tID = params.tID,
+    }
+    NetMgr.send(Proto.writeP_CG_GetMapStarAward_Req, data)
+end
+```
+
+### `AdventureSend.lua` — `AdventureSend.sendCG_GetAdvAward_Req)`
+
+```lua
+function AdventureSend.sendCG_GetAdvAward_Req(params)
+
+    local data = {
+        advID = params.advID,
+    }
+    NetMgr.send(Proto.writeP_CG_GetAdvAward_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_QueryArenaData_Req)`
+
+```lua
+function ArenaSend.sendCG_QueryArenaData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_QueryArenaData_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_RandomArenaEnemys_Req)`
+
+```lua
+function ArenaSend.sendCG_RandomArenaEnemys_Req()
+
+    local data = {
+        nowRank = ArenaInfo.getRank(),
+    }
+    NetMgr.send(Proto.writeP_CG_RandomArenaEnemys_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_JoinArena_Req)`
+
+```lua
+function ArenaSend.sendCG_JoinArena_Req()
+
+    local data = {
+        teamID = 1,
+        petObjIDs = {},
+    }
+    NetMgr.send(Proto.writeP_CG_JoinArena_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_ChangeArenaPetObjIDs_Req)`
+
+```lua
+function ArenaSend.sendCG_ChangeArenaPetObjIDs_Req(teamID)
+
+    local data = {
+        teamID = teamID,
+        petObjIDs = {},
+    }
+    NetMgr.send(Proto.writeP_CG_ChangeArenaPetObjIDs_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_ArenaRankFight_Req)`
+
+```lua
+function ArenaSend.sendCG_ArenaRankFight_Req(rank)
+
+    local data = {
+        rank = rank,
+        teamID = ArenaInfo.getAttackArmyID(),
+        petObjIDs = {},
+    }
+    NetMgr.send(Proto.writeP_CG_ArenaRankFight_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_ArenaRankFightEnd_Req)`
+
+```lua
+function ArenaSend.sendCG_ArenaRankFightEnd_Req(params)
+
+    local data = {
+        arenaBattleID = params.arenaBattleID,
+        isWin = params.isWin,
+        report = params.report,
+    }
+    NetMgr.send(Proto.writeP_CG_ArenaRankFightEnd_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_QueryArenaRank_Req)`
+
+```lua
+function ArenaSend.sendCG_QueryArenaRank_Req(params)
+
+    local data = {
+        rankMin = params.min,
+        rankMax = params.max,
+    }
+    NetMgr.send(Proto.writeP_CG_QueryArenaRank_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_QueryArenaSoldierDetail_Req)`
+
+```lua
+function ArenaSend.sendCG_QueryArenaSoldierDetail_Req(params)
+
+    local data = {
+        charID = params.charID,
+        teamID = params.teamID,
+    }
+    NetMgr.send(Proto.writeP_CG_QueryArenaSoldierDetail_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_ClearArenaCD_Req)`
+
+```lua
+function ArenaSend.sendCG_ClearArenaCD_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_ClearArenaCD_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_BuyArenaFightTimes_Req)`
+
+```lua
+function ArenaSend.sendCG_BuyArenaFightTimes_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_BuyArenaFightTimes_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_GetArenaAward_Req)`
+
+```lua
+function ArenaSend.sendCG_GetArenaAward_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetArenaAward_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_GetArenaRecode_Req)`
+
+```lua
+function ArenaSend.sendCG_GetArenaRecode_Req(params)
+
+    local data = {
+        startIndex = params.startIndex,
+        endIndex = params.endIndex
+    }
+    NetMgr.send(Proto.writeP_CG_GetArenaRecode_Req, data)
+end
+```
+
+### `ArenaSend.lua` — `ArenaSend.sendCG_PlayArenaRecode_Req)`
+
+```lua
+function ArenaSend.sendCG_PlayArenaRecode_Req(params)
+
+    local data = {
+        t = params.t
+    }
+    NetMgr.send(Proto.writeP_CG_PlayArenaRecode_Req, data)
+end
+```
+
+### `BulletinSend.lua` — `BulletinSend.sendCG_ListBulletin_Req)`
+
+```lua
+function BulletinSend.sendCG_ListBulletin_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_ListBulletin_Req, data)
+end
+```
+
+### `BulletinSend.lua` — `BulletinSend.sendCG_GetBulletin_Req)`
+
+```lua
+function BulletinSend.sendCG_GetBulletin_Req(params)
+
+    local data = {
+    	id = params
+    }
+    NetMgr.send(Proto.writeP_CG_GetBulletin_Req, data)
+end
+```
+
+### `ChatSend.lua` — `ChatSend.sendCZ_ScreenChat_Req)`
+
+```lua
+function ChatSend.sendCZ_ScreenChat_Req(content)
+
+    local data = {
+        content = {text = content, dataItems = {}},
+    }
+    NetMgr.send(Proto.writeP_CZ_ScreenChat_Req, data)
+end
+```
+
+### `ChatSend.lua` — `ChatSend.sendCZ_UseSpaceBugle_Req)`
+
+```lua
+function ChatSend.sendCZ_UseSpaceBugle_Req(params) 
+
+    local data = {
+        content = params.content,
+        color   = params.color,
+        useItem = 1,
+        pos     = 1 
+    } 
+    NetMgr.send(Proto.writeP_CZ_UseSpaceBugle_Req, data)
+end
+```
+
+### `ChatSend.lua` — `ChatSend.sendCG_Chat_Req)`
+
+```lua
+function ChatSend.sendCG_Chat_Req(params)
+
+    local data = {
+        charID = params.charID,
+        channel   = params.channel,
+        concent   = params.concent
+    }
+    NetMgr.send(Proto.writeP_CG_Chat_Req, data)
+end
+```
+
+### `ChatSend.lua` — `ChatSend.sendCG_ChangeChannel_Req)`
+
+```lua
+function ChatSend.sendCG_ChangeChannel_Req(params)
+
+    local data = {
+        channel = params.channel,
+        data   = params.data
+    }
+    --print("@@@@@@@@@@@sendCG_ChangeChannel_Req"..sz_T2S(data))
+    NetMgr.send(Proto.writeP_CG_ChangeChannel_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_GetMyFriends_Req)`
+
+```lua
+function ChatUserSend.sendCG_GetMyFriends_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetMyFriends_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_AddFriend_Req)`
+
+```lua
+function ChatUserSend.sendCG_AddFriend_Req(params)
+
+    local data = {
+        friendID = params.friendID
+    }
+    NetMgr.send(Proto.writeP_CG_AddFriend_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_ConfirmAddFriend_Req)`
+
+```lua
+function ChatUserSend.sendCG_ConfirmAddFriend_Req(params)
+
+    local data = {
+        friendID = params.friendID,
+        isConfirm = params.isConfirm
+    }
+    NetMgr.send(Proto.writeP_CG_ConfirmAddFriend_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_GetFriendDetail_Req)`
+
+```lua
+function ChatUserSend.sendCG_GetFriendDetail_Req(params)
+
+    local data = {
+        friendID = params.friendID
+    }
+    NetMgr.send(Proto.writeP_CG_GetFriendDetail_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_DelFriend_Req)`
+
+```lua
+function ChatUserSend.sendCG_DelFriend_Req(params)
+
+    local data = {
+        friendID = params.friendID
+    }
+    NetMgr.send(Proto.writeP_CG_DelFriend_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_GetMyRedHearts_Req)`
+
+```lua
+function ChatUserSend.sendCG_GetMyRedHearts_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetMyRedHearts_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_RedHeart_Req)`
+
+```lua
+function ChatUserSend.sendCG_RedHeart_Req(params)
+
+    local data = {
+        friendID = params.friendID
+    }
+    NetMgr.send(Proto.writeP_CG_RedHeart_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_GetRecommendFriend_Req)`
+
+```lua
+function ChatUserSend.sendCG_GetRecommendFriend_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetRecommendFriend_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_UpdateFriendDetail_Req)`
+
+```lua
+function ChatUserSend.sendCG_UpdateFriendDetail_Req(params)
+
+    local data = {
+        friendID = params.friendID,
+        detail = params.detail
+    }
+    NetMgr.send(Proto.writeP_CG_UpdateFriendDetail_Req, data)
+end
+```
+
+### `ChatUserSend.lua` — `ChatUserSend.sendCG_DisbandAllFriendApply_Req)`
+
+```lua
+function ChatUserSend.sendCG_DisbandAllFriendApply_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_DisbandAllFriendApply_Req, data)
+end
+```
+
+### `CommonShopSend.lua` — `CommonShopSend.sendCG_getShop_Req)`
+
+```lua
+function CommonShopSend.sendCG_getShop_Req(params)
+
+    local data = {
+        type = params.type,
+    }
+    NetMgr.send(Proto.writeP_CG_getShop_Req, data)
+end
+```
+
+### `CommonShopSend.lua` — `CommonShopSend.sendCG_BuyGoods_Req)`
+
+```lua
+function CommonShopSend.sendCG_BuyGoods_Req(params)
+
+    local data = {
+        type = params.type,
+        index = params.index,
+        buyCount = params.buyCount
+    }
+    NetMgr.send(Proto.writeP_CG_BuyGoods_Req, data)
+end
+```
+
+### `CommonShopSend.lua` — `CommonShopSend.sendCG_RefreshGoods_Req)`
+
+```lua
+function CommonShopSend.sendCG_RefreshGoods_Req(params)
+
+    local data = {
+        type = params.type,
+    }
+    NetMgr.send(Proto.writeP_CG_RefreshGoods_Req, data)
+end
+```
+
+### `CommonShopSend.lua` — `CommonShopSend.sendCG_SystemRefreshGoods_Req)`
+
+```lua
+function CommonShopSend.sendCG_SystemRefreshGoods_Req(params)
+
+    local data = {
+        type = params.type,
+    }
+    NetMgr.send(Proto.writeP_CG_SystemRefreshGoods_Req, data)
+end
+```
+
+### `CommonShopSend.lua` — `CommonShopSend.sendCG_ResetShop_Req)`
+
+```lua
+function CommonShopSend.sendCG_ResetShop_Req(params)
+
+    local data = {
+        type = params.type,
+    }
+    NetMgr.send(Proto.writeP_CG_ResetShop_Req, data)
+end
+```
+
+### `ExpeditionSend.lua` — `ExpeditionSend.sendCG_GetExpeditionData_Req)`
+
+```lua
+function ExpeditionSend.sendCG_GetExpeditionData_Req(params)
+
+    local data = {
+        type = params.type,
+        petList = params.petList
+    }
+    NetMgr.send(Proto.writeP_CG_GetExpeditionData_Req, data)
+end
+```
+
+### `ExpeditionSend.lua` — `ExpeditionSend.sendCG_ExpeditionBattleEnd_Req)`
+
+```lua
+function ExpeditionSend.sendCG_ExpeditionBattleEnd_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+        petHP    = params.petHP,
+        damage   = params.damage,
+        quests   = params.quests
+    }
+    NetMgr.send(Proto.writeP_CG_ExpeditionBattleEnd_Req, data)
+end
+```
+
+### `ExpeditionSend.lua` — `ExpeditionSend.sendCG_GetPointLotteryData_Req)`
+
+```lua
+function ExpeditionSend.sendCG_GetPointLotteryData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPointLotteryData_Req, data)
+end
+```
+
+### `ExpeditionSend.lua` — `ExpeditionSend.sendCG_RollDice_Req)`
+
+```lua
+function ExpeditionSend.sendCG_RollDice_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_RollDice_Req, data)
+end
+```
+
+### `ExpeditionSend.lua` — `ExpeditionSend.sendCG_BuyRollCount_Req)`
+
+```lua
+function ExpeditionSend.sendCG_BuyRollCount_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_BuyRollCount_Req, data)
+end
+```
+
+### `ExploreSend.lua` — `ExploreSend.sendCG_GetExploreData_Req)`
+
+```lua
+function ExploreSend.sendCG_GetExploreData_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetExploreData_Req, data)
+end
+```
+
+### `ExploreSend.lua` — `ExploreSend.sendCG_Explore_Req)`
+
+```lua
+function ExploreSend.sendCG_Explore_Req(params)
+
+    local data = {
+        exploreIndex = params.exploreIndex,     --1~5
+        difficulty = params.difficulty,         --0~1
+        option = params.option,                 --0~1
+        petObjIDs = params.petObjIDs,           --探索宠物列表 第一个为队长
+    }
+    NetMgr.send(Proto.writeP_CG_Explore_Req, data)
+end
+```
+
+### `ExploreSend.lua` — `ExploreSend.sendCG_EndExplore_Req)`
+
+```lua
+function ExploreSend.sendCG_EndExplore_Req(params)
+
+    local data = {
+        exploreIndex = params.exploreIndex,     --1~5
+    }
+    NetMgr.send(Proto.writeP_CG_EndExplore_Req, data)
+end
+```
+
+### `ExploreSend.lua` — `ExploreSend.sendCG_BuyExplorePacket_Req)`
+
+```lua
+function ExploreSend.sendCG_BuyExplorePacket_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_BuyExplorePacket_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_Family_Req)`
+
+```lua
+function FamilySend.sendCG_Family_Req(params)
+
+    local data = {
+        cmd = params.cmd,
+        concent = params.concent,
+    }
+    NetMgr.send(Proto.writeP_CG_Family_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_GetDungeon_Req)`
+
+```lua
+function FamilySend.sendCG_GetDungeon_Req(params)
+
+    local data = {
+        type = params.type,
+    }
+    NetMgr.send(Proto.writeP_CG_GetDungeon_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_DungeonMoveCell_Req)`
+
+```lua
+function FamilySend.sendCG_DungeonMoveCell_Req(params)
+
+    local data = {
+        x = params.x,
+        y = params.y,
+        path = params.path,
+        type = params.type,
+    }
+    NetMgr.send(Proto.writeP_CG_DungeonMoveCell_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_FamilyDisplayCell_Req)`
+
+```lua
+function FamilySend.sendCG_FamilyDisplayCell_Req(params)
+
+    local data = {
+        x = params.x,
+        y = params.y,
+    }
+    NetMgr.send(Proto.writeP_CG_FamilyDisplayCell_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_FireDungeonCell_Req)`
+
+```lua
+function FamilySend.sendCG_FireDungeonCell_Req(params)
+
+    local data = {
+        x = params.x,
+        y = params.y,
+        type = params.type,
+    }
+    NetMgr.send(Proto.writeP_CG_FireDungeonCell_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_DungeonBattleEnd_Req)`
+
+```lua
+function FamilySend.sendCG_DungeonBattleEnd_Req(params)
+
+    local data = {
+        isWin = params.isWin,
+        battleID = params.battleID,
+        monsterHp = params.monsterHp,
+        dps = params.dps,
+        x = params.x,
+        y = params.y,
+        type = params.type,
+    }
+    NetMgr.send(Proto.writeP_CG_DungeonBattleEnd_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_DungeonChangeFloor_Req)`
+
+```lua
+function FamilySend.sendCG_DungeonChangeFloor_Req(params)
+
+    local data = {
+        type = params.type,
+        mapType = params.mapType,
+    }
+    NetMgr.send(Proto.writeP_CG_DungeonChangeFloor_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_GetDungeonCreateTime_Req)`
+
+```lua
+function FamilySend.sendCG_GetDungeonCreateTime_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetDungeonCreateTime_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_ResetDungeon_Req)`
+
+```lua
+function FamilySend.sendCG_ResetDungeon_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_ResetDungeon_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_GetDungeonAwardInfo_Req)`
+
+```lua
+function FamilySend.sendCG_GetDungeonAwardInfo_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetDungeonAwardInfo_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_GetDungeonAward_Req)`
+
+```lua
+function FamilySend.sendCG_GetDungeonAward_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetDungeonAward_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_GetDungeonLog_Req)`
+
+```lua
+function FamilySend.sendCG_GetDungeonLog_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetDungeonLog_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_GetFamilyShopData_Req)`
+
+```lua
+function FamilySend.sendCG_GetFamilyShopData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetFamilyShopData_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_BuyFamilyShopGoods_Req)`
+
+```lua
+function FamilySend.sendCG_BuyFamilyShopGoods_Req(params)
+
+    local data = {
+        goodsID = params.goodsID,
+    }
+    NetMgr.send(Proto.writeP_CG_BuyFamilyShopGoods_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_RefalshFamilyShop_Req)`
+
+```lua
+function FamilySend.sendCG_RefalshFamilyShop_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_RefalshFamilyShop_Req, data)
+end
+```
+
+### `FamilySend.lua` — `FamilySend.sendCG_LevelReflashFamilyShop_Req)`
+
+```lua
+function FamilySend.sendCG_LevelReflashFamilyShop_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_LevelReflashFamilyShop_Req, data)
+end
+```
+
+### `FashionSend.lua` — `FashionSend.sendCG_GetFashions_Req)`
+
+```lua
+function FashionSend.sendCG_GetFashions_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetFashions_Req, data)
+end
+```
+
+### `FashionSend.lua` — `FashionSend.sendCG_SetFashions_Req)`
+
+```lua
+function FashionSend.sendCG_SetFashions_Req(params)
+
+    local data = {
+    	FashionInfo = params,
+    }
+    NetMgr.send(Proto.writeP_CG_SetFashions_Req, data)
+end
+```
+
+### `FashionSend.lua` — `FashionSend.sendCG_RestoreFashions_Req)`
+
+```lua
+function FashionSend.sendCG_RestoreFashions_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_RestoreFashions_Req, data)
+end
+```
+
+### `FashionShowSend.lua` — `FashionShowSend.sendCG_GetFashionShowRank_Req)`
+
+```lua
+function FashionShowSend.sendCG_GetFashionShowRank_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetFashionShowRank_Req, data)
+end
+```
+
+### `FashionShowSend.lua` — `FashionShowSend.sendCG_SaveFashionShow_Req)`
+
+```lua
+function FashionShowSend.sendCG_SaveFashionShow_Req(params)
+
+    local data = {
+        fashions = params.fashions,
+        petObjID = params.petObjID,
+        sceneID = params.sceneID
+    }
+    NetMgr.send(Proto.writeP_CG_SaveFashionShow_Req, data)
+end
+```
+
+### `FashionShowSend.lua` — `FashionShowSend.sendCG_GetSingleFashionShow_Req)`
+
+```lua
+function FashionShowSend.sendCG_GetSingleFashionShow_Req(params)
+
+    local data = {
+        charID = params.charID
+    }
+    NetMgr.send(Proto.writeP_CG_GetSingleFashionShow_Req, data)
+end
+```
+
+### `FashionShowSend.lua` — `FashionShowSend.sendCG_TakeFashionShowRankAward_Req)`
+
+```lua
+function FashionShowSend.sendCG_TakeFashionShowRankAward_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_TakeFashionShowRankAward_Req, data)
+end
+```
+
+### `FashionShowSend.lua` — `FashionShowSend.sendCG_GetFashionShowPeopers_Req)`
+
+```lua
+function FashionShowSend.sendCG_GetFashionShowPeopers_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetFashionShowPeopers_Req, data)
+end
+```
+
+### `FashionShowSend.lua` — `FashionShowSend.sendCG_LikeFashionShow_Req)`
+
+```lua
+function FashionShowSend.sendCG_LikeFashionShow_Req(params)
+
+    local data = {
+        charID = params.charID
+    }
+    NetMgr.send(Proto.writeP_CG_LikeFashionShow_Req, data)
+end
+```
+
+### `FashionShowSend.lua` — `FashionShowSend.sendCG_GetLikeList_Req)`
+
+```lua
+function FashionShowSend.sendCG_GetLikeList_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetLikeList_Req, data)
+end
+```
+
+### `HomeSend.lua` — `HomeSend.sendCG_GetHome_Req)`
+
+```lua
+function HomeSend.sendCG_GetHome_Req(params)
+    
+    local data = {
+        charID = params,
+    }
+    --print("$$$$$$$$$$$sendCG_GetHome_Req data="..sz_T2S(data))
+    NetMgr.send(Proto.writeP_CG_GetHome_Req, data)
+end
+```
+
+### `HomeSend.lua` — `HomeSend.sendCG_SetHome_Req)`
+
+```lua
+function HomeSend.sendCG_SetHome_Req(params)
+    --[[
+    if #params.addFurnitures > 0 then
+        print("$$$$$$$$$$$sendCG_SetHome_Req addFurnitures="..tostring(params.addFurnitures[1]))
+    elseif params.delFurnitureObjID > 0 then
+        print("$$$$$$$$$$$sendCG_SetHome_Req delFurnitureObjID="..tostring(params.delFurnitureObjID))
+    elseif #params.moveFurnitures > 0 then
+        print("$$$$$$$$$$$sendCG_SetHome_Req moveFurnitures="..tostring(params.moveFurnitures[1]))
+    end
+    ]]--
+    local data = {
+        homeName = params.homeName,
+        addFurnitures = params.addFurnitures,
+        delFurnitureObjID = params.delFurnitureObjID,
+        moveFurnitures = params.moveFurnitures,
+    }
+    print("###########sendCG_SetHome_Req data="..sz_T2S(data))
+    NetMgr.send(Proto.writeP_CG_SetHome_Req, data)
+end
+```
+
+### `HomeSend.lua` — `HomeSend.sendCG_BuyHome_Req)`
+
+```lua
+function HomeSend.sendCG_BuyHome_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_BuyHome_Req, data)
+end
+```
+
+### `ItemSend.lua` — `ItemSend.sendCG_GetItemPacket_Req)`
+
+```lua
+function ItemSend.sendCG_GetItemPacket_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetItemPacket_Req, data)
+end
+```
+
+### `ItemSend.lua` — `ItemSend.sendCG_UseItem_Req)`
+
+```lua
+function ItemSend.sendCG_UseItem_Req(params)
+
+    local data = {
+        itemID = params.itemID,
+        targetNum = params.targetNum,
+        targetStr = params.targetStr,
+        useNum = params.useNum,
+    }
+    NetMgr.send(Proto.writeP_CG_UseItem_Req, data)
+end
+```
+
+### `ItemSend.lua` — `ItemSend.sendCG_BuyPacket_Req)`
+
+```lua
+function ItemSend.sendCG_BuyPacket_Req(type)
+
+    local data = {
+        packetType = type,   -- 1 item bag 2 pet bag
+    }
+    NetMgr.send(Proto.writeP_CG_BuyPacket_Req, data)
+end
+```
+
+### `ItemSend.lua` — `ItemSend.sendCG_SellItem_Req)`
+
+```lua
+function ItemSend.sendCG_SellItem_Req(params)
+
+    local data = {
+        itemID = params.itemID,
+        objID = params.objID,
+        num = params.num,
+    }
+    NetMgr.send(Proto.writeP_CG_SellItem_Req, data)
+end
+```
+
+### `ItemSend.lua` — `ItemSend.sendCG_QuerySomeItems_Req)`
+
+```lua
+function ItemSend.sendCG_QuerySomeItems_Req(params)
+
+    local data = {
+        itemIDs = params.itemIDs
+    }
+    NetMgr.send(Proto.writeP_CG_QuerySomeItems_Req, data)
+end
+```
+
+### `ItemSend.lua` — `ItemSend.sendCG_ChangeName_Req)`
+
+```lua
+function ItemSend.sendCG_ChangeName_Req(params)
+
+    local data = {
+        nickname = params.nickname
+    }
+    NetMgr.send(Proto.writeP_CG_ChangeName_Req, data)
+end
+```
+
+### `LifeSkillSend.lua` — `LifeSkillSend.sendCG_GetLifeSkillData_Req)`
+
+```lua
+function LifeSkillSend.sendCG_GetLifeSkillData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetLifeSkillData_Req, data)
+end
+```
+
+### `LifeSkillSend.lua` — `LifeSkillSend.sendCG_UnlockLifeSkill_Req)`
+
+```lua
+function LifeSkillSend.sendCG_UnlockLifeSkill_Req(params)
+
+    local data = {
+        career = params
+    }
+    NetMgr.send(Proto.writeP_CG_UnlockLifeSkill_Req, data)
+end
+```
+
+### `LifeSkillSend.lua` — `LifeSkillSend.sendCG_ChangeLifeCareer_Req)`
+
+```lua
+function LifeSkillSend.sendCG_ChangeLifeCareer_Req(params)
+
+    local data = {
+        career = params
+    }
+    NetMgr.send(Proto.writeP_CG_ChangeLifeCareer_Req, data)
+end
+```
+
+### `LifeSkillSend.lua` — `LifeSkillSend.sendCG_Manufacture_Req)`
+
+```lua
+function LifeSkillSend.sendCG_Manufacture_Req(params)
+
+    local data = {
+        drawingID = params.makeid,
+        count = params.count
+    }
+    NetMgr.send(Proto.writeP_CG_Manufacture_Req, data)
+end
+```
+
+### `LifeSkillSend.lua` — `LifeSkillSend.sendCG_BuyDrawings_Req)`
+
+```lua
+function LifeSkillSend.sendCG_BuyDrawings_Req(params)
+
+    local data = {
+        drawingID = params
+    }
+    NetMgr.send(Proto.writeP_CG_BuyDrawings_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCM_AppointNickName_Req)`
+
+```lua
+function LoginSend.sendCM_AppointNickName_Req(name)
+	
+	local data = {
+        nickname = name
+	}
+    NetMgr.send(Proto.writeP_CM_AppointNickName_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCM_CreateChar_Req)`
+
+```lua
+function LoginSend.sendCM_CreateChar_Req(params)
+	
+	local data = {
+        nickname = params.name,
+        gender = params.gender,
+        world = params.world,
+        country = 1,
+        cullPet = params.cullPet,
+        iconID = 1,
+        spreader = "1",
+        initFashionInfos = params.initFashionInfos,
+	}
+	print("send create char:"..tostring(data))
+	
+    NetMgr.send(Proto.writeP_CM_CreateChar_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCM_SelectChar_Req)`
+
+```lua
+function LoginSend.sendCM_SelectChar_Req(id)
+
+    local data = {
+        charID = id,
+    }
+    NetMgr.send(Proto.writeP_CM_SelectChar_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCM_GetUserIDFromNick_Req)`
+
+```lua
+function LoginSend.sendCM_GetUserIDFromNick_Req(nickname)
+	
+	local data = {
+	    nickname = nickname,
+	}
+	NetMgr.send(Proto.writeP_CM_GetUserIDFromNick_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCJ_login_Req)`
+
+```lua
+function LoginSend.sendCJ_login_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CJ_login_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_LoginSNS_Req)`
+
+```lua
+function LoginSend.sendCG_LoginSNS_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_LoginSNS_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCM_ReLoginCharacter_Req)`
+
+```lua
+function LoginSend.sendCM_ReLoginCharacter_Req(params)
+
+    local data = {
+        username = params.username,
+        password = params.password,
+        userID = params.userid,
+        charID = params.charid,
+    }
+    print("username:", data.username)
+    print("password:", data.password)
+    print("userID:", data.userID)
+    print("charID:", data.charID)
+    NetMgr.send(Proto.writeP_CM_ReLoginCharacter_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_GetServerTime_Req)`
+
+```lua
+function LoginSend.sendCG_GetServerTime_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetServerTime_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCM_ChangeInfo_Req)`
+
+```lua
+function LoginSend.sendCM_ChangeInfo_Req(params)
+
+    local data = {
+        charId = CharInfo.getCharID(),
+        key = params.key,
+        content = params.content,
+    }
+    NetMgr.send(Proto.writeP_CM_ChangeInfo_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCM_ReadInfo_Req)`
+
+```lua
+function LoginSend.sendCM_ReadInfo_Req(key)
+
+    local data = {
+        key = key,
+    }
+    NetMgr.send(Proto.writeP_CM_ReadInfo_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_GetCharacterValues_Req)`
+
+```lua
+function LoginSend.sendCG_GetCharacterValues_Req(params)
+
+    local data = {
+        keys = params,
+    }
+    print("call LoginSend.sendCG_GetCharacterValues_Req")    
+    
+    NetMgr.send(Proto.writeP_CG_GetCharacterValues_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCM_KickChar_Req)`
+
+```lua
+function LoginSend.sendCM_KickChar_Req()
+
+    local data = {
+        charID = CharInfo.getCharID(),
+    }
+    NetMgr.send(Proto.writeP_CM_KickChar_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_DeviceLogin_Req)`
+
+```lua
+function LoginSend.sendCG_DeviceLogin_Req(params)
+    local data = {
+        id = params.id,
+        world = params.world,
+        token = params.token,
+    }
+    print("send device-login request id:%s world:%s,token:%s" ,params.id,params.world,params.token)
+    NetMgr.send(Proto.writeP_CG_DeviceLogin_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_DeviceRelogin_Req)`
+
+```lua
+function LoginSend.sendCG_DeviceRelogin_Req(params)
+    print("send device-relogin request")
+    info = getLoginInfo()
+    local data = {
+        userID = info.userID,
+        userToken = info.userToken
+    }
+    NetMgr.send(Proto.writeP_CG_DeviceRelogin_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_BuyPower_Req)`
+
+```lua
+function LoginSend.sendCG_BuyPower_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_BuyPower_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_BuyGCash_Req)`
+
+```lua
+function LoginSend.sendCG_BuyGCash_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_BuyGCash_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_SetCharSign_Req)`
+
+```lua
+function LoginSend.sendCG_SetCharSign_Req(params)
+
+    local data = {
+        charSign = params
+    }
+    NetMgr.send(Proto.writeP_CG_SetCharSign_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_GetCharSign_Req)`
+
+```lua
+function LoginSend.sendCG_GetCharSign_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetCharSign_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_ClientInfo_Req)`
+
+```lua
+function LoginSend.sendCG_ClientInfo_Req(params)
+
+    local data = {
+		ip = params.ip,
+		device_model = params.device_model,
+		os_name = params.os_name,
+		os_ver = params.os_ver,
+		mac_addr = params.mac_addr,
+		udid = params.udid,
+		app_channel = params.app_channel,
+		app_ver = params.app_ver,
+		network = params.network,
+		device_screen = tostring(params.device_screen),
+        platform_tag = params.platform_tag,
+        group_id = params.group_id,
+        channel_id = tonumber(params.channel_id),
+
+    }
+    NetMgr.send(Proto.writeP_CG_ClientInfo_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_GetPlayerPointRank_Req)`
+
+```lua
+function LoginSend.sendCG_GetPlayerPointRank_Req(params)
+
+    local data = {
+        rankMin = params.rankMin,
+        rankMax = params.rankMax,
+    }
+    NetMgr.send(Proto.writeP_CG_GetPlayerPointRank_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_GetMyPlayerPoint_Req)`
+
+```lua
+function LoginSend.sendCG_GetMyPlayerPoint_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetMyPlayerPoint_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_CheckUserCode_Req)`
+
+```lua
+function LoginSend.sendCG_CheckUserCode_Req(code)
+
+    local data = {
+        code = code,
+    }
+    NetMgr.send(Proto.writeP_CG_CheckUserCode_Req, data)
+end
+```
+
+### `LoginSend.lua` — `LoginSend.sendCG_NewAccountBindOldRoleID_Req)`
+
+```lua
+function LoginSend.sendCG_NewAccountBindOldRoleID_Req(code)
+
+    local data = {
+        QRCode = code,
+    }
+    NetMgr.send(Proto.writeP_CG_NewAccountBindOldRoleID_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_GetLostTowerData_Req)`
+
+```lua
+function LostTowerSend.sendCG_GetLostTowerData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetLostTowerData_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_resetData_Req)`
+
+```lua
+function LostTowerSend.sendCG_resetData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_resetData_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_moveNewCell_Req)`
+
+```lua
+function LostTowerSend.sendCG_moveNewCell_Req(params)
+
+    local data = {
+        x = params.x, -- x坐标
+        y = params.y, -- y坐标
+    }
+    NetMgr.send(Proto.writeP_CG_moveNewCell_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_ChangeFloor_Req)`
+
+```lua
+function LostTowerSend.sendCG_ChangeFloor_Req(params)
+
+    local data = {
+        floor = params.floor, 
+    }
+    NetMgr.send(Proto.writeP_CG_ChangeFloor_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_fireEventCell_Req)`
+
+```lua
+function LostTowerSend.sendCG_fireEventCell_Req(params)
+
+    local data = {
+        x = params.x, -- x坐标
+        y = params.y, -- y坐标
+    }
+    NetMgr.send(Proto.writeP_CG_fireEventCell_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_changeReadyPet_Req)`
+
+```lua
+function LostTowerSend.sendCG_changeReadyPet_Req(params)
+
+    local data = {
+        activityArmysList = params.activityArmysList,
+        activityHelpArmysList = params.activityHelpArmysList,
+    }
+    NetMgr.send(Proto.writeP_CG_changeReadyPet_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_RecoverState_Req)`
+
+```lua
+function LostTowerSend.sendCG_RecoverState_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_RecoverState_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_TransferFloor_Req)`
+
+```lua
+function LostTowerSend.sendCG_TransferFloor_Req(params)
+
+    local data = {
+        floor = params.floor,
+    }
+    NetMgr.send(Proto.writeP_CG_TransferFloor_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_MoveObstacle_Req)`
+
+```lua
+function LostTowerSend.sendCG_MoveObstacle_Req(params)
+
+    local data = {
+        fromPos = params.fromPos,
+        toPos   = params.toPos,
+    }
+    NetMgr.send(Proto.writeP_CG_MoveObstacle_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_onTrap_Req)`
+
+```lua
+function LostTowerSend.sendCG_onTrap_Req(params)
+
+    local data = {
+        position = params.position,
+    }
+    NetMgr.send(Proto.writeP_CG_onTrap_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_LostTowerPVPBattleEnd_Req)`
+
+```lua
+function LostTowerSend.sendCG_LostTowerPVPBattleEnd_Req(params)
+
+    local data = {
+        isWin = params.isWin,
+        battleDetails = params.battleDetails,
+    }
+    NetMgr.send(Proto.writeP_CG_LostTowerPVPBattleEnd_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_QueryFloorRank_Req)`
+
+```lua
+function LostTowerSend.sendCG_QueryFloorRank_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_QueryFloorRank_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_QueryPointRank_Req)`
+
+```lua
+function LostTowerSend.sendCG_QueryPointRank_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_QueryPointRank_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_EnterTransferDoor_Req)`
+
+```lua
+function LostTowerSend.sendCG_EnterTransferDoor_Req(params)
+
+    local data = {
+        x = params.x, -- x坐标
+        y = params.y, -- y坐标
+    }
+    NetMgr.send(Proto.writeP_CG_EnterTransferDoor_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_UseLostTowerItem_Req)`
+
+```lua
+function LostTowerSend.sendCG_UseLostTowerItem_Req(params)
+
+    local data = {
+        itemID = params.itemID
+    }
+    NetMgr.send(Proto.writeP_CG_UseLostTowerItem_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_RecoverStepNumber_Req)`
+
+```lua
+function LostTowerSend.sendCG_RecoverStepNumber_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_RecoverStepNumber_Req, data)
+end
+```
+
+### `LostTowerSend.lua` — `LostTowerSend.sendCG_MoneyOpenChest_Req)`
+
+```lua
+function LostTowerSend.sendCG_MoneyOpenChest_Req(params)
+
+    local data = {
+        x = params.x, -- x坐标
+        y = params.y, -- y坐标
+    }
+    NetMgr.send(Proto.writeP_CG_MoneyOpenChest_Req, data)
+end
+```
+
+### `MailSend.lua` — `MailSend.sendCG_CheckUnReadMail_Req)`
+
+```lua
+function MailSend.sendCG_CheckUnReadMail_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_CheckUnReadMail_Req, data)
+end
+```
+
+### `MailSend.lua` — `MailSend.sendCG_GetMail_Req)`
+
+```lua
+function MailSend.sendCG_GetMail_Req(mailID, type)
+
+    local data = {
+        mailIndex = mailID,
+        mailType = type,
+    }
+    NetMgr.send(Proto.writeP_CG_GetMail_Req, data)
+end
+```
+
+### `MailSend.lua` — `MailSend.sendCG_GetMailAttach_Req)`
+
+```lua
+function MailSend.sendCG_GetMailAttach_Req(mailID, type)
+
+    local data = {
+        mailIndex = mailID,
+        mailType = type,
+    }
+    NetMgr.send(Proto.writeP_CG_GetMailAttach_Req, data)
+end
+```
+
+### `MailSend.lua` — `MailSend.sendCG_GetSomeMails_Req)`
+
+```lua
+function MailSend.sendCG_GetSomeMails_Req(hint1, hint2)
+
+    local data = {
+        GruopTimeTip = hint1,
+        personCount = hint2,
+        mailCount = MailMgr.DEFAULT_SHOWMAIL_SIZE,
+    }
+    print("CG_GetSomeMails_Req", hint1, hint2)
+    NetMgr.send(Proto.writeP_CG_GetSomeMails_Req, data)
+end
+```
+
+### `MailSend.lua` — `MailSend.sendCG_DelMail_Req)`
+
+```lua
+function MailSend.sendCG_DelMail_Req(mailID, type)
+
+    local data = {
+        mailIndex = mailID,
+        mailType = type,
+    }
+    NetMgr.send(Proto.writeP_CG_DelMail_Req, data)
+end
+```
+
+### `MarketSend.lua` — `MarketSend.sendCG_GetMyMarket_Req)`
+
+```lua
+function MarketSend.sendCG_GetMyMarket_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetMyMarket_Req, data)
+end
+```
+
+### `MarketSend.lua` — `MarketSend.sendCG_SellOnMarket_Req)`
+
+```lua
+function MarketSend.sendCG_SellOnMarket_Req(params)
+
+    local data = params
+    NetMgr.send(Proto.writeP_CG_SellOnMarket_Req, data)
+end
+```
+
+### `MarketSend.lua` — `MarketSend.sendCG_SearchProducts_Req)`
+
+```lua
+function MarketSend.sendCG_SearchProducts_Req(params)
+
+    local data = params
+    NetMgr.send(Proto.writeP_CG_SearchProducts_Req, data)
+end
+```
+
+### `MarketSend.lua` — `MarketSend.sendCG_BuyProduct_Req)`
+
+```lua
+function MarketSend.sendCG_BuyProduct_Req(params)
+
+    local data = params
+    NetMgr.send(Proto.writeP_CG_BuyProduct_Req, data)
+end
+```
+
+### `MarketSend.lua` — `MarketSend.sendCG_DelMyProduct_Req)`
+
+```lua
+function MarketSend.sendCG_DelMyProduct_Req(params)
+
+    local data = params
+    NetMgr.send(Proto.writeP_CG_DelMyProduct_Req, data)
+end
+```
+
+### `MarketSend.lua` — `MarketSend.sendCG_BuyMarketItem_Req)`
+
+```lua
+function MarketSend.sendCG_BuyMarketItem_Req(params)
+
+    local data = params
+    NetMgr.send(Proto.writeP_CG_BuyMarketItem_Req, data)
+end
+```
+
+### `MessageBoardSend.lua` — `MessageBoardSend.sendCG_PostMessagePet_Req)`
+
+```lua
+function MessageBoardSend.sendCG_PostMessagePet_Req(params)
+
+    local data = {
+        sContent = params.sContent,
+        pokeID = params.pokeID,
+    }
+    NetMgr.send(Proto.writeP_CG_PostMessagePet_Req, data)
+end
+```
+
+### `MessageBoardSend.lua` — `MessageBoardSend.sendCG_PostMessageFB_Req)`
+
+```lua
+function MessageBoardSend.sendCG_PostMessageFB_Req(params)
+
+    local data = {
+        sContent = params.sContent,
+        mapID = params.mapID,
+        nodeID = params.nodeID,
+        diffi = params.diffi,
+    }
+    NetMgr.send(Proto.writeP_CG_PostMessageFB_Req, data)
+end
+```
+
+### `MessageBoardSend.lua` — `MessageBoardSend.sendCG_PostApprovePet_Req)`
+
+```lua
+function MessageBoardSend.sendCG_PostApprovePet_Req(params)
+
+    local data = {
+        sCommentID = params.sCommentID,
+        bApprove = params.bApprove,
+    }
+    NetMgr.send(Proto.writeP_CG_PostApprovePet_Req, data)
+end
+```
+
+### `MessageBoardSend.lua` — `MessageBoardSend.sendCG_PostApproveFB_Req)`
+
+```lua
+function MessageBoardSend.sendCG_PostApproveFB_Req(params)
+
+    local data = {
+        sCommentID = params.sCommentID,
+        bApprove = params.bApprove,
+    }
+    NetMgr.send(Proto.writeP_CG_PostApproveFB_Req, data)
+end
+```
+
+### `MessageBoardSend.lua` — `MessageBoardSend.sendCG_GetMessagesPetByTime_Req)`
+
+```lua
+function MessageBoardSend.sendCG_GetMessagesPetByTime_Req(params)
+
+    local data = {
+        pokeID = params.pokeID,
+        startIndex = params.startIndex,
+        num = params.num,
+    }
+    NetMgr.send(Proto.writeP_CG_GetMessagesPetByTime_Req, data)
+end
+```
+
+### `MessageBoardSend.lua` — `MessageBoardSend.sendCG_GetMessagesPetByApprove_Req)`
+
+```lua
+function MessageBoardSend.sendCG_GetMessagesPetByApprove_Req(params)
+
+    local data = {
+        pokeID = params.pokeID,
+        tipNum = params.tipNum,
+        skipNum = params.skipNum,
+        num = params.num,
+    }
+    NetMgr.send(Proto.writeP_CG_GetMessagesPetByApprove_Req, data)
+end
+```
+
+### `MessageBoardSend.lua` — `MessageBoardSend.sendCG_GetMessagesFBByTime_Req)`
+
+```lua
+function MessageBoardSend.sendCG_GetMessagesFBByTime_Req(params)
+
+    local data = {
+        mapID = params.mapID,
+        nodeID = params.nodeID,
+        diffi = params.diffi,
+        startIndex = params.startIndex,
+        num = params.num,
+    }
+    NetMgr.send(Proto.writeP_CG_GetMessagesFBByTime_Req, data)
+end
+```
+
+### `MessageBoardSend.lua` — `MessageBoardSend.sendCG_GetMessagesFBByApprove_Req)`
+
+```lua
+function MessageBoardSend.sendCG_GetMessagesFBByApprove_Req(params)
+
+    local data = {
+        mapID = params.mapID,
+        nodeID = params.nodeID,
+        diffi = params.diffi,
+        tipNum = params.tipNum,
+        skipNum = params.skipNum,
+        num = params.num,
+    }
+    NetMgr.send(Proto.writeP_CG_GetMessagesFBByApprove_Req, data)
+end
+```
+
+### `MonthCardSend.lua` — `MonthCardSend.sendCZ_LoadMonthCard_Req)`
+
+```lua
+function MonthCardSend.sendCZ_LoadMonthCard_Req()
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CZ_LoadMonthCard_Req, data)
+end
+```
+
+### `MonthCardSend.lua` — `MonthCardSend.sendCZ_TakeMonthCardAward_Req)`
+
+```lua
+function MonthCardSend.sendCZ_TakeMonthCardAward_Req(params)
+
+    local data = {
+    	id = params,
+    }
+    NetMgr.send(Proto.writeP_CZ_TakeMonthCardAward_Req, data)
+end
+```
+
+### `MonthCardSend.lua` — `MonthCardSend.sendCG_RechargeCD_Req)`
+
+```lua
+function MonthCardSend.sendCG_RechargeCD_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_RechargeCD_Req, data)
+end
+```
+
+### `NewQuestSend.lua` — `NewQuestSend.sendCZ_QuestList_Req)`
+
+```lua
+function NewQuestSend.sendCZ_QuestList_Req(param)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CZ_QuestList_Req, data)
+end
+```
+
+### `NewQuestSend.lua` — `NewQuestSend.sendCZ_UpdateQuest_Req)`
+
+```lua
+function NewQuestSend.sendCZ_UpdateQuest_Req(param)
+
+    local data = {
+        quest = param
+    }
+    NetMgr.send(Proto.writeP_CZ_UpdateQuest_Req, data)
+end
+```
+
+### `NewQuestSend.lua` — `NewQuestSend.sendCZ_CommitQuest_Req)`
+
+```lua
+function NewQuestSend.sendCZ_CommitQuest_Req(param)
+
+    local data = {
+        questID = param
+    }
+    NetMgr.send(Proto.writeP_CZ_CommitQuest_Req, data)
+end
+```
+
+### `NewQuestSend.lua` — `NewQuestSend.sendCG_GetDailyQuestStepAward_Req)`
+
+```lua
+function NewQuestSend.sendCG_GetDailyQuestStepAward_Req(id)
+    --id:1,2,3
+    local data = {
+        stepIndex = id-1
+    }
+    NetMgr.send(Proto.writeP_CG_GetDailyQuestStepAward_Req, data)
+end
+```
+
+### `NewShopSend.lua` — `NewShopSend.sendCG_GetRedHeartShopInfo_Req)`
+
+```lua
+function NewShopSend.sendCG_GetRedHeartShopInfo_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetRedHeartShopInfo_Req, data)
+end
+```
+
+### `NewShopSend.lua` — `NewShopSend.sendCG_BuyRedHeartGoods_Req)`
+
+```lua
+function NewShopSend.sendCG_BuyRedHeartGoods_Req(params)
+
+    local data = {
+    	pos = params.pos
+    }
+    NetMgr.send(Proto.writeP_CG_BuyRedHeartGoods_Req, data)
+end
+```
+
+### `NewShopSend.lua` — `NewShopSend.sendCG_GetMyRedHeartShopInfo_Req)`
+
+```lua
+function NewShopSend.sendCG_GetMyRedHeartShopInfo_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetMyRedHeartShopInfo_Req, data)
+end
+```
+
+### `NewShopSend.lua` — `NewShopSend.sendCG_GetOneMCashShop_Req)`
+
+```lua
+function NewShopSend.sendCG_GetOneMCashShop_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetOneMCashShop_Req, data)
+end
+```
+
+### `NewShopSend.lua` — `NewShopSend.sendCG_GetOneMCashShopDetail_Req)`
+
+```lua
+function NewShopSend.sendCG_GetOneMCashShopDetail_Req(params)
+    local data = {
+        itemID = params.itemID
+    }
+    NetMgr.send(Proto.writeP_CG_GetOneMCashShopDetail_Req, data)
+end
+```
+
+### `NewShopSend.lua` — `NewShopSend.sendCG_BuyOneMCashShop_Req)`
+
+```lua
+function NewShopSend.sendCG_BuyOneMCashShop_Req(params)
+
+    local data = {
+        itemID = params.itemID,
+        buyNum = params.buyNum
+    }
+    NetMgr.send(Proto.writeP_CG_BuyOneMCashShop_Req, data)
+end
+```
+
+### `NewShopSend.lua` — `NewShopSend.sendCG_GetOneMCashShopLog_Req)`
+
+```lua
+function NewShopSend.sendCG_GetOneMCashShopLog_Req(params)
+
+    local data = {
+        startIndex = params.startIndex,
+        endIndex = params.endIndex
+    }
+    NetMgr.send(Proto.writeP_CG_GetOneMCashShopLog_Req, data)
+end
+```
+
+### `OrderManSend.lua` — `OrderManSend.sendCG_PasswordGift_Req)`
+
+```lua
+function OrderManSend.sendCG_PasswordGift_Req(params)
+
+    local data = {
+    	password = params.password,
+    	useMCash = params.useMCash,
+    }
+    NetMgr.send(Proto.writeP_CG_PasswordGift_Req, data)
+end
+```
+
+### `OrderManSend.lua` — `OrderManSend.sendCG_BuyPasswordProduct_Req)`
+
+```lua
+function OrderManSend.sendCG_BuyPasswordProduct_Req(params)
+
+    local data = {
+    	productID = params.productID
+    }
+    NetMgr.send(Proto.writeP_CG_BuyPasswordProduct_Req, data)
+end
+```
+
+### `PVESend.lua` — `PVESend.sendCG_CreatePVEBattle_Req)`
+
+```lua
+function PVESend.sendCG_CreatePVEBattle_Req(params)
+
+    local data = {
+        battleType = params.battleType,
+        battleTypeID = params.battleTypeID,
+        battleTypeSubID = params.battleTypeSubID 
+    }
+    NetMgr.send(Proto.writeP_CG_CreatePVEBattle_Req, data)
+end
+```
+
+### `PVESend.lua` — `PVESend.sendCG_PVEBattleEnd_Req)`
+
+```lua
+function PVESend.sendCG_PVEBattleEnd_Req(params)
+
+    local data = { 
+        isWin = params.isWin,
+        battleDetails = params.battleDetails
+    }
+    NetMgr.send(Proto.writeP_CG_PVEBattleEnd_Req, data)
+end
+```
+
+### `PVESend.lua` — `PVESend.sendCG_PVEPokemonCatch_Req)`
+
+```lua
+function PVESend.sendCG_PVEPokemonCatch_Req(params)
+
+    local data = {
+        pokemonID = params.pokemonID,
+        itemID = params.itemID
+    }
+    NetMgr.send(Proto.writeP_CG_PVEPokemonCatch_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_StartPVP_Req)`
+
+```lua
+function PVPSend.sendCG_StartPVP_Req(params)
+ 
+    local data = {
+        bechallengeCharID = params.bechallengeCharID 
+    }
+    NetMgr.send(Proto.writeP_CG_StartPVP_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_ReadyPVP_Req)`
+
+```lua
+function PVPSend.sendCG_ReadyPVP_Req(params)
+
+    local data = {
+        battleID=params.battleID,
+        pets = params.pets,
+        serverID = params.serverID,
+		helperPets = params.helperPets
+    }
+    NetMgr.send(Proto.writeP_CG_ReadyPVP_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_JoinPVP_Req)`
+
+```lua
+function PVPSend.sendCG_JoinPVP_Req(params)
+
+    local data = {
+        battleID = params.battleID,
+        serverID = params.serverID
+    }
+    print(data.battleID) 
+    NetMgr.send(Proto.writeP_CG_JoinPVP_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_PVPBattleCommand_Req)`
+
+```lua
+function PVPSend.sendCG_PVPBattleCommand_Req(params)
+
+    local data = {
+        battleID = params.battleID,
+        roundIndex = params.roundIndex,
+        skillIndex = params.skillIndex,
+        petID = params.petID, 
+        serverID = params.serverID
+    }
+    NetMgr.send(Proto.writeP_CG_PVPBattleCommand_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_PVPBattleStart_Req)`
+
+```lua
+function PVPSend.sendCG_PVPBattleStart_Req(params)
+
+    local data = {
+        battleID = params.battleID,
+        serverID = params.serverID
+    }
+    NetMgr.send(Proto.writeP_CG_PVPBattleStart_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_LeavePVP_Req)`
+
+```lua
+function PVPSend.sendCG_LeavePVP_Req(params)
+
+    local data = {
+        battleID = params.battleID,
+        serverID = params.serverID
+    }
+    NetMgr.send(Proto.writeP_CG_LeavePVP_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_JoinPVPArena_Req)`
+
+```lua
+function PVPSend.sendCG_JoinPVPArena_Req(level)
+
+    print("sendCG_JoinPVPArena_Req change level", level)
+    local data = {
+        petObjIDs = PokemonInfo.getPetArmy(1),
+        helperPetObjIDs = PokemonInfo.getPetHelpArmy(),
+        level = level,
+    }
+    NetMgr.send(Proto.writeP_CG_JoinPVPArena_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_CancelJoinPVPArena_Req)`
+
+```lua
+function PVPSend.sendCG_CancelJoinPVPArena_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_CancelJoinPVPArena_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_GetPVPArenaAward_Req)`
+
+```lua
+function PVPSend.sendCG_GetPVPArenaAward_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPVPArenaAward_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_GetMYPVPArenaQuests_Req)`
+
+```lua
+function PVPSend.sendCG_GetMYPVPArenaQuests_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetMYPVPArenaQuests_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_CommitPVPArenaQuest_Req)`
+
+```lua
+function PVPSend.sendCG_CommitPVPArenaQuest_Req(questID)
+
+    local data = {
+        questID = questID
+    }
+    NetMgr.send(Proto.writeP_CG_CommitPVPArenaQuest_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_ResetPVPArenaQuest_Req)`
+
+```lua
+function PVPSend.sendCG_ResetPVPArenaQuest_Req(questID)
+
+    local data = {
+        questID = questID
+    }
+    NetMgr.send(Proto.writeP_CG_ResetPVPArenaQuest_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_GetPVPArenaQuestPowerAward_Req)`
+
+```lua
+function PVPSend.sendCG_GetPVPArenaQuestPowerAward_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPVPArenaQuestPowerAward_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_GetPVPArenaRank_Req)`
+
+```lua
+function PVPSend.sendCG_GetPVPArenaRank_Req(rankMin, rankMax)
+
+    local data = {
+        rankMin = rankMin,
+        rankMax = rankMax,
+    }
+    NetMgr.send(Proto.writeP_CG_GetPVPArenaRank_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_GetMyPVPArenaRank_Req)`
+
+```lua
+function PVPSend.sendCG_GetMyPVPArenaRank_Req(rankMin, rankMax)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetMYPVPArenaRank_Req, data)
+end
+```
+
+### `PVPSend.lua` — `PVPSend.sendCG_GetPVPRecords_Req)`
+
+```lua
+function PVPSend.sendCG_GetPVPRecords_Req(params)
+
+    local data = {
+        battleID = params.battleID,
+        serverID = params.serverID,
+        startIndex = params.startIndex
+    }
+    NetMgr.send(Proto.writeP_CG_GetPVPRecords_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_PetStreng_Req)`
+
+```lua
+function PetEducationSend.sendCG_PetStreng_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+        addPoints = params.addPoints,
+    }
+    NetMgr.send(Proto.writeP_CG_PetStreng_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_ResetPetStreng_Req)`
+
+```lua
+function PetEducationSend.sendCG_ResetPetStreng_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+    }
+    NetMgr.send(Proto.writeP_CG_ResetPetStreng_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_PokemonAdvaStageLevel_Req)`
+
+```lua
+function PetEducationSend.sendCG_PokemonAdvaStageLevel_Req(params)
+
+    local data = {
+        objID = params.objID,
+    }
+    NetMgr.send(Proto.writeP_CG_PokemonAdvaStageLevel_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_EvolutionPet_Req)`
+
+```lua
+function PetEducationSend.sendCG_EvolutionPet_Req(params)
+
+    local data = {
+        objID = params.objID, -- 请求进化的宠物ID
+        choice = params.choice, -- 进化的方�?
+        bProtectSkin = params.bProtectSkin -- 保留形态对应的属�?
+    }
+    NetMgr.send(Proto.writeP_CG_EvolutionPet_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_AddYokePet_Req)`
+
+```lua
+function PetEducationSend.sendCG_AddYokePet_Req(params)
+
+    local data = {
+        objID       = params.objID,
+        yokeID      = params.yokeID,
+        yokeCellID  = params.yokeCellID,
+        assistObjID = params.assistObjID,
+    }
+    NetMgr.send(Proto.writeP_CG_AddYokePet_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_DelYokePet_Req)`
+
+```lua
+function PetEducationSend.sendCG_DelYokePet_Req(params)
+
+    local data = {
+        objID       = params.objID,
+        yokeID      = params.yokeID,
+        yokeCellID  = params.yokeCellID,
+    }
+    NetMgr.send(Proto.writeP_CG_DelYokePet_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_ChangeYokePet_Req)`
+
+```lua
+function PetEducationSend.sendCG_ChangeYokePet_Req(params)
+
+    local data = {
+        objID       = params.objID,
+        yokeID      = params.yokeID,
+        yokeCellID  = params.yokeCellID,
+        assistObjID = params.assistObjID,
+    }
+    NetMgr.send(Proto.writeP_CG_ChangeYokePet_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_PetStarUp_Req)`
+
+```lua
+function PetEducationSend.sendCG_PetStarUp_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+        costPetObjIDs = params.costPetObjIDs
+    }
+    NetMgr.send(Proto.writeP_CG_PetStarUp_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_ChangePetEvoSkill_Req)`
+
+```lua
+function PetEducationSend.sendCG_ChangePetEvoSkill_Req(params)
+    
+    local data = {
+        petObjID = params.petObjID,
+        skillIndex = params.skillIndex,
+        skillID = params.skillID
+    }
+    NetMgr.send(Proto.writeP_CG_ChangePetEvoSkill_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_PokemonSkillLevelUp_Req)`
+
+```lua
+function PetEducationSend.sendCG_PokemonSkillLevelUp_Req(params)
+    local data = {
+        objID = params.objID,
+        skillIndex = params.skillIndex
+    }
+    NetMgr.send(Proto.writeP_CG_PokemonSkillLevelUp_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_PokemonSkillChange_Req)`
+
+```lua
+function PetEducationSend.sendCG_PokemonSkillChange_Req(params)
+    local data = {
+        objID = params.objID,
+        skillIndex = params.skillIndex,
+        itemID = params.itemID
+    }
+    NetMgr.send(Proto.writeP_CG_PokemonSkillChange_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_EatPet_Req)`
+
+```lua
+function PetEducationSend.sendCG_EatPet_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+        eatPetObjID = params.eatPetObjID,
+    }
+    NetMgr.send(Proto.writeP_CG_EatPet_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_ResetPetStar_Req)`
+
+```lua
+function PetEducationSend.sendCG_ResetPetStar_Req(params)
+
+    local data = {
+        objID = params.objID,
+    }
+    NetMgr.send(Proto.writeP_CG_ResetPetStar_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_ClearEvoSkills_Req)`
+
+```lua
+function PetEducationSend.sendCG_ClearEvoSkills_Req(params)
+
+    local data = {
+        objID = params.objID
+    }
+    NetMgr.send(Proto.writeP_CG_ClearEvoSkills_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_PetStrengOverflow_Req)`
+
+```lua
+function PetEducationSend.sendCG_PetStrengOverflow_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+        oName    = params.oName
+    }
+    NetMgr.send(Proto.writeP_CG_PetStrengOverflow_Req, data)
+end
+```
+
+### `PetEducationSend.lua` — `PetEducationSend.sendCG_SuperEvolutionPet_Req)`
+
+```lua
+function PetEducationSend.sendCG_SuperEvolutionPet_Req(params)
+    print("sendCG_SuperEvolutionPet_Req",sz_T2S(params))
+    local data = {
+        objID = params.objID, -- 请求进化的宠物ID
+        choice = params.choice, -- 进化
+        bProtectSkin = params.bProtectSkin -- 保留形态对
+    }
+    NetMgr.send(Proto.writeP_CG_SuperEvolutionPet_Req, data)
+end
+```
+
+### `PetEquipSend.lua` — `PetEquipSend.sendCG_PetEquipOn_Req)`
+
+```lua
+function PetEquipSend.sendCG_PetEquipOn_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+        equipObjID = params.equipObjID,
+    }
+    NetMgr.send(Proto.writeP_CG_PetEquipOn_Req, data)
+end
+```
+
+### `PetEquipSend.lua` — `PetEquipSend.sendCG_PetEquipOff_Req)`
+
+```lua
+function PetEquipSend.sendCG_PetEquipOff_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+        pos = params.pos,
+    }
+    NetMgr.send(Proto.writeP_CG_PetEquipOff_Req, data)
+end
+```
+
+### `PetEquipSend.lua` — `PetEquipSend.sendCG_PetEquipCompose_Req)`
+
+```lua
+function PetEquipSend.sendCG_PetEquipCompose_Req(params)
+
+    local data = {
+        itemID = params.itemID,
+    }
+    NetMgr.send(Proto.writeP_CG_PetEquipCompose_Req, data)
+end
+```
+
+### `PetEquipSend.lua` — `PetEquipSend.sendCG_PetEquipStrengthen_Req)`
+
+```lua
+function PetEquipSend.sendCG_PetEquipStrengthen_Req(params)
+
+    local data = {
+        ObjID = params.ObjID,
+        pos = params.pos,
+        luckStoneID = params.luckStoneID,
+    }
+    NetMgr.send(Proto.writeP_CG_PetEquipStrengthen_Req, data)
+end
+```
+
+### `PetEquipSend.lua` — `PetEquipSend.sendCG_PetEquipBaptism_Req)`
+
+```lua
+function PetEquipSend.sendCG_PetEquipBaptism_Req(params)
+
+    local data = {
+        ObjID = params.ObjID,
+        pos = params.pos,
+        strengthenLevel = params.strengthenLevel,
+    }
+    NetMgr.send(Proto.writeP_CG_PetEquipBaptism_Req, data)
+end
+```
+
+### `PetEquipSend.lua` — `PetEquipSend.sendCG_PetEquipPurify_Req)`
+
+```lua
+function PetEquipSend.sendCG_PetEquipPurify_Req(params)
+
+    local data = {
+        ObjID = params.ObjID,
+        pos = params.pos,
+        purifyStoneNum = params.purifyStoneNum,
+        equips = params.equips,
+    }
+    NetMgr.send(Proto.writeP_CG_PetEquipPurify_Req, data)
+end
+```
+
+### `PetEquipSend.lua` — `PetEquipSend.sendCG_PetEquipRestore_Req)`
+
+```lua
+function PetEquipSend.sendCG_PetEquipRestore_Req(params)
+
+    local data = {
+        objID = params.objID,
+        pos = params.pos,
+    }
+    NetMgr.send(Proto.writeP_CG_PetEquipRestore_Req, data)
+end
+```
+
+### `PetEquipSend.lua` — `PetEquipSend.sendCG_PetEquipAppraise_Req)`
+
+```lua
+function PetEquipSend.sendCG_PetEquipAppraise_Req(params)
+
+    local data = {
+        itemID = params.itemID,
+    }
+    NetMgr.send(Proto.writeP_CG_PetEquipAppraise_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_QueryPokemons_Req)`
+
+```lua
+function PetSend.sendCG_QueryPokemons_Req()
+    local endID = PokemonInfo.getEndIndex()+5
+    if endID>PokemonInfo.getUnactivePetNum() then
+        endID = PokemonInfo.getUnactivePetNum()
+    end
+    local data = {
+        characterID = CharInfo.getCharID(),
+        startIndex = PokemonInfo.getEndIndex(),
+        endIndex = endID,
+    }
+    NetMgr.send(Proto.writeP_CG_QueryPokemons_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_UpdateActivePetList_Req)`
+
+```lua
+function PetSend.sendCG_UpdateActivePetList_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_UpdateActivePetList_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_UpdatePetArmys_Req)`
+
+```lua
+function PetSend.sendCG_UpdatePetArmys_Req(params)
+
+    local data = {
+        petArmys = params.petArmys,
+    }
+    NetMgr.send(Proto.writeP_CG_UpdatePetArmys_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_GetPetArmys_Req)`
+
+```lua
+function PetSend.sendCG_GetPetArmys_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPetArmys_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_ActivePetArmy_Req)`
+
+```lua
+function PetSend.sendCG_ActivePetArmy_Req(params)
+
+    local data = {
+        petArmyIndex = params.petArmyIndex,
+    }
+    NetMgr.send(Proto.writeP_CG_ActivePetArmy_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCZ_FreePet_Req)`
+
+```lua
+function PetSend.sendCZ_FreePet_Req(params)
+
+    local data = {
+        petID = params,
+    }
+    NetMgr.send(Proto.writeP_CZ_FreePet_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_PetFreedom_Req)`
+
+```lua
+function PetSend.sendCG_PetFreedom_Req(params)
+
+    local data = {
+        petObjIDs = params,
+    }
+    NetMgr.send(Proto.writeP_CG_PetFreedom_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_CapsuleEgg_Req)`
+
+```lua
+function PetSend.sendCG_CapsuleEgg_Req(params)
+
+    local data = {
+        optType = params.optType,
+        choice = params.choice,
+        bFree = params.bFree,
+        choiceEx = params.choiceEx,
+    }
+    NetMgr.send(Proto.writeP_CG_CapsuleEgg_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_CapsuleEggCDs_Req)`
+
+```lua
+function PetSend.sendCG_CapsuleEggCDs_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_CapsuleEggCDs_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_CapsuleEggAllInfoCmd_Req)`
+
+```lua
+function PetSend.sendCG_CapsuleEggAllInfoCmd_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_CapsuleEggAllInfoCmd_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_CompoundPetSkill_Req)`
+
+```lua
+function PetSend.sendCG_CompoundPetSkill_Req(params)
+
+    local data = {
+        SkillBookID = params.id,
+        num = params.num
+    }
+    NetMgr.send(Proto.writeP_CG_CompoundPetSkill_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_ResolvePetSkill_Req)`
+
+```lua
+function PetSend.sendCG_ResolvePetSkill_Req(params)
+
+    local data = {
+        SkillBookInfo = params
+    }
+    NetMgr.send(Proto.writeP_CG_ResolvePetSkill_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_GetPetSkillWiki_Req)`
+
+```lua
+function PetSend.sendCG_GetPetSkillWiki_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPetSkillWiki_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_CompoundPetPiece_Req)`
+
+```lua
+function PetSend.sendCG_CompoundPetPiece_Req(params)
+
+    local data = {
+        PetPieceID = params.PetPieceID
+    }
+    NetMgr.send(Proto.writeP_CG_CompoundPetPiece_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_GetPetWiki_Req)`
+
+```lua
+function PetSend.sendCG_GetPetWiki_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetPetWiki_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_ChangePetName_Req)`
+
+```lua
+function PetSend.sendCG_ChangePetName_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+        newName = params.newName
+    }
+    NetMgr.send(Proto.writeP_CG_ChangePetName_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_IwatchCatchPet_Req)`
+
+```lua
+function PetSend.sendCG_IwatchCatchPet_Req(params)
+
+    local data = {
+        petID = params.petID,
+        itemID = params.itemID,
+    }
+    NetMgr.send(Proto.writeP_CG_IwatchCatchPet_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_GetScienceDatas_Req)`
+
+```lua
+function PetSend.sendCG_GetScienceDatas_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetScienceDatas_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_ScienceLevelUp_Req)`
+
+```lua
+function PetSend.sendCG_ScienceLevelUp_Req(id)
+
+    local data = {
+        scienceID = id,
+    }
+    NetMgr.send(Proto.writeP_CG_ScienceLevelUp_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_ScienceStarUp_Req)`
+
+```lua
+function PetSend.sendCG_ScienceStarUp_Req(id)
+
+    local data = {
+        scienceID = id,
+    }
+    NetMgr.send(Proto.writeP_CG_ScienceStarUp_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_ScienceConsume_Req)`
+
+```lua
+function PetSend.sendCG_ScienceConsume_Req(id, num)
+
+    local data = {
+        consumeID = id,
+        consumeNum = num,
+    }
+    NetMgr.send(Proto.writeP_CG_ScienceConsume_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_ResetScienceConsumes_Req)`
+
+```lua
+function PetSend.sendCG_ResetScienceConsumes_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_ResetScienceConsumes_Req, data)
+end
+```
+
+### `PetSend.lua` — `PetSend.sendCG_ImportEthPet_Req)`
+
+```lua
+function PetSend.sendCG_ImportEthPet_Req(code)
+
+    local data = {
+		address = code
+    }
+    NetMgr.send(Proto.writeP_CG_ImportEthPet_Req, data)
+end
+```
+
+### `PortalSend.lua` — `PortalSend.sendCG_PlatformLogin_Req)`
+
+```lua
+function PortalSend.sendCG_PlatformLogin_Req(params)
+    local data = {
+        username = params.username,
+        token = params.token
+    }
+    NetMgr.send(Proto.writeP_CG_PlatformLogin_Req, data)
+end
+```
+
+### `PortalSend.lua` — `PortalSend.sendCG_DeviceBind_Req)`
+
+```lua
+function PortalSend.sendCG_DeviceBind_Req(params)
+
+    local data = {
+        id = params.id,
+        world = params.world,
+        token = params.token
+    }
+    NetMgr.send(Proto.writeP_CG_DeviceBind_Req, data)
+end
+```
+
+### `SigninSend.lua` — `SigninSend.sendCG_LoadSigninData_Req)`
+
+```lua
+function SigninSend.sendCG_LoadSigninData_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_LoadSigninData_Req, data)
+end
+```
+
+### `SigninSend.lua` — `SigninSend.sendCG_Signin_Req)`
+
+```lua
+function SigninSend.sendCG_Signin_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_Signin_Req, data)
+end
+```
+
+### `SigninSend.lua` — `SigninSend.sendCG_SigninRepair_Req)`
+
+```lua
+function SigninSend.sendCG_SigninRepair_Req(params)
+
+    local data = {
+    	day = params,
+    }
+    NetMgr.send(Proto.writeP_CG_SigninRepair_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_AutoJoinTeam_Req)`
+
+```lua
+function TeamSend.sendCG_AutoJoinTeam_Req(params)
+
+    local data = {
+        adventureID = params.adventureID,
+        leaderID = params.leaderID,
+    }
+    NetMgr.send(Proto.writeP_CG_AutoJoinTeam_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_CancelAutoJoinTeam_Req)`
+
+```lua
+function TeamSend.sendCG_CancelAutoJoinTeam_Req(params)
+
+    local data = {
+        adventureID = params.adventureID
+    }
+    NetMgr.send(Proto.writeP_CG_CancelAutoJoinTeam_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_CreateTeam_Req)`
+
+```lua
+function TeamSend.sendCG_CreateTeam_Req(params)
+
+    local data = {
+        adventureID = params.adventureID,
+        canAutoJoin = params.canAutoJoin,   -- 0 canot 1 can
+    }
+    NetMgr.send(Proto.writeP_CG_CreateTeam_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_GetTeamMembers_Req)`
+
+```lua
+function TeamSend.sendCG_GetTeamMembers_Req(params)
+
+    local data = {  
+        memberIndexs = params.memberIndexs,
+    }
+    NetMgr.send(Proto.writeP_CG_GetTeamMembers_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_SetTeamReady_Req)`
+
+```lua
+function TeamSend.sendCG_SetTeamReady_Req(params)
+
+    local data = {
+        isReady = params.isReady, -- 0:notReady 1:ready
+    }
+    NetMgr.send(Proto.writeP_CG_SetTeamReady_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_SetTeamPets_Req)`
+
+```lua
+function TeamSend.sendCG_SetTeamPets_Req(params)
+
+    local data = {
+        petObjIDs = params.petObjIDs,
+        helperPetObjIDs = params.helperPetObjIDs,
+    }
+    NetMgr.send(Proto.writeP_CG_SetTeamPets_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_KickTeamMember_Req)`
+
+```lua
+function TeamSend.sendCG_KickTeamMember_Req(params)
+
+    local data = {
+        charID = params.charID,
+    }
+    NetMgr.send(Proto.writeP_CG_KickTeamMember_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_InviteTeamMember_Req)`
+
+```lua
+function TeamSend.sendCG_InviteTeamMember_Req(params)
+
+    local data = {
+        charID = params.charID,
+    }
+    NetMgr.send(Proto.writeP_CG_InviteTeamMember_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_GetMyTeam_Req)`
+
+```lua
+function TeamSend.sendCG_GetMyTeam_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetMyTeam_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_SetTeamSort_Req)`
+
+```lua
+function TeamSend.sendCG_SetTeamSort_Req(params)
+
+    local data = {
+        teamSort = params.teamSort, -- [0,1,2]
+    }
+    NetMgr.send(Proto.writeP_CG_SetTeamSort_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_SetTeamAutoJoin_Req)`
+
+```lua
+function TeamSend.sendCG_SetTeamAutoJoin_Req(params)
+
+    local data = {
+        canAutoJoin = params.canAutoJoin,   -- 0 canot 1 can
+    }
+    NetMgr.send(Proto.writeP_CG_SetTeamAutoJoin_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_EnterTeamDungeon_Req)`
+
+```lua
+function TeamSend.sendCG_EnterTeamDungeon_Req(params)
+
+    local data = {
+        mapID = params.mapID
+    }
+    NetMgr.send(Proto.writeP_CG_EnterTeamDungeon_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_TeamBattleEnd_Req)`
+
+```lua
+function TeamSend.sendCG_TeamBattleEnd_Req(params)
+
+    local data = {
+        isWin = params.isWin,
+        battleDetails = params.battleDetails,
+        monsterHP = params.monsterHp,
+        battleID = params.battleID,
+        x = params.x,
+        y = params.y
+    }
+    NetMgr.send(Proto.writeP_CG_TeamBattleEnd_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_LeaveTeamDungeon_Req)`
+
+```lua
+function TeamSend.sendCG_LeaveTeamDungeon_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_LeaveTeamDungeon_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_ChangeArmyPet_Req)`
+
+```lua
+function TeamSend.sendCG_ChangeArmyPet_Req(params)
+
+    local data = {
+        pets = params.pets,
+        helperPets = params.helperPets
+    }
+    NetMgr.send(Proto.writeP_CG_ChangeArmyPet_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_ReviveCharacter_Req)`
+
+```lua
+function TeamSend.sendCG_ReviveCharacter_Req(params)
+
+    local data = {
+        charID = params.charID,
+    }
+    NetMgr.send(Proto.writeP_CG_ReviveCharacter_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_TeamDungeonBattleStart_Req)`
+
+```lua
+function TeamSend.sendCG_TeamDungeonBattleStart_Req(params)
+
+    local data = {
+        monsterID = params.monsterID
+    }
+    NetMgr.send(Proto.writeP_CG_TeamDungeonBattleStart_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_QueryTeamDungeonMonsterHp_Req)`
+
+```lua
+function TeamSend.sendCG_QueryTeamDungeonMonsterHp_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_QueryTeamDungeonMonsterHp_Req, data)
+end
+```
+
+### `TeamSend.lua` — `TeamSend.sendCG_RefuseJoinTeam_Req)`
+
+```lua
+function TeamSend.sendCG_RefuseJoinTeam_Req(params)
+
+    local data = {
+        teamID = params.teamID,
+    }
+    NetMgr.send(Proto.writeP_CG_RefuseJoinTeam_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_TerritoryInfo_Req)`
+
+```lua
+function TerritorialSend.sendCG_TerritoryInfo_Req(params)
+
+    local data = {
+        adventureIDs = params,
+    }
+    NetMgr.send(Proto.writeP_CG_TerritoryInfo_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_TerritoryFight_Req)`
+
+```lua
+function TerritorialSend.sendCG_TerritoryFight_Req(params)
+
+    local data = {
+        adventureID = params.adventureID,
+        petsID = params.petsID,
+        helpPetsID = params.helpPetsID
+    }
+    NetMgr.send(Proto.writeP_CG_TerritoryFight_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_FightEnd_Req)`
+
+```lua
+function TerritorialSend.sendCG_FightEnd_Req(params)
+
+    local data = {
+        isWin = params.isWin,
+        adventureID = params.adventureID,
+        territoryBattleID = params.territoryBattleID,
+        petsID = params.petsID,
+    }
+    NetMgr.send(Proto.writeP_CG_FightEnd_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_TerritoryRankInfo_Req)`
+
+```lua
+function TerritorialSend.sendCG_TerritoryRankInfo_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_TerritoryRankInfo_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_TerritorialAward_Req)`
+
+```lua
+function TerritorialSend.sendCG_TerritorialAward_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_TerritorialAward_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_SelfTerritoryInfo_Req)`
+
+```lua
+function TerritorialSend.sendCG_SelfTerritoryInfo_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_SelfTerritoryInfo_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_TerritoryCountInfo_Req)`
+
+```lua
+function TerritorialSend.sendCG_TerritoryCountInfo_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_TerritoryCountInfo_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_QuerySelfTerritoryIDInfo_Req)`
+
+```lua
+function TerritorialSend.sendCG_QuerySelfTerritoryIDInfo_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_QuerySelfTerritoryIDInfo_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_TerritorialResetInfo_Req)`
+
+```lua
+function TerritorialSend.sendCG_TerritorialResetInfo_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_TerritorialResetInfo_Req, data)
+end
+```
+
+### `TerritorialSend.lua` — `TerritorialSend.sendCG_TerritoryInfoNoPets_Req)`
+
+```lua
+function TerritorialSend.sendCG_TerritoryInfoNoPets_Req(params)
+
+    local data = {
+        adventureIDs = params,
+    }
+    NetMgr.send(Proto.writeP_CG_TerritoryInfoNoPets_Req, data)
+end
+```
+
+### `TreasureBoxSend.lua` — `TreasureBoxSend.sendCG_GetTreasureBoxData_Req)`
+
+```lua
+function TreasureBoxSend.sendCG_GetTreasureBoxData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetTreasureBoxData_Req, data)
+end
+```
+
+### `TreasureBoxSend.lua` — `TreasureBoxSend.sendCG_OpenTreasureBox_Req)`
+
+```lua
+function TreasureBoxSend.sendCG_OpenTreasureBox_Req(params)
+
+    local data = {
+        boxID = params.boxID,   --0~3
+        bFree = params.bFree,   --0nofree, 1free
+    }
+    NetMgr.send(Proto.writeP_CG_OpenTreasureBox_Req, data)
+end
+```
+
+### `TreasureBoxSend.lua` — `TreasureBoxSend.sendCG_UnlockTreasureBox_Req)`
+
+```lua
+function TreasureBoxSend.sendCG_UnlockTreasureBox_Req(params)
+
+    local data = {
+        boxID = params.boxID,   --0~3
+    }
+    NetMgr.send(Proto.writeP_CG_UnlockTreasureBox_Req, data)
+end
+```
+
+### `TreasureBoxSend.lua` — `TreasureBoxSend.sendCG_SelectTreasureBox_Req)`
+
+```lua
+function TreasureBoxSend.sendCG_SelectTreasureBox_Req(params)
+
+    local data = {
+        boxID = params.boxID,
+    }
+    print("###########sendCG_SelectTreasureBox_Req data="..sz_T2S(data))
+    NetMgr.send(Proto.writeP_CG_SelectTreasureBox_Req, data)
+end
+```
+
+### `VipSend.lua` — `VipSend.sendCG_GetVipAward_Req)`
+
+```lua
+function VipSend.sendCG_GetVipAward_Req(params)
+
+    local data = {
+    	vipID = params.id,
+        awardID = params.awardID
+    }
+    NetMgr.send(Proto.writeP_CG_GetVipAward_Req, data)
+end
+```
+
+### `VipSend.lua` — `VipSend.sendCG_VipAwardInfo_Req)`
+
+```lua
+function VipSend.sendCG_VipAwardInfo_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_VipAwardInfo_Req, data)
+end
+```
+
+### `VipSend.lua` — `VipSend.sendCG_RechargeTestCmd_Req)`
+
+```lua
+function VipSend.sendCG_RechargeTestCmd_Req(params)
+
+    local data = {
+        payID = params.payID,
+        appID = params.appID
+    }
+    NetMgr.send(Proto.writeP_CG_RechargeTestCmd_Req, data)
+end
+```
+
+### `WArenaSend.lua` — `WArenaSend.sendCG_JoinWArena_Req)`
+
+```lua
+function WArenaSend.sendCG_JoinWArena_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_JoinWArena_Req, data)
+end
+```
+
+### `WArenaSend.lua` — `WArenaSend.sendCG_WArenaRankFight_Req)`
+
+```lua
+function WArenaSend.sendCG_WArenaRankFight_Req(params)
+
+    local data = {
+        rank = params.rank
+    }
+    NetMgr.send(Proto.writeP_CG_WArenaRankFight_Req, data)
+end
+```
+
+### `WArenaSend.lua` — `WArenaSend.sendCG_RandomWArenaEnemys_Req)`
+
+```lua
+function WArenaSend.sendCG_RandomWArenaEnemys_Req(params)
+
+    local data = {
+    	nowRank = params.nowRank
+    }
+    NetMgr.send(Proto.writeP_CG_RandomWArenaEnemys_Req, data)
+end
+```
+
+### `WArenaSend.lua` — `WArenaSend.sendCG_QueryWArenaRank_Req)`
+
+```lua
+function WArenaSend.sendCG_QueryWArenaRank_Req(params)
+
+    local data = {
+    	rankMin = params.rankMin,
+    	rankMax = params.rankMax
+
+    }
+    NetMgr.send(Proto.writeP_CG_QueryWArenaRank_Req, data)
+end
+```
+
+### `WArenaSend.lua` — `WArenaSend.sendCG_GetWArenaRecode_Req)`
+
+```lua
+function WArenaSend.sendCG_GetWArenaRecode_Req(params)
+
+    local data = {
+        startIndex = params.startIndex,
+        endIndex   = params.endIndex
+    }
+    NetMgr.send(Proto.writeP_CG_GetWArenaRecode_Req, data)
+end
+```
+
+### `WArenaSend.lua` — `WArenaSend.sendCG_PlayWArenaRecode_Req)`
+
+```lua
+function WArenaSend.sendCG_PlayWArenaRecode_Req(params)
+
+    local data = {
+        t = params.t
+    }
+    NetMgr.send(Proto.writeP_CG_PlayWArenaRecode_Req, data)
+end
+```
+
+### `WArenaSend.lua` — `WArenaSend.sendCG_BuyWArenaFightTimes_Req)`
+
+```lua
+function WArenaSend.sendCG_BuyWArenaFightTimes_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_BuyWArenaFightTimes_Req, data)
+end
+```
+
+### `WishingTreeSend.lua` — `WishingTreeSend.sendCG_GetWishingTreesData_Req)`
+
+```lua
+function WishingTreeSend.sendCG_GetWishingTreesData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetWishingTreesData_Req, data)
+end
+```
+
+### `WishingTreeSend.lua` — `WishingTreeSend.sendCG_PrayToTree_Req)`
+
+```lua
+function WishingTreeSend.sendCG_PrayToTree_Req(params)
+
+    local data = {
+    	treeID = params.treeID
+    }
+    NetMgr.send(Proto.writeP_CG_PrayToTree_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_GetWorldBoss_Req)`
+
+```lua
+function WorldBossSend.sendCG_GetWorldBoss_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetWorldBoss_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_GetSelfWorldBossData_Req)`
+
+```lua
+function WorldBossSend.sendCG_GetSelfWorldBossData_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetSelfWorldBossData_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_AttackBoss_Req)`
+
+```lua
+function WorldBossSend.sendCG_AttackBoss_Req(params)
+
+    local data = {
+        petObjID = params.petObjID,
+        pos = params.pos,
+    }
+    NetMgr.send(Proto.writeP_CG_AttackBoss_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_TakeAward_Req)`
+
+```lua
+function WorldBossSend.sendCG_TakeAward_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_TakeAward_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_DiamondRecoverPet_Req)`
+
+```lua
+function WorldBossSend.sendCG_DiamondRecoverPet_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_DiamondRecoverPet_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_DiamondRecoverAll_Req)`
+
+```lua
+function WorldBossSend.sendCG_DiamondRecoverAll_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_DiamondRecoverAll_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_NormalRecover_Req)`
+
+```lua
+function WorldBossSend.sendCG_NormalRecover_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_NormalRecover_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_BossAttack_Req)`
+
+```lua
+function WorldBossSend.sendCG_BossAttack_Req(params)
+
+    local data = {
+        damage = params.damage
+    }
+    NetMgr.send(Proto.writeP_CG_BossAttack_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_GetDamageRank_Req)`
+
+```lua
+function WorldBossSend.sendCG_GetDamageRank_Req(params)
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetDamageRank_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_TakeWeekAward_Req)`
+
+```lua
+function WorldBossSend.sendCG_TakeWeekAward_Req(type)
+
+    local data = {
+        type = type,
+    }
+    NetMgr.send(Proto.writeP_CG_TakeWeekAward_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_GetWeekChampionData_Req)`
+
+```lua
+function WorldBossSend.sendCG_GetWeekChampionData_Req()
+
+    local data = {
+    }
+    NetMgr.send(Proto.writeP_CG_GetWeekChampionData_Req, data)
+end
+```
+
+### `WorldBossSend.lua` — `WorldBossSend.sendCG_UpdateMessage_Req)`
+
+```lua
+function WorldBossSend.sendCG_UpdateMessage_Req(content)
+
+    local data = {
+        content = content,
+    }
+    NetMgr.send(Proto.writeP_CG_UpdateMessage_Req, data)
+end
+```

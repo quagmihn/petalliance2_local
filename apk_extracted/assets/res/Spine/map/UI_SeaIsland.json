@@ -1,0 +1,84 @@
+{
+"skeleton": { "hash": "kfY/bWC//LQSviCSkULo6NkdSMw", "spine": "3.2.01", "width": 225, "height": 259, "images": "./../Pictures/UI_jianzhufx/" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "chen", "parent": "root", "x": 19.4, "y": -9.28 },
+	{ "name": "di", "parent": "root" },
+	{ "name": "glow", "parent": "root" },
+	{ "name": "rune", "parent": "root", "x": 15.42, "y": -54.62 },
+	{ "name": "rune di", "parent": "root", "x": 14.05, "y": -54.99 },
+	{ "name": "yabian", "parent": "root", "y": -9.64, "scaleX": 0.87, "scaleY": 1.34, "shearX": -0.04 },
+	{ "name": "xuanwo", "parent": "yabian" }
+],
+"slots": [
+	{ "name": "HolyGate01", "bone": "di", "attachment": "HolyGate01" },
+	{ "name": "HolyGate02", "bone": "rune di", "attachment": "HolyGate02" },
+	{ "name": "rune01", "bone": "rune", "attachment": "rune01", "blend": "additive" },
+	{ "name": "base01", "bone": "chen", "attachment": "base01" },
+	{ "name": "glow01", "bone": "glow", "attachment": "glow01", "blend": "additive" },
+	{ "name": "vortex01", "bone": "xuanwo", "attachment": "vortex01", "blend": "additive" }
+],
+"skins": {
+	"default": {
+		"HolyGate01": {
+			"HolyGate01": { "width": 225, "height": 259 }
+		},
+		"HolyGate02": {
+			"HolyGate02": { "width": 82, "height": 80 }
+		},
+		"base01": {
+			"base01": { "width": 63, "height": 117 }
+		},
+		"glow01": {
+			"glow01": { "width": 195, "height": 195 }
+		},
+		"rune01": {
+			"rune01": { "width": 104, "height": 102 }
+		},
+		"vortex01": {
+			"vortex01": { "width": 91, "height": 89 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"glow01": {
+				"color": [
+					{ "time": 0, "color": "ffffff29" },
+					{ "time": 1, "color": "ffffff67" },
+					{ "time": 2, "color": "ffffff29" }
+				],
+				"attachment": [
+					{ "time": 0, "name": "glow01" }
+				]
+			},
+			"rune01": {
+				"color": [
+					{ "time": 0, "color": "ffffff46" },
+					{ "time": 1, "color": "ffffff99" },
+					{ "time": 2, "color": "ffffff46" }
+				],
+				"attachment": [
+					{ "time": 0, "name": "rune01" },
+					{ "time": 2, "name": "rune01" }
+				]
+			},
+			"vortex01": {
+				"attachment": [
+					{ "time": 0, "name": "vortex01" }
+				]
+			}
+		},
+		"bones": {
+			"xuanwo": {
+				"rotate": [
+					{ "time": 0, "angle": 0 },
+					{ "time": 1, "angle": -180 },
+					{ "time": 2, "angle": -359 }
+				]
+			}
+		}
+	}
+}
+}

@@ -1,0 +1,8 @@
+idle:1,40
+walk:41,53
+jump:162,188
+attack:100,121
+skill:189,224
+buff:225,296
+beaten:297,353
+die:354,386

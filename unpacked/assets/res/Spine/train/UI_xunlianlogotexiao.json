@@ -1,0 +1,120 @@
+{
+"bones": [
+	{ "name": "root" },
+	{ "name": "bone", "parent": "root" },
+	{ "name": "bone2", "parent": "root" },
+	{ "name": "bone3", "parent": "root" }
+],
+"slots": [
+	{ "name": "lizi_0001", "bone": "bone3", "attachment": "lizi_0012", "additive": true },
+	{ "name": "glow", "bone": "bone2", "attachment": "glow", "additive": true },
+	{ "name": "ci_0001", "bone": "bone", "attachment": "ci_0004", "additive": true }
+],
+"skins": {
+	"default": {
+		"ci_0001": {
+			"ci_0001": { "width": 78, "height": 83 },
+			"ci_0002": { "width": 112, "height": 113 },
+			"ci_0003": { "width": 106, "height": 113 },
+			"ci_0004": { "width": 103, "height": 110 }
+		},
+		"glow": {
+			"glow": { "width": 230, "height": 234 }
+		},
+		"lizi_0001": {
+			"lizi_0001": { "scaleX": 0.995, "scaleY": 0.995, "width": 62, "height": 71 },
+			"lizi_0002": { "scaleX": 0.995, "scaleY": 0.995, "width": 100, "height": 100 },
+			"lizi_0003": { "scaleX": 0.995, "scaleY": 0.995, "width": 109, "height": 100 },
+			"lizi_0004": { "scaleX": 0.995, "scaleY": 0.995, "width": 105, "height": 93 },
+			"lizi_0005": { "scaleX": 0.995, "scaleY": 0.995, "width": 99, "height": 88 },
+			"lizi_0006": { "scaleX": 0.995, "scaleY": 0.995, "width": 95, "height": 85 },
+			"lizi_0007": { "scaleX": 0.995, "scaleY": 0.995, "width": 90, "height": 83 },
+			"lizi_0008": { "scaleX": 0.995, "scaleY": 0.995, "width": 86, "height": 79 },
+			"lizi_0009": { "scaleX": 0.995, "scaleY": 0.995, "width": 81, "height": 75 },
+			"lizi_0010": { "scaleX": 0.995, "scaleY": 0.995, "width": 75, "height": 74 },
+			"lizi_0011": { "scaleX": 0.995, "scaleY": 0.995, "width": 67, "height": 71 },
+			"lizi_0012": { "scaleX": 0.995, "scaleY": 0.995, "width": 23, "height": 56 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"bones": {
+			"bone": {
+				"translate": [
+					{ "time": 0, "x": 0.75, "y": -0.08, "curve": "stepped" },
+					{ "time": 0.0333, "x": -3.16, "y": -0.08, "curve": "stepped" },
+					{ "time": 0.0666, "x": -3.16, "y": -0.08, "curve": "stepped" },
+					{ "time": 0.1444, "x": -3.16, "y": -0.08 }
+				]
+			},
+			"bone2": {
+				"translate": [
+					{ "time": 0, "x": 0.24, "y": 0.26, "curve": "stepped" },
+					{ "time": 0.0333, "x": 0.24, "y": 0.26 }
+				],
+				"scale": [
+					{ "time": 0, "x": 0.233, "y": 0.233 },
+					{ "time": 0.0333, "x": 0.366, "y": 0.366 },
+					{ "time": 0.2222, "x": 0.399, "y": 0.399 }
+				]
+			},
+			"bone3": {
+				"translate": [
+					{ "time": 0.0333, "x": -0.44, "y": -5.38, "curve": "stepped" },
+					{ "time": 0.1, "x": 11.21, "y": -2.45, "curve": "stepped" },
+					{ "time": 0.1666, "x": 3.8, "y": 3.41, "curve": "stepped" },
+					{ "time": 0.2333, "x": 3.39, "y": 5.71, "curve": "stepped" },
+					{ "time": 0.3, "x": 2, "y": 8.3, "curve": "stepped" },
+					{ "time": 0.3666, "x": 1.53, "y": 8.81, "curve": "stepped" },
+					{ "time": 0.4333, "x": 1.02, "y": 8.79, "curve": "stepped" },
+					{ "time": 0.5, "x": 0.51, "y": 11.31, "curve": "stepped" },
+					{ "time": 0.5666, "x": 0.53, "y": 15.84, "curve": "stepped" },
+					{ "time": 0.6333, "x": -0.44, "y": 15.84, "curve": "stepped" },
+					{ "time": 0.7, "x": -0.93, "y": 19, "curve": "stepped" },
+					{ "time": 0.7666, "x": -10.22, "y": 15.67 }
+				]
+			}
+		},
+		"slots": {
+			"glow": {
+				"attachment": [
+					{ "time": 0, "name": "glow" },
+					{ "time": 0.2333, "name": null }
+				],
+				"color": [
+					{ "time": 0.0333, "color": "ffffffff" },
+					{ "time": 0.2222, "color": "ffffff07" }
+				]
+			},
+			"ci_0001": {
+				"attachment": [
+					{ "time": 0, "name": "ci_0001" },
+					{ "time": 0.0333, "name": "ci_0002" },
+					{ "time": 0.0666, "name": "ci_0003" },
+					{ "time": 0.1444, "name": "ci_0004" },
+					{ "time": 0.2222, "name": null }
+				]
+			},
+			"lizi_0001": {
+				"attachment": [
+					{ "time": 0.0333, "name": "lizi_0001" },
+					{ "time": 0.1, "name": "lizi_0002" },
+					{ "time": 0.1666, "name": "lizi_0003" },
+					{ "time": 0.2333, "name": "lizi_0004" },
+					{ "time": 0.3, "name": "lizi_0005" },
+					{ "time": 0.3666, "name": "lizi_0006" },
+					{ "time": 0.4333, "name": "lizi_0007" },
+					{ "time": 0.5, "name": "lizi_0008" },
+					{ "time": 0.5666, "name": "lizi_0009" },
+					{ "time": 0.6333, "name": "lizi_0010" },
+					{ "time": 0.7, "name": "lizi_0011" },
+					{ "time": 0.7666, "name": "lizi_0012" },
+					{ "time": 0.8666, "name": null },
+					{ "time": 1.1666, "name": null }
+				]
+			}
+		}
+	}
+}
+}

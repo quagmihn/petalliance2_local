@@ -1,0 +1,27 @@
+
+UI_denglujiemian.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bg2
+  rotate: false
+  xy: 484, 286
+  size: 320, 568
+  orig: 320, 568
+  offset: 0, 0
+  index: -1
+char2
+  rotate: false
+  xy: 2, 2
+  size: 480, 852
+  orig: 480, 852
+  offset: 0, 0
+  index: -1
+glow_00055
+  rotate: false
+  xy: 484, 28
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,62 @@
+
+Ui_juesechengjiusaoguang.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+sg_0001
+  rotate: false
+  xy: 721, 92
+  size: 130, 88
+  orig: 130, 88
+  offset: 0, 0
+  index: -1
+sg_0002
+  rotate: false
+  xy: 295, 2
+  size: 240, 88
+  orig: 240, 88
+  offset: 0, 0
+  index: -1
+sg_0003
+  rotate: false
+  xy: 2, 92
+  size: 293, 88
+  orig: 293, 88
+  offset: 0, 0
+  index: -1
+sg_0004
+  rotate: false
+  xy: 2, 2
+  size: 291, 88
+  orig: 291, 88
+  offset: 0, 0
+  index: -1
+sg_0005
+  rotate: false
+  xy: 297, 92
+  size: 267, 88
+  orig: 267, 88
+  offset: 0, 0
+  index: -1
+sg_0006
+  rotate: false
+  xy: 566, 92
+  size: 153, 88
+  orig: 153, 88
+  offset: 0, 0
+  index: -1
+sg_0007
+  rotate: false
+  xy: 537, 2
+  size: 134, 88
+  orig: 134, 88
+  offset: 0, 0
+  index: -1
+sg_0008
+  rotate: false
+  xy: 673, 6
+  size: 99, 84
+  orig: 99, 84
+  offset: 0, 0
+  index: -1

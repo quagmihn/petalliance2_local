@@ -1,0 +1,85 @@
+{
+"skeleton": {
+	"hash": "Y06q0GENqVZJlj16iul+Wu3QuZI",
+	"spine": "3.2.01",
+	"width": 224.19,
+	"height": 259.16,
+	"images": "./../Pictures/UI_jianzhufx/"
+},
+"bones": [
+	{ "name": "root" },
+	{ "name": "chen", "parent": "root", "x": 19.4, "y": -9.28 },
+	{ "name": "di", "parent": "root" },
+	{ "name": "glow", "parent": "root" },
+	{ "name": "rune", "parent": "root", "x": 15.42, "y": -54.62 },
+	{ "name": "yabian", "parent": "root", "y": -6.48, "scaleX": 0.87, "scaleY": 1.34, "shearX": -0.04 },
+	{ "name": "xuanwo", "parent": "yabian" }
+],
+"slots": [
+	{ "name": "DarkGate01", "bone": "di", "attachment": "DarkGate01" },
+	{ "name": "rune01", "bone": "rune", "attachment": "rune01", "blend": "additive" },
+	{ "name": "base01", "bone": "chen", "attachment": "base01" },
+	{ "name": "glow01", "bone": "glow", "attachment": "glow01", "blend": "additive" },
+	{ "name": "vortex01", "bone": "xuanwo", "attachment": "vortex01", "blend": "additive" }
+],
+"skins": {
+	"default": {
+		"DarkGate01": {
+			"DarkGate01": { "rotation": -0.04, "width": 224, "height": 259 }
+		},
+		"base01": {
+			"base01": { "width": 63, "height": 117 }
+		},
+		"glow01": {
+			"glow01": { "width": 195, "height": 195 }
+		},
+		"rune01": {
+			"rune01": { "width": 104, "height": 102 }
+		},
+		"vortex01": {
+			"vortex01": { "width": 91, "height": 89 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"glow01": {
+				"color": [
+					{ "time": 0, "color": "ffffff18" },
+					{ "time": 1, "color": "ffffff56" },
+					{ "time": 2, "color": "ffffff18" }
+				],
+				"attachment": [
+					{ "time": 0, "name": "glow01" }
+				]
+			},
+			"rune01": {
+				"color": [
+					{ "time": 0, "color": "ffffff50" },
+					{ "time": 1, "color": "ffffffa2" },
+					{ "time": 2, "color": "ffffff50" }
+				],
+				"attachment": [
+					{ "time": 0, "name": "rune01" },
+					{ "time": 2, "name": "rune01" }
+				]
+			},
+			"vortex01": {
+				"attachment": [
+					{ "time": 0, "name": "vortex01" }
+				]
+			}
+		},
+		"bones": {
+			"xuanwo": {
+				"rotate": [
+					{ "time": 0, "angle": 0 },
+					{ "time": 1, "angle": -180 },
+					{ "time": 2, "angle": -359 }
+				]
+			}
+		}
+	}
+}
+}

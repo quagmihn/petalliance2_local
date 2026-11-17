@@ -1,0 +1,20 @@
+
+em12.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em12
+  rotate: true
+  xy: 2, 2
+  size: 503, 540
+  orig: 503, 540
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 544, 372
+  size: 146, 133
+  orig: 146, 133
+  offset: 0, 0
+  index: -1

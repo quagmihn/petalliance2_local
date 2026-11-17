@@ -1,0 +1,215 @@
+
+Ui_chongwuchoujiang.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/1
+  rotate: true
+  xy: 676, 615
+  size: 145, 216
+  orig: 145, 216
+  offset: 0, 0
+  index: -1
+texiao/10001
+  rotate: false
+  xy: 204, 59
+  size: 180, 160
+  orig: 180, 160
+  offset: 0, 0
+  index: -1
+texiao/10002
+  rotate: false
+  xy: 386, 59
+  size: 180, 160
+  orig: 180, 160
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 575, 453
+  size: 180, 160
+  orig: 180, 160
+  offset: 0, 0
+  index: -1
+texiao/10004
+  rotate: false
+  xy: 757, 453
+  size: 180, 160
+  orig: 180, 160
+  offset: 0, 0
+  index: -1
+texiao/10005
+  rotate: false
+  xy: 541, 291
+  size: 180, 160
+  orig: 180, 160
+  offset: 0, 0
+  index: -1
+texiao/10006
+  rotate: false
+  xy: 723, 291
+  size: 180, 160
+  orig: 180, 160
+  offset: 0, 0
+  index: -1
+texiao/10007
+  rotate: false
+  xy: 568, 129
+  size: 180, 160
+  orig: 180, 160
+  offset: 0, 0
+  index: -1
+texiao/10008
+  rotate: false
+  xy: 750, 129
+  size: 180, 160
+  orig: 180, 160
+  offset: 0, 0
+  index: -1
+texiao/2
+  rotate: true
+  xy: 303, 221
+  size: 143, 226
+  orig: 143, 226
+  offset: 0, 0
+  index: -1
+texiao/20001
+  rotate: false
+  xy: 568, 2
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20002
+  rotate: false
+  xy: 695, 2
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20003
+  rotate: false
+  xy: 822, 2
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20004
+  rotate: false
+  xy: 894, 635
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/2323
+  rotate: false
+  xy: 2, 25
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+texiao/3
+  rotate: false
+  xy: 324, 512
+  size: 249, 144
+  orig: 249, 144
+  offset: 0, 0
+  index: -1
+texiao/34252
+  rotate: false
+  xy: 324, 658
+  size: 350, 350
+  orig: 350, 350
+  offset: 0, 0
+  index: -1
+texiao/4
+  rotate: false
+  xy: 2, 227
+  size: 299, 299
+  orig: 299, 299
+  offset: 0, 0
+  index: -1
+texiao/5
+  rotate: false
+  xy: 676, 762
+  size: 243, 246
+  orig: 243, 246
+  offset: 0, 0
+  index: -1
+texiao/6
+  rotate: false
+  xy: 303, 366
+  size: 236, 144
+  orig: 236, 144
+  offset: 0, 0
+  index: -1
+texiao/7
+  rotate: false
+  xy: 2, 528
+  size: 320, 480
+  orig: 320, 480
+  offset: 0, 0
+  index: -1
+texiao/8
+  rotate: false
+  xy: 921, 957
+  size: 50, 51
+  orig: 50, 51
+  offset: 0, 0
+  index: -1
+
+Ui_chongwuchoujiang2.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10009
+  rotate: false
+  xy: 2, 94
+  size: 180, 160
+  orig: 180, 160
+  offset: 0, 0
+  index: -1
+texiao/20005
+  rotate: false
+  xy: 184, 129
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20006
+  rotate: false
+  xy: 184, 2
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20007
+  rotate: false
+  xy: 311, 129
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20008
+  rotate: false
+  xy: 311, 2
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20009
+  rotate: false
+  xy: 438, 129
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20010
+  rotate: false
+  xy: 438, 2
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,450 @@
+11-17 08:05:30.560  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] LoginMsgMgr初始化
+11-17 08:05:30.560  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] CreateCharViewMgr初始化
+11-17 08:05:30.560  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] GameGuideMgr初始化
+11-17 08:05:30.560  1702  1722 D CCFileUtils-android.cpp: relative path = src/GameMgr/Common/GameGuideMgr1.lua
+11-17 08:05:30.564  1702  1722 D CCFileUtils-android.cpp: relative path = src/GameMgr/Common/GameGuideMgr2.lua
+11-17 08:05:30.569  1702  1722 D CCFileUtils-android.cpp: relative path = src/GameMgr/Common/GameGuideMgr3.lua
+11-17 08:05:30.627  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] HorseLayerMgr初始化
+11-17 08:05:30.676  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] SceneMgr初始化
+11-17 08:05:30.677  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] TownMapMgr初始化
+11-17 08:05:30.677  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] HomeMapMgr初始化
+11-17 08:05:30.677  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] CopyMapMgr初始化
+11-17 08:05:30.677  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] FamilyCopyMapMgr初始化
+11-17 08:05:30.677  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] TeamCopyMapMgr初始化
+11-17 08:05:30.677  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] BattleMapMgr初始化
+11-17 08:05:30.677  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] MapSeekerMgr初始化
+11-17 08:05:30.678  1702  1722 D cocos2d-x debug info: Get data from file(/data/user/0/com.petalliance2.sea/files/settings/WorldMapSettings.plist) failed!
+11-17 08:05:30.678  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] EmbeddedMapMgr初始化
+11-17 08:05:30.678  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] TownMapBoardMgr初始化
+11-17 08:05:30.678  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] IdlingMapBoardMgr初始化
+11-17 08:05:30.678  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] IdlingMapMgr初始化
+11-17 08:05:30.678  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] SearchingMapMgr初始化
+11-17 08:05:30.692  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] BossMapMgr初始化
+11-17 08:05:30.726  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] Spine/avatar/min_nv_chibang.png不存在，创建动画失败
+11-17 08:05:30.727  1702  1722 D cocos2d-x debug info: [08:05:30 LUA-print] UnblockLoader执行报错, tag:	GameInit
+11-17 08:05:36.248   700  1663 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 08:05:36.248   700  1662 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:05:37.454   252   286 W BatteryExternalStatsWorker: error reading Bluetooth stats: 9
+11-17 08:05:40.253   700  1750 D TrafficStats: tagSocket(59) with statsTag=0xffffff81, statsUid=-1
+11-17 08:05:40.253   700  1751 D TrafficStats: tagSocket(5) with statsTag=0xffffff81, statsUid=-1
+11-17 08:05:40.253   700  1751 D TrafficStats: tagSocket(5) with statsTag=0xffffff81, statsUid=-1
+11-17 08:05:40.253   700  1750 D TrafficStats: tagSocket(59) with statsTag=0xffffff81, statsUid=-1
+11-17 08:05:50.266   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:05:50.267   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:05:50.267   700  1751 D NetworkMonitor/100: PROBE_DNS connectivitycheck.gstatic.com 10013ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:05:50.267   700  1750 D NetworkMonitor/100: PROBE_DNS www.google.com 10013ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:05:53.265   700  1749 D NetworkMonitor/100: PROBE_FALLBACK http://play.googleapis.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "play.googleapis.com": No address associated with hostname
+11-17 08:06:00.279   700  1750 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:06:00.279   700  1751 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 08:06:08.288   700  1761 D TrafficStats: tagSocket(5) with statsTag=0xffffff81, statsUid=-1
+11-17 08:06:08.288   700  1762 D TrafficStats: tagSocket(59) with statsTag=0xffffff81, statsUid=-1
+11-17 08:06:08.289   700  1761 D TrafficStats: tagSocket(59) with statsTag=0xffffff81, statsUid=-1
+11-17 08:06:08.289   700  1762 D TrafficStats: tagSocket(5) with statsTag=0xffffff81, statsUid=-1
+11-17 08:06:18.301   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:18.301   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:18.302   700  1761 D NetworkMonitor/100: PROBE_DNS www.google.com 10013ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:18.302   700  1762 D NetworkMonitor/100: PROBE_DNS connectivitycheck.gstatic.com 10013ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:28.311   700  1760 D NetworkMonitor/100: PROBE_FALLBACK http://www.google.com/gen_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:06:28.312   700  1761 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:06:28.312   700  1762 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 08:06:44.326   700  1778 D TrafficStats: tagSocket(5) with statsTag=0xffffff81, statsUid=-1
+11-17 08:06:44.326   700  1777 D TrafficStats: tagSocket(59) with statsTag=0xffffff81, statsUid=-1
+11-17 08:06:44.328   700  1778 D TrafficStats: tagSocket(5) with statsTag=0xffffff81, statsUid=-1
+11-17 08:06:44.328   700  1777 D TrafficStats: tagSocket(59) with statsTag=0xffffff81, statsUid=-1
+11-17 08:06:54.342   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:54.342   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:54.342   700  1777 D NetworkMonitor/100: PROBE_DNS www.google.com 10015ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:06:54.342   700  1778 D NetworkMonitor/100: PROBE_DNS connectivitycheck.gstatic.com 10015ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:07:04.352   700  1776 D NetworkMonitor/100: PROBE_FALLBACK http://www.google.com/gen_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:07:04.353   700  1778 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 08:07:04.355   700  1777 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:14:49.072  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] Charactor/TopInfoLayer.csb不存在，创建csb资源失败
+11-17 08:14:49.072  2003  2024 D cocos2d-x debug info: Get data from file(/data/user/0/com.petalliance2.sea/files/settings/SystemSettings.plist) failed!
+11-17 08:14:49.077  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] DialogBoxMgr初始化
+11-17 08:14:49.077  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] BasicMenuMgr初始化
+11-17 08:14:49.077  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] Charactor/Menu/MainMenu.csb不存在，创建csb资源失败
+11-17 08:14:49.077  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] HomeMenuMgr初始化
+11-17 08:14:49.077  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] LoginViewMgr初始化
+11-17 08:14:49.077  2003  2024 D CCFileUtils-android.cpp: relative path = src/Net/Send/LoginSend.lua
+11-17 08:14:49.078  2003  2024 D CCFileUtils-android.cpp: relative path = src/Net/Reconnector.lua
+11-17 08:14:49.078  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] LoginMsgMgr初始化
+11-17 08:14:49.078  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] CreateCharViewMgr初始化
+11-17 08:14:49.078  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] GameGuideMgr初始化
+11-17 08:14:49.078  2003  2024 D CCFileUtils-android.cpp: relative path = src/GameMgr/Common/GameGuideMgr1.lua
+11-17 08:14:49.082  2003  2024 D CCFileUtils-android.cpp: relative path = src/GameMgr/Common/GameGuideMgr2.lua
+11-17 08:14:49.087  2003  2024 D CCFileUtils-android.cpp: relative path = src/GameMgr/Common/GameGuideMgr3.lua
+11-17 08:14:49.145  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] HorseLayerMgr初始化
+11-17 08:14:49.194  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] SceneMgr初始化
+11-17 08:14:49.195  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] TownMapMgr初始化
+11-17 08:14:49.195  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] HomeMapMgr初始化
+11-17 08:14:49.195  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] CopyMapMgr初始化
+11-17 08:14:49.195  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] FamilyCopyMapMgr初始化
+11-17 08:14:49.195  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] TeamCopyMapMgr初始化
+11-17 08:14:49.195  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] BattleMapMgr初始化
+11-17 08:14:49.195  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] MapSeekerMgr初始化
+11-17 08:14:49.195  2003  2024 D cocos2d-x debug info: Get data from file(/data/user/0/com.petalliance2.sea/files/settings/WorldMapSettings.plist) failed!
+11-17 08:14:49.196  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] EmbeddedMapMgr初始化
+11-17 08:14:49.196  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] TownMapBoardMgr初始化
+11-17 08:14:49.196  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] IdlingMapBoardMgr初始化
+11-17 08:14:49.196  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] IdlingMapMgr初始化
+11-17 08:14:49.196  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] SearchingMapMgr初始化
+11-17 08:14:49.207  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] BossMapMgr初始化
+11-17 08:14:49.554  2003  2024 D cocos2d-x debug info: Get data from file(/data/user/0/com.petalliance2.sea/files/settings/SystemSettings.plist) failed!
+11-17 08:14:49.554  2003  2024 D cocos2d-x debug info: Get data from file(/data/user/0/com.petalliance2.sea/files/settings/SystemSettings.plist) failed!
+11-17 08:14:49.554  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] PokedexMenuViewMgr初始化
+11-17 08:14:49.554  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] ArenaViewMgr初始化
+11-17 08:14:49.556  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] MArenaViewMgr初始化
+11-17 08:14:49.556  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] ArenaWinViewMgr初始化
+11-17 08:14:49.556  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] ArenaRewardList初始化
+11-17 08:14:49.556  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] ArenaTeamViewMgr初始化
+11-17 08:14:49.556  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] ArenaExchangeMgr初始化
+11-17 08:14:49.556  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] ArenaRecordMgr初始化
+11-17 08:14:49.556  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] AvatarViewMgr初始化
+11-17 08:14:49.556  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] Player/Avatar/CommonItem.csb不存在，创建csb资源失败
+11-17 08:14:49.590  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] CheckViewMgr初始化
+11-17 08:14:49.590  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] Player/Check/CommonItem.csb不存在，创建csb资源失败
+11-17 08:14:49.590  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] Player/Check/CommonItem.csb tag:资源未创建，获取node失败
+11-17 08:14:49.591  2003  2024 D cocos2d-x debug info: [08:14:49 LUA-print] UnblockLoader执行报错, tag:	GameInit	error:	[string "src/GameMgr/Player/CheckViewMgr.lua"]:36: attempt to index a nil value
+11-17 08:16:04.559   700  2057 D TrafficStats: tagSocket(5) with statsTag=0xffffff81, statsUid=-1
+11-17 08:16:04.559   700  2058 D TrafficStats: tagSocket(59) with statsTag=0xffffff81, statsUid=-1
+11-17 08:16:04.559   700  2057 D TrafficStats: tagSocket(5) with statsTag=0xffffff81, statsUid=-1
+11-17 08:16:04.559   700  2058 D TrafficStats: tagSocket(59) with statsTag=0xffffff81, statsUid=-1
+11-17 08:16:14.573   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:16:14.573   700   700 W DnsResolver: resNetworkResult:android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:16:14.573   700  2058 D NetworkMonitor/100: PROBE_DNS connectivitycheck.gstatic.com 10014ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:16:14.573   700  2057 D NetworkMonitor/100: PROBE_DNS www.google.com 10014ms FAIL in type ADDRCONFIG android.net.DnsResolver$DnsException: android.system.ErrnoException: resNetworkResult failed: ETIMEDOUT (Connection timed out)
+11-17 08:16:24.584   700  2056 D NetworkMonitor/100: PROBE_FALLBACK http://www.google.com/gen_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:16:24.584   700  2058 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 08:16:24.585   700  2057 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 08:16:24.586   700  2056 D NetworkMonitor/100: isCaptivePortal: isSuccessful()=false isPortal()=false RedirectUrl=null isPartialConnectivity()=false Time=20028ms
+11-17 08:16:24.586   252   463 D ConnectivityService: [100 ETHERNET] validation failed
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:14.094  2380  2401 I System.out: login start +++++++++++++++++
+11-17 08:27:14.094  2380  2401 I FCManager: SDK Start Logining
+11-17 08:27:14.094  2380  2401 D cocos2d-x debug info: [08:27:14 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 08:27:48.653  2380  2401 D cocos2d-x debug info: [08:27:48 LUA-print] SDK回調函數	202	{"errDesc":"isLogined."}
+11-17 09:02:00.188  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] NetMgr.update:server disconnected...
+11-17 09:02:00.188  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] NetMgr.update:init reconnector
+11-17 09:02:00.188  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] Reconnector.init
+11-17 09:02:00.188  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] NetMgr.update:call reconnector.reconnectImp
+11-17 09:02:00.191  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] Reconnector.reconnectImp
+11-17 09:02:00.191  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] call NetInterface.connectServer
+11-17 09:02:00.191  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] NetInterface.connectServer
+11-17 09:02:00.191  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] NetMgr::init
+11-17 09:02:00.192  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] connect game server ip:192.168.240.1, port:5568
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] getpeername:	192.168.240.1	5568	inet
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] getsockname:	192.168.240.112	59644	inet
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] [INFO] HDSocketTCP.onStatus:SOCKET_TCP_CONNECTED
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] callback in NetInterface::connectServer res:true
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] reconnect success
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] device relogin start
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] send device-relogin request
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] get login info:	0	c649e259e5cc368219bd0fa5bb54e4ce
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] [INFO] SendMsg id 1684
+11-17 09:02:00.337  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] [INFO] SendMsg id 41	1684
+11-17 09:02:00.484  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] onMsgRcv msgID:773
+11-17 09:02:00.484  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] [INFO] RcvMsg GC_DeviceRelogin_Ack 773
+11-17 09:02:00.484  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] device relogin result:	0
+11-17 09:02:00.485  2909  2932 D cocos2d-x debug info: [09:02:00 LUA-print] 开始加载新场景CreateCharScene
+11-17 09:02:01.033  2909  2932 D cocos2d-x debug info: [09:02:01 LUA-print] -----server time:	1794906121	16:02:01
+11-17 09:02:01.033  2909  2932 D cocos2d-x debug info: [09:02:01 LUA-print] -----os time:	1794906121	16:02:01
+11-17 09:02:01.034  2909  2932 D cocos2d-x debug info: [09:02:01 LUA-print] curTexMem & luaMen is......15444004	28735.447265625
+11-17 09:02:01.037  2909  2932 D cocos2d-x debug info: [09:02:01 LUA-print] reset is key is........PetListUI
+11-17 09:02:01.037  2909  2932 D cocos2d-x debug info: [09:02:01 LUA-print] reset is key is........LostTowerPetList
+11-17 09:02:01.037  2909  2932 D cocos2d-x debug info: [09:02:01 LUA-print] reset is key is........CheckView
+11-17 09:02:01.037  2909  2932 D cocos2d-x debug info: [09:02:01 LUA-print] resetAllSchedule.............0
+11-17 09:10:09.022  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] explore point size:	0
+11-17 09:10:09.023  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] [INFO] SendMsg id 1338
+11-17 09:10:09.024  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] [INFO] SendMsg id 4	1338
+11-17 09:10:09.145  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] onMsgRcv msgID:1433
+11-17 09:10:09.145  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] [INFO] RcvMsg GC_GetMyMapNodeEventInfo_Ack 1433
+11-17 09:10:09.145  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] AdventureInfo.setMapEventInfo	{}
+11-17 09:10:09.146  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] [INFO] SendMsg id 1573
+11-17 09:10:09.146  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] [INFO] SendMsg id 4	1573
+11-17 09:10:09.267  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] onMsgRcv msgID:1526
+11-17 09:10:09.269  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] [INFO] RcvMsg GC_CapsuleEggCDs_Ack 1526
+11-17 09:10:09.269  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] ----------------------------------------
+11-17 09:10:09.269  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] LUA ERROR: [string "src/Net/Process/PetProcess.lua"]:273: attempt to index field '?' (a nil value)
+11-17 09:10:09.269  3014  3036 D cocos2d-x debug info: 
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] 
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: stack traceback:
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	[string "src/Net/Process/PetProcess.lua"]:273: in function '?'
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	[string "src/Net/HDSocketTCP.lua"]:198: in function 'processMsg'
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	[string "src/Net/HDSocketTCP.lua"]:171: in function 'onData'
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	[string "src/Net/HDSocketTCP.lua"]:18: in function '?'
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	[string "src/framework/cc/components/behavior/EventProtocol.lua"]:59: in function <[string "src/framework/cc/components/behavior/EventProtocol.lua"]:38>
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	(tail call): ?
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	[string "src/framework/cc/net/SocketTCP.lua"]:329: in function <[string "src/framework/cc/net/SocketTCP.lua"]:313>
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	(tail call): ?
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	[string "src/framework/cc/net/SocketTCP.lua"]:242: in function '__tick'
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: 	[string "src/framework/cc/net/SocketTCP.lua"]:231: in function <[string "src/framework/cc/net/SocketTCP.lua"]:231>
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: [09:10:09 LUA-print] ----------------------------------------
+11-17 09:10:09.270  3014  3036 D cocos2d-x debug info: not found lua function __OnLuaError() in OnLuaError()]
+11-17 09:10:09.515   700  3124 D NetworkMonitor/100: PROBE_FALLBACK http://www.google.com/gen_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 09:10:09.518   700  3126 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 09:10:09.518   700  3125 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 09:31:25.858  3269  3292 D cocos2d-x debug info: [09:31:25 LUA-print] start XFangcunLogSender Load
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getYMD", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getYM", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getYear", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getMonth", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getDay", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getHour", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getMiniute", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getWeekOfTheYear", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.858  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getIpAddress", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.859  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.859  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getDeviceModel", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.859  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.859  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getOSVer", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.859  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.859  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getMacAddress", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.859  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.859  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getUDID", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.859  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:31:25.860  3269  3292 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "getNetworkState", args, "()Ljava/lang/String;") SUCCESS
+11-17 09:31:25.860  3269  3292 D cocos2d-x debug info: [09:31:25 LUA-print] end XFangcunLogSender Load
+11-17 09:38:46.290  3523  3545 D CCFileUtils-android.cpp: relative path = src/GameMgr/Support/Voice/VoiceManager.lua
+11-17 09:38:46.291  3523  3545 D CCFileUtils-android.cpp: relative path = src/GameMgr/Support/Voice/VoiceServerConfig.lua
+11-17 09:38:46.291  3523  3545 D CCFileUtils-android.cpp: relative path = src/Utils/XFangCunLogSender.lua
+11-17 09:38:46.292  3523  3545 D cocos2d-x debug info: [LUA ERROR] load "src/Utils/XFangCunLogSender.lua", error: syntax error during pre-compilation.
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: [09:38:46 LUA-print] ----------------------------------------
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: [09:38:46 LUA-print] LUA ERROR: [string "src/GameMgr/GameInit.lua"]:312: module 'src.Utils.XFangCunLogSender' not found:
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no field package.preload['src.Utils.XFangCunLogSender'][string "src/Utils/XFangCunLogSender.lua"]:60: 'end' expected (to close 'function' at line 58) near '='
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file './src/Utils/XFangCunLogSender.lua'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file '/usr/local/share/lua/5.1/src/Utils/XFangCunLogSender.lua'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file '/usr/local/share/lua/5.1/src/Utils/XFangCunLogSender/init.lua'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file '/usr/local/lib/lua/5.1/src/Utils/XFangCunLogSender.lua'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file '/usr/local/lib/lua/5.1/src/Utils/XFangCunLogSender/init.lua'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file 'src/'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file './src/Utils/XFangCunLogSender.so'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file '/usr/local/lib/lua/5.1/src/Utils/XFangCunLogSender.so'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file '/usr/local/lib/lua/5.1/loadall.so'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file './src.so'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file '/usr/local/lib/lua/5.1/src.so'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 	no file '/usr/local/lib/lua/5.1/loadall.so'
+11-17 09:38:46.293  3523  3545 D cocos2d-x debug info: 
+11-17 09:38:46.294  3523  3545 D cocos2d-x debug info: [09:38:46 LUA-print] 
+11-17 09:38:46.294  3523  3545 D cocos2d-x debug info: stack traceback:
+11-17 09:38:46.294  3523  3545 D cocos2d-x debug info: 	[C]: in function 'require'
+11-17 09:38:46.294  3523  3545 D cocos2d-x debug info: 	[string "src/GameMgr/GameInit.lua"]:312: in main chunk
+11-17 09:38:46.294  3523  3545 D cocos2d-x debug info: 	[C]: in function 'require'
+11-17 09:38:46.294  3523  3545 D cocos2d-x debug info: 	[string "src/GameMgr/Update/UpdateMgr.lua"]:643: in function 'noUpdateStart'
+11-17 09:38:46.294  3523  3545 D cocos2d-x debug info: 	[string "src/GameMgr/Update/UpdateMgr.lua"]:622: in function <[string "src/GameMgr/Update/UpdateMgr.lua"]:621>
+11-17 09:38:46.294  3523  3545 D cocos2d-x debug info: [09:38:46 LUA-print] ----------------------------------------
+11-17 09:38:46.294  3523  3545 D cocos2d-x debug info: errorReportURL is empty
+11-17 09:38:46.878   252   336 W InputDispatcher: Window e844bf2 ActivityRecordInputSink com.petalliance2.sea/org.cocos2dx.lua.AppActivity already unregistered input channel
+11-17 09:50:04.594  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] revice device bind ack:	0		0
+11-17 09:50:04.594  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] device bind success
+11-17 09:50:04.597  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] serverparam.serverid and serverparam.servername is:	1	Private World
+11-17 09:50:04.605  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] call function failed in OvertimeListener.start:	[string "src/framework/cc/utils/ByteArray.lua"]:304: bad argument #2 to 'pack' (string expected, got nil)
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] 
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: stack traceback:
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/GameMgr/Support/NetInterface.lua"]:151: in function 'sendWithBlock'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/GameMgr/GameLogMgr.lua"]:78: in function 'OnGameStateChange'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/GameMgr/Common/LoginViewMgr.lua"]:350: in function 'sendDeviceCodeLogin'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/GameMgr/login.lua"]:111: in function 'successCallback'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/GameMgr/Support/NetInterface.lua"]:163: in function 'tmpFunc'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/Net/CallbackMgr.lua"]:15: in function 'doCallFunc'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/Net/Process/PortalProcess.lua"]:37: in function '?'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/Net/HDSocketTCP.lua"]:198: in function 'processMsg'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/Net/HDSocketTCP.lua"]:171: in function 'onData'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/Net/HDSocketTCP.lua"]:18: in function '?'
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/framework/cc/components/behavior/EventProtocol.lua"]:59: in function <[string "src/framework/cc/components/behavior/EventProtocol.lua"]:38>
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	(tail call): ?
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: 	[string "src/framework/cc/net/SocketTCP.lua"]:329: in function <[string "src/framework/cc/net/SocketTCP.lua"]
+11-17 09:50:04.606  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] NetInterface.sendWithBlock overtime,reset connection ackName:	GC_ClientInfo_ACK
+11-17 09:50:04.607  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] [INFO] HDSocketTCP.onStatus:SOCKET_TCP_CLOSED
+11-17 09:50:04.607  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] AndroidFunction.SetRoleInfo	0	select	0	0
+11-17 09:50:04.607  3758  3780 D luajc   : LuaJavaBridge::callJavaStaticMethod(lua_State *L)
+11-17 09:50:04.607  3758  3780 D luajc   : LuaJavaBridge::callJavaStaticMethod("org/cocos2dx/lua/FangCunLog", "setRoleInfo", args, "(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;ILjava/lang/String;ILjava/lang/String;)V") SUCCESS
+11-17 09:50:04.607  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] send device-login request id:%s world:%s,token:%s	84e1976bb8387f1clocal-bccc51222148b980c8d9ec8a6cb5351e	1	851c4fd18daca8b7861d9f750941ef09
+11-17 09:50:04.608  3758  3780 D cocos2d-x debug info: [09:50:04 LUA-print] send message failed:save message...
+11-17 09:50:06.294   700  3707 D NetworkMonitor/100: PROBE_FALLBACK http://www.google.com/gen_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 09:50:06.295   700  3709 D NetworkMonitor/100: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "connectivitycheck.gstatic.com": No address associated with hostname
+11-17 09:50:06.295   700  3708 D NetworkMonitor/100: PROBE_HTTPS https://www.google.com/generate_204 Probe failed with exception java.net.UnknownHostException: Unable to resolve host "www.google.com": No address associated with hostname
+11-17 09:50:24.638  3758  3780 D cocos2d-x debug info: [09:50:24 LUA-print] NetInterface.sendWithBlock overtime,reset connection ackName:	GC_DEVICELOGIN_ACK
+11-17 10:17:45.067  3893  3915 D cocos2d-x debug info: stack traceback:
+11-17 10:17:45.067  3893  3915 D cocos2d-x debug info: 	[string "src/GameMgr/Support/OvertimeListener.lua"]:42: in function 'overtimeProcess'
+11-17 10:17:45.067  3893  3915 D cocos2d-x debug info: 	[string "src/GameMgr/Support/OvertimeListener.lua"]:53: in function 'listener'
+11-17 10:17:45.067  3893  3915 D cocos2d-x debug info: 	[string "src/framework/scheduler.lua"]:141: in function <[string "src/framework/scheduler.lua"]:139>
+11-17 10:17:45.067  3893  3915 D cocos2d-x debug info: [10:17:45 LUA-print] NetInterface.send overtime,reset connection ackName:	GC_GETHOME_ACK
+11-17 10:17:45.067  3893  3915 D cocos2d-x debug info: [10:17:45 LUA-print] show trace
+11-17 10:17:45.068  3893  3915 D cocos2d-x debug info: [10:17:45 LUA-print] 
+11-17 10:17:45.068  3893  3915 D cocos2d-x debug info: stack traceback:
+11-17 10:17:45.068  3893  3915 D cocos2d-x debug info: 	[string "src/GameMgr/Support/OvertimeListener.lua"]:42: in function 'overtimeProcess'
+11-17 10:17:45.068  3893  3915 D cocos2d-x debug info: 	[string "src/GameMgr/Support/OvertimeListener.lua"]:53: in function 'listener'
+11-17 10:17:45.068  3893  3915 D cocos2d-x debug info: 	[string "src/framework/scheduler.lua"]:141: in function <[string "src/framework/scheduler.lua"]:139>
+11-17 10:17:46.002  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] NetMgr.update:server disconnected...
+11-17 10:17:46.002  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] NetMgr.update:init reconnector
+11-17 10:17:46.002  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] Reconnector.init
+11-17 10:17:46.002  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] NetMgr.update:call reconnector.reconnectImp
+11-17 10:17:46.010  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] Reconnector.reconnectImp
+11-17 10:17:46.010  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] call NetInterface.connectServer
+11-17 10:17:46.010  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] NetInterface.connectServer
+11-17 10:17:46.010  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] NetMgr::init
+11-17 10:17:46.012  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] connect game server ip:192.168.240.1, port:5568
+11-17 10:17:46.149  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] getpeername:	192.168.240.1	5568	inet
+11-17 10:17:46.149  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] getsockname:	192.168.240.112	45752	inet
+11-17 10:17:46.149  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] [INFO] HDSocketTCP.onStatus:SOCKET_TCP_CONNECTED
+11-17 10:17:46.149  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] callback in NetInterface::connectServer res:true
+11-17 10:17:46.149  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] reconnect success
+11-17 10:17:46.149  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] device relogin start
+11-17 10:17:46.149  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] send device-relogin request
+11-17 10:17:46.149  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] get login info:	2	9e9352a1eec3d4d5812088cf1b9c146f
+11-17 10:17:46.150  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] [INFO] SendMsg id 1684
+11-17 10:17:46.150  3893  3915 D cocos2d-x debug info: [10:17:46 LUA-print] [INFO] SendMsg id 41	1684
+11-17 11:13:33.440  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] device relogin result:	0
+11-17 11:13:33.442  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] -----current charID: 	2
+11-17 11:13:33.442  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] 断线重连后，检查补发未发送成功的消息
+11-17 11:13:33.442  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] 确认补发消息	GC_GETHOME_ACK
+11-17 11:13:33.442  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] [INFO] SendMsg id 118
+11-17 11:13:33.442  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] [INFO] SendMsg id 8	118
+11-17 11:13:33.443  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] [INFO] SendMsg id 785
+11-17 11:13:33.444  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] [INFO] SendMsg id 4	785
+11-17 11:13:33.444  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] zhucheng_1
+11-17 11:13:33.444  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] [INFO] SendMsg id 380
+11-17 11:13:33.444  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] [INFO] SendMsg id 18	380
+11-17 11:13:33.563  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] onMsgRcv msgID:26
+11-17 11:13:33.563  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] [INFO] RcvMsg ZC_QuestList_Ack 26
+11-17 11:13:33.564  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] current mission num0
+11-17 11:13:33.564  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] onMsgRcv msgID:404
+11-17 11:13:33.564  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] [INFO] RcvMsg ZC_NewQuest_Ntf 404
+11-17 11:13:33.564  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] 检查新手引导
+11-17 11:13:33.564  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] 当前引导任务数量	0
+11-17 11:13:33.564  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] 检查城镇新手引导
+11-17 11:13:33.564  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] 当前不在城镇场景
+11-17 11:13:33.565  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] onMsgRcv msgID:386
+11-17 11:13:33.565  4407  4429 D cocos2d-x debug info: [11:13:33 LUA-print] [INFO] RcvMsg GC_ChangeChannel_Ack 386
+11-17 11:13:53.476  4407  4429 D cocos2d-x debug info: [11:13:53 LUA-print] NetInterface.send overtime,reset connection ackName:	GC_GETHOME_ACK
+11-17 11:13:53.476  4407  4429 D cocos2d-x debug info: [11:13:53 LUA-print] show trace
+11-17 11:13:53.476  4407  4429 D cocos2d-x debug info: [11:13:53 LUA-print] 
+11-17 11:13:53.476  4407  4429 D cocos2d-x debug info: stack traceback:
+11-17 11:13:53.476  4407  4429 D cocos2d-x debug info: 	[string "src/GameMgr/Support/OvertimeListener.lua"]:42: in function 'overtimeProcess'
+11-17 11:13:53.476  4407  4429 D cocos2d-x debug info: 	[string "src/GameMgr/Support/OvertimeListener.lua"]:53: in function 'listener'
+11-17 11:13:53.476  4407  4429 D cocos2d-x debug info: 	[string "src/framework/scheduler.lua"]:141: in function <[string "src/framework/scheduler.lua"]:139>
+11-17 11:13:53.477  4407  4429 D cocos2d-x debug info: [11:13:53 LUA-print] [INFO] HDSocketTCP.onStatus:SOCKET_TCP_CLOSED
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: 	[string "src/GameMgr/Common/LoginViewMgr.lua"]:425: in function 'successCallback'
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: 	[string "src/GameMgr/Support/NetInterface.lua"]:183: in function 'tmpFunc'
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: 	[string "src/Net/CallbackMgr.lua"]:25: in function 'doCallFunc'
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: 	[string "src/Net/Process/LoginProcess.lua"]:299: in function '?'
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: 	[string "src/Net/HDSocketTCP.lua"]:198: in function 'processMsg'
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: 	[string "src/Net/HDSocketTCP.lua"]:171: in function 'onData'
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: 	[string "src/Net/HDSocketTCP.lua"]:18: in function '?'
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: 	[string "src/framework/cc/components/behavior/EventProtocol.lua"]:59: in function <[string "src/framework/cc/components/behavior/EventProtocol.lua"]
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [INFO] SendMsg id 136
+11-17 11:33:08.297  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [INFO] SendMsg id 16	136
+11-17 11:33:08.298  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=210 replaced=true
+11-17 11:33:08.298  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] 确认补发消息	GC_Chat_Ack
+11-17 11:33:08.298  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=TownScene
+11-17 11:33:08.299  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [INFO] SendMsg id 45
+11-17 11:33:08.299  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [INFO] SendMsg id 183	45
+11-17 11:33:08.309  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=true
+11-17 11:33:08.309  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [TOUCH_DIAG] loading_overlay action=hide scene=TownScene was_visible=false
+11-17 11:33:08.310  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] zhucheng_1
+11-17 11:33:08.310  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 scene=TownScene login_progress=true
+11-17 11:33:08.310  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [INFO] SendMsg id 380
+11-17 11:33:08.310  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [INFO] SendMsg id 18	380
+11-17 11:33:08.311  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=386 replaced=false
+11-17 11:33:08.418  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] onMsgRcv msgID:386
+11-17 11:33:08.419  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [INFO] RcvMsg GC_ChangeChannel_Ack 386
+11-17 11:33:08.419  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [NET_DIAG] callback_pending resolve ack_id=386 code=0
+11-17 11:33:08.419  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 code=0 loading_visible=false
+11-17 11:33:08.419  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [TOUCH_DIAG] loading_overlay action=hide scene=TownScene was_visible=false
+11-17 11:33:08.443  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [TOUCH_DIAG] loading_overlay mask_removed scene=TownScene
+11-17 11:33:08.444  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [TOUCH_DIAG] loading_overlay mask_removed scene=TownScene
+11-17 11:33:08.566  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [TOUCH_DIAG] loading_overlay mask_removed scene=TownScene

@@ -1,0 +1,48 @@
+
+kabishou.png
+size: 256,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+body
+  rotate: false
+  xy: 2, 58
+  size: 92, 68
+  orig: 92, 68
+  offset: 0, 0
+  index: -1
+foot
+  rotate: false
+  xy: 96, 87
+  size: 112, 39
+  orig: 112, 39
+  offset: 0, 0
+  index: -1
+hand1
+  rotate: true
+  xy: 210, 95
+  size: 31, 41
+  orig: 31, 41
+  offset: 0, 0
+  index: -1
+hand2
+  rotate: false
+  xy: 37, 15
+  size: 31, 41
+  orig: 31, 41
+  offset: 0, 0
+  index: -1
+head
+  rotate: true
+  xy: 2, 2
+  size: 54, 33
+  orig: 54, 33
+  offset: 0, 0
+  index: -1
+zz
+  rotate: false
+  xy: 96, 61
+  size: 36, 24
+  orig: 36, 24
+  offset: 0, 0
+  index: -1

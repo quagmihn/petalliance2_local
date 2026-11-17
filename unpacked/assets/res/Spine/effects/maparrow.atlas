@@ -1,0 +1,27 @@
+
+maparrow.png
+size: 256,64
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+a1
+  rotate: false
+  xy: 2, 2
+  size: 90, 55
+  orig: 90, 55
+  offset: 0, 0
+  index: -1
+a2
+  rotate: false
+  xy: 94, 2
+  size: 41, 55
+  orig: 41, 55
+  offset: 0, 0
+  index: -1
+a3
+  rotate: false
+  xy: 137, 2
+  size: 41, 55
+  orig: 41, 55
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,27 @@
+
+Ui_chongwuhuixue.png
+size: 512,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/2
+  rotate: false
+  xy: 204, 40
+  size: 100, 100
+  orig: 100, 100
+  offset: 0, 0
+  index: -1
+texiao/3
+  rotate: true
+  xy: 204, 142
+  size: 60, 220
+  orig: 60, 220
+  offset: 0, 0
+  index: -1
+texiao/7
+  rotate: false
+  xy: 2, 2
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1

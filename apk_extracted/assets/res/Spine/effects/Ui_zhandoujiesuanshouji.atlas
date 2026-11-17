@@ -1,0 +1,118 @@
+
+Ui_zhandoujiesuanshouji.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/1
+  rotate: false
+  xy: 337, 301
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+texiao/10001
+  rotate: false
+  xy: 2, 81
+  size: 65, 420
+  orig: 65, 420
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 69, 81
+  size: 65, 420
+  orig: 65, 420
+  offset: 0, 0
+  index: -1
+texiao/10005
+  rotate: false
+  xy: 69, 81
+  size: 65, 420
+  orig: 65, 420
+  offset: 0, 0
+  index: -1
+texiao/10007
+  rotate: false
+  xy: 136, 81
+  size: 65, 420
+  orig: 65, 420
+  offset: 0, 0
+  index: -1
+texiao/10009
+  rotate: false
+  xy: 203, 81
+  size: 65, 420
+  orig: 65, 420
+  offset: 0, 0
+  index: -1
+texiao/10011
+  rotate: false
+  xy: 270, 81
+  size: 65, 420
+  orig: 65, 420
+  offset: 0, 0
+  index: -1
+texiao/2
+  rotate: false
+  xy: 337, 99
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+texiao/Akali_ManualSkill_1
+  rotate: false
+  xy: 539, 336
+  size: 170, 165
+  orig: 170, 165
+  offset: 0, 0
+  index: -1
+texiao/Akali_ManualSkill_2
+  rotate: false
+  xy: 539, 169
+  size: 170, 165
+  orig: 170, 165
+  offset: 0, 0
+  index: -1
+texiao/Akali_ManualSkill_3
+  rotate: false
+  xy: 711, 336
+  size: 170, 165
+  orig: 170, 165
+  offset: 0, 0
+  index: -1
+texiao/Akali_ManualSkill_4
+  rotate: false
+  xy: 711, 169
+  size: 170, 165
+  orig: 170, 165
+  offset: 0, 0
+  index: -1
+texiao/Akali_ManualSkill_5
+  rotate: false
+  xy: 539, 2
+  size: 170, 165
+  orig: 170, 165
+  offset: 0, 0
+  index: -1
+texiao/Akali_ManualSkill_6
+  rotate: false
+  xy: 883, 336
+  size: 130, 165
+  orig: 130, 165
+  offset: 0, 0
+  index: -1
+texiao/Akali_ManualSkill_8
+  rotate: false
+  xy: 883, 169
+  size: 130, 165
+  orig: 130, 165
+  offset: 0, 0
+  index: -1
+texiao/Akali_ManualSkill_9
+  rotate: false
+  xy: 711, 2
+  size: 130, 165
+  orig: 130, 165
+  offset: 0, 0
+  index: -1

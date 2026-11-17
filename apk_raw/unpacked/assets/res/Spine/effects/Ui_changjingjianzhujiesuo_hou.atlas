@@ -1,0 +1,55 @@
+
+Ui_changjingjianzhujiesuo_hou.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/20001
+  rotate: false
+  xy: 2, 234
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/20002
+  rotate: false
+  xy: 2, 2
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/20003
+  rotate: false
+  xy: 154, 234
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/20004
+  rotate: false
+  xy: 154, 2
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/20005
+  rotate: false
+  xy: 306, 234
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/20006
+  rotate: false
+  xy: 306, 2
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/20007
+  rotate: false
+  xy: 458, 234
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1

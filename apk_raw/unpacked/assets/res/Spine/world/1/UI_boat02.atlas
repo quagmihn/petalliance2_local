@@ -1,0 +1,41 @@
+
+UI_boat02.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+lxxc
+  rotate: false
+  xy: 2, 2
+  size: 119, 122
+  orig: 119, 122
+  offset: 0, 0
+  index: -1
+wave_0001
+  rotate: false
+  xy: 230, 77
+  size: 100, 47
+  orig: 100, 47
+  offset: 0, 0
+  index: -1
+wave_0002
+  rotate: false
+  xy: 123, 26
+  size: 104, 48
+  orig: 104, 48
+  offset: 0, 0
+  index: -1
+wave_0003
+  rotate: false
+  xy: 123, 76
+  size: 105, 48
+  orig: 105, 48
+  offset: 0, 0
+  index: -1
+wave_0004
+  rotate: false
+  xy: 332, 79
+  size: 98, 45
+  orig: 98, 45
+  offset: 0, 0
+  index: -1

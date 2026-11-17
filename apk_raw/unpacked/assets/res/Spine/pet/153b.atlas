@@ -1,0 +1,62 @@
+
+153b.png
+size: 1024,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+dan1
+  rotate: false
+  xy: 277, 28
+  size: 130, 93
+  orig: 130, 93
+  offset: 0, 0
+  index: -1
+dan2
+  rotate: false
+  xy: 541, 59
+  size: 126, 62
+  orig: 126, 62
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 2, 2
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/danke2
+  rotate: false
+  xy: 409, 28
+  size: 130, 93
+  orig: 130, 93
+  offset: 0, 0
+  index: -1
+images/shenti2
+  rotate: true
+  xy: 141, 12
+  size: 109, 134
+  orig: 109, 134
+  offset: 0, 0
+  index: -1
+mao
+  rotate: true
+  xy: 669, 83
+  size: 38, 67
+  orig: 38, 67
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 2, 12
+  size: 109, 137
+  orig: 109, 137
+  offset: 0, 0
+  index: -1
+weiba
+  rotate: false
+  xy: 738, 79
+  size: 62, 42
+  orig: 62, 42
+  offset: 0, 0
+  index: -1

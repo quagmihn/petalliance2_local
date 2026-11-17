@@ -1,0 +1,20 @@
+
+em9.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em9
+  rotate: true
+  xy: 2, 2
+  size: 498, 587
+  orig: 498, 587
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 591, 388
+  size: 129, 112
+  orig: 129, 112
+  offset: 0, 0
+  index: -1

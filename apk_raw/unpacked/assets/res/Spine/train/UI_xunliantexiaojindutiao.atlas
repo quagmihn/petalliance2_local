@@ -1,0 +1,33 @@
+
+UI_xunliantexiaojindutiao.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+develop_progress_bar_green_01
+  rotate: false
+  xy: 320, 74
+  size: 140, 28
+  orig: 140, 28
+  offset: 0, 0
+  index: -1
+glow2
+  rotate: true
+  xy: 200, 34
+  size: 68, 118
+  orig: 68, 118
+  offset: 0, 0
+  index: -1
+lizi1
+  rotate: true
+  xy: 320, 5
+  size: 67, 72
+  orig: 67, 72
+  offset: 0, 0
+  index: -1
+lvguang
+  rotate: false
+  xy: 2, 2
+  size: 196, 100
+  orig: 196, 100
+  offset: 0, 0
+  index: -1

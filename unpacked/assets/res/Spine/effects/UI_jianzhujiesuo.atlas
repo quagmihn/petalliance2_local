@@ -1,0 +1,145 @@
+
+UI_jianzhujiesuo.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+aa_01
+  rotate: false
+  xy: 2, 761
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+aa_03
+  rotate: false
+  xy: 2, 503
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+aa_05
+  rotate: false
+  xy: 260, 761
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+aa_07
+  rotate: false
+  xy: 2, 245
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+aa_09
+  rotate: false
+  xy: 260, 503
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+aa_11
+  rotate: false
+  xy: 518, 761
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+aa_13
+  rotate: false
+  xy: 260, 245
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+aa_15
+  rotate: false
+  xy: 518, 503
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+aa_17
+  rotate: false
+  xy: 518, 245
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+b_01
+  rotate: false
+  xy: 17, 130
+  size: 10, 13
+  orig: 10, 13
+  offset: 0, 0
+  index: -1
+b_05
+  rotate: false
+  xy: 776, 838
+  size: 13, 63
+  orig: 13, 63
+  offset: 0, 0
+  index: -1
+b_09
+  rotate: false
+  xy: 17, 145
+  size: 12, 98
+  orig: 12, 98
+  offset: 0, 0
+  index: -1
+b_11
+  rotate: false
+  xy: 2, 127
+  size: 13, 116
+  orig: 13, 116
+  offset: 0, 0
+  index: -1
+b_15
+  rotate: false
+  xy: 2, 21
+  size: 13, 104
+  orig: 13, 104
+  offset: 0, 0
+  index: -1
+b_19
+  rotate: false
+  xy: 776, 903
+  size: 15, 114
+  orig: 15, 114
+  offset: 0, 0
+  index: -1
+b_23
+  rotate: false
+  xy: 793, 976
+  size: 20, 41
+  orig: 20, 41
+  offset: 0, 0
+  index: -1
+b_27
+  rotate: false
+  xy: 31, 214
+  size: 15, 29
+  orig: 15, 29
+  offset: 0, 0
+  index: -1
+b_31
+  rotate: false
+  xy: 2, 2
+  size: 9, 17
+  orig: 9, 17
+  offset: 0, 0
+  index: -1
+
+UI_jianzhujiesuo2.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+aa_19
+  rotate: false
+  xy: 2, 2
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,20 @@
+
+em10.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em10
+  rotate: true
+  xy: 2, 2
+  size: 432, 536
+  orig: 432, 536
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 540, 328
+  size: 133, 106
+  orig: 133, 106
+  offset: 0, 0
+  index: -1

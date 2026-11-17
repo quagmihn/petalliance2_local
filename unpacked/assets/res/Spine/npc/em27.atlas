@@ -1,0 +1,20 @@
+
+em27.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em27
+  rotate: true
+  xy: 2, 2
+  size: 467, 569
+  orig: 467, 569
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 573, 374
+  size: 118, 95
+  orig: 118, 95
+  offset: 0, 0
+  index: -1

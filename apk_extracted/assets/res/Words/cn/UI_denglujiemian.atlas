@@ -1,0 +1,145 @@
+
+UI_denglujiemian.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bg
+  rotate: false
+  xy: 2, 442
+  size: 320, 568
+  orig: 320, 568
+  offset: 0, 0
+  index: -1
+glow2
+  rotate: false
+  xy: 290, 29
+  size: 197, 200
+  orig: 197, 200
+  offset: 0, 0
+  index: -1
+nan1
+  rotate: false
+  xy: 324, 518
+  size: 346, 492
+  orig: 346, 492
+  offset: 0, 0
+  index: -1
+nan1_bai
+  rotate: false
+  xy: 672, 518
+  size: 346, 492
+  orig: 346, 492
+  offset: 0, 0
+  index: -1
+nu1
+  rotate: true
+  xy: 324, 231
+  size: 285, 438
+  orig: 285, 438
+  offset: 0, 0
+  index: -1
+nu1_bai
+  rotate: false
+  xy: 2, 2
+  size: 286, 438
+  orig: 286, 438
+  offset: 0, 0
+  index: -1
+nu3
+  rotate: false
+  xy: 764, 224
+  size: 255, 292
+  orig: 255, 292
+  offset: 0, 0
+  index: -1
+pet1
+  rotate: true
+  xy: 695, 47
+  size: 175, 204
+  orig: 175, 204
+  offset: 0, 0
+  index: -1
+pet1_bai
+  rotate: true
+  xy: 489, 53
+  size: 176, 204
+  orig: 176, 204
+  offset: 0, 0
+  index: -1
+pet3
+  rotate: false
+  xy: 901, 33
+  size: 108, 93
+  orig: 108, 93
+  offset: 0, 0
+  index: -1
+pet3_bai
+  rotate: false
+  xy: 901, 128
+  size: 108, 94
+  orig: 108, 94
+  offset: 0, 0
+  index: -1
+
+UI_denglujiemian2.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+lizituan
+  rotate: false
+  xy: 2, 2
+  size: 136, 148
+  orig: 136, 148
+  offset: 0, 0
+  index: -1
+nan2
+  rotate: false
+  xy: 294, 348
+  size: 281, 298
+  orig: 281, 298
+  offset: 0, 0
+  index: -1
+nan2_bai
+  rotate: false
+  xy: 294, 648
+  size: 282, 298
+  orig: 282, 298
+  offset: 0, 0
+  index: -1
+nu2
+  rotate: false
+  xy: 2, 550
+  size: 290, 396
+  orig: 290, 396
+  offset: 0, 0
+  index: -1
+nu2_bai
+  rotate: false
+  xy: 2, 152
+  size: 290, 396
+  orig: 290, 396
+  offset: 0, 0
+  index: -1
+nu3_bai
+  rotate: false
+  xy: 578, 654
+  size: 256, 292
+  orig: 256, 292
+  offset: 0, 0
+  index: -1
+pet2
+  rotate: false
+  xy: 836, 793
+  size: 127, 153
+  orig: 127, 153
+  offset: 0, 0
+  index: -1
+pet2_bai
+  rotate: false
+  xy: 294, 192
+  size: 128, 154
+  orig: 128, 154
+  offset: 0, 0
+  index: -1

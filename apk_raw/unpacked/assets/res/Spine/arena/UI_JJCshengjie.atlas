@@ -1,0 +1,26 @@
+
+UI_JJCshengjie.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+sj_0001
+  rotate: false
+  xy: 2, 57
+  size: 364, 150
+  orig: 364, 150
+  offset: 0, 0
+  index: -1
+sj_0002
+  rotate: false
+  xy: 368, 77
+  size: 383, 130
+  orig: 383, 130
+  offset: 0, 0
+  index: -1
+sj_0003
+  rotate: false
+  xy: 2, 2
+  size: 49, 53
+  orig: 49, 53
+  offset: 0, 0
+  index: -1

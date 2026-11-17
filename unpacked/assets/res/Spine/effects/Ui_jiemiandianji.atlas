@@ -1,0 +1,76 @@
+
+Ui_jiemiandianji.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10001
+  rotate: false
+  xy: 2, 2
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/10002
+  rotate: false
+  xy: 304, 304
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 129, 2
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20001
+  rotate: false
+  xy: 304, 177
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20002
+  rotate: false
+  xy: 431, 304
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/20003
+  rotate: false
+  xy: 431, 177
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/30001
+  rotate: false
+  xy: 558, 304
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/30002
+  rotate: false
+  xy: 558, 177
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/30003
+  rotate: false
+  xy: 685, 304
+  size: 125, 125
+  orig: 125, 125
+  offset: 0, 0
+  index: -1
+texiao/40001
+  rotate: false
+  xy: 2, 129
+  size: 300, 300
+  orig: 300, 300
+  offset: 0, 0
+  index: -1

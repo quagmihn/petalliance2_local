@@ -1,0 +1,25 @@
+{
+"skeleton": { "hash": "WRpRxbxkJu3MXVdQr/+TN5FmdVM", "spine": "3.2.01", "width": 438, "height": 567, "images": "./images/" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "em29", "parent": "root", "length": 359.28, "rotation": 88.05, "x": 0.2, "y": 0.54 },
+	{ "name": "yukuai", "parent": "em29", "length": 84.83, "rotation": -97.61, "x": 421.33, "y": 28.44 }
+],
+"slots": [
+	{ "name": "em29", "bone": "em29", "attachment": "em29" },
+	{ "name": "yukuai", "bone": "yukuai", "attachment": "yukuai" }
+],
+"skins": {
+	"default": {
+		"em29": {
+			"em29": { "x": 284.36, "y": -36.5, "rotation": -88.05, "width": 438, "height": 567 }
+		},
+		"yukuai": {
+			"yukuai": { "x": 64.99, "y": -13.99, "rotation": 9.56, "width": 167, "height": 126 }
+		}
+	}
+},
+"animations": {
+	"animation": {}
+}
+}

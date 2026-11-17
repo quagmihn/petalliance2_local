@@ -1,0 +1,118 @@
+
+evolution_down.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+wind01
+  rotate: false
+  xy: 2, 206
+  size: 281, 82
+  orig: 281, 82
+  offset: 0, 0
+  index: -1
+wind02
+  rotate: false
+  xy: 568, 410
+  size: 277, 83
+  orig: 277, 83
+  offset: 0, 0
+  index: -1
+wind03
+  rotate: false
+  xy: 2, 122
+  size: 277, 82
+  orig: 277, 82
+  offset: 0, 0
+  index: -1
+wind04
+  rotate: false
+  xy: 554, 175
+  size: 191, 87
+  orig: 191, 87
+  offset: 0, 0
+  index: -1
+wind05
+  rotate: false
+  xy: 568, 325
+  size: 252, 83
+  orig: 252, 83
+  offset: 0, 0
+  index: -1
+wind06
+  rotate: false
+  xy: 285, 207
+  size: 267, 81
+  orig: 267, 81
+  offset: 0, 0
+  index: -1
+windscreen01a
+  rotate: false
+  xy: 568, 264
+  size: 199, 59
+  orig: 199, 59
+  offset: 0, 0
+  index: -1
+windscreen02a
+  rotate: false
+  xy: 2, 2
+  size: 206, 58
+  orig: 206, 58
+  offset: 0, 0
+  index: -1
+windscreen03a
+  rotate: false
+  xy: 650, 111
+  size: 88, 62
+  orig: 88, 62
+  offset: 0, 0
+  index: -1
+windscreen03b
+  rotate: false
+  xy: 553, 112
+  size: 95, 61
+  orig: 95, 61
+  offset: 0, 0
+  index: -1
+windscreen04a
+  rotate: true
+  xy: 979, 474
+  size: 19, 43
+  orig: 19, 43
+  offset: 0, 0
+  index: -1
+windscreen04b
+  rotate: false
+  xy: 285, 140
+  size: 187, 65
+  orig: 187, 65
+  offset: 0, 0
+  index: -1
+windscreen05b
+  rotate: false
+  xy: 2, 62
+  size: 245, 58
+  orig: 245, 58
+  offset: 0, 0
+  index: -1
+windscreen06a
+  rotate: false
+  xy: 474, 146
+  size: 77, 59
+  orig: 77, 59
+  offset: 0, 0
+  index: -1
+windscreen06b
+  rotate: false
+  xy: 847, 429
+  size: 130, 64
+  orig: 130, 64
+  offset: 0, 0
+  index: -1
+windscreenbase
+  rotate: false
+  xy: 2, 290
+  size: 564, 203
+  orig: 564, 203
+  offset: 0, 0
+  index: -1

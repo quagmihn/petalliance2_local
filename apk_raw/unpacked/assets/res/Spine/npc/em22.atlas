@@ -1,0 +1,20 @@
+
+em22.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em22
+  rotate: true
+  xy: 2, 94
+  size: 398, 561
+  orig: 398, 561
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 116, 90
+  orig: 116, 90
+  offset: 0, 0
+  index: -1

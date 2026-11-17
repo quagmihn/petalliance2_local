@@ -1,0 +1,41 @@
+
+UI_Darkgate.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+DarkGate01
+  rotate: true
+  xy: 2, 2
+  size: 224, 259
+  orig: 224, 259
+  offset: 0, 0
+  index: -1
+base01
+  rotate: true
+  xy: 566, 163
+  size: 63, 117
+  orig: 63, 117
+  offset: 0, 0
+  index: -1
+glow01
+  rotate: false
+  xy: 263, 31
+  size: 195, 195
+  orig: 195, 195
+  offset: 0, 0
+  index: -1
+rune01
+  rotate: false
+  xy: 460, 124
+  size: 104, 102
+  orig: 104, 102
+  offset: 0, 0
+  index: -1
+vortex01
+  rotate: false
+  xy: 460, 33
+  size: 91, 89
+  orig: 91, 89
+  offset: 0, 0
+  index: -1

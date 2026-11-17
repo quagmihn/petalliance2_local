@@ -1,0 +1,104 @@
+
+057b.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+images/diying
+  rotate: false
+  xy: 786, 144
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/images/youchi
+  rotate: false
+  xy: 226, 109
+  size: 221, 143
+  orig: 221, 143
+  offset: 0, 0
+  index: -1
+images/images/zuochi
+  rotate: false
+  xy: 449, 149
+  size: 191, 103
+  orig: 191, 103
+  offset: 0, 0
+  index: -1
+images/shenti
+  rotate: false
+  xy: 862, 154
+  size: 72, 98
+  orig: 72, 98
+  offset: 0, 0
+  index: -1
+images/tou
+  rotate: true
+  xy: 642, 132
+  size: 120, 142
+  orig: 120, 142
+  offset: 0, 0
+  index: -1
+images/weiba
+  rotate: true
+  xy: 936, 140
+  size: 112, 54
+  orig: 112, 54
+  offset: 0, 0
+  index: -1
+images/youchi
+  rotate: false
+  xy: 2, 108
+  size: 222, 144
+  orig: 222, 144
+  offset: 0, 0
+  index: -1
+images/youer
+  rotate: false
+  xy: 786, 154
+  size: 74, 98
+  orig: 74, 98
+  offset: 0, 0
+  index: -1
+images/youjiao
+  rotate: false
+  xy: 992, 208
+  size: 30, 44
+  orig: 30, 44
+  offset: 0, 0
+  index: -1
+images/youtui
+  rotate: false
+  xy: 530, 104
+  size: 34, 43
+  orig: 34, 43
+  offset: 0, 0
+  index: -1
+images/zuochi
+  rotate: false
+  xy: 2, 2
+  size: 192, 104
+  orig: 192, 104
+  offset: 0, 0
+  index: -1
+images/zuoer
+  rotate: true
+  xy: 449, 79
+  size: 68, 79
+  orig: 68, 79
+  offset: 0, 0
+  index: -1
+images/zuojiao
+  rotate: false
+  xy: 992, 179
+  size: 26, 27
+  orig: 26, 27
+  offset: 0, 0
+  index: -1
+images/zuotui
+  rotate: false
+  xy: 566, 110
+  size: 34, 37
+  orig: 34, 37
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,55 @@
+
+5.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+light
+  rotate: false
+  xy: 854, 294
+  size: 77, 210
+  orig: 77, 210
+  offset: 0, 0
+  index: -1
+ring01
+  rotate: false
+  xy: 574, 6
+  size: 254, 254
+  orig: 254, 254
+  offset: 0, 0
+  index: -1
+ring02
+  rotate: false
+  xy: 2, 199
+  size: 305, 305
+  orig: 305, 305
+  offset: 0, 0
+  index: -1
+ring03
+  rotate: false
+  xy: 2, 2
+  size: 194, 195
+  orig: 194, 195
+  offset: 0, 0
+  index: -1
+shock
+  rotate: true
+  xy: 574, 262
+  size: 242, 278
+  orig: 242, 278
+  offset: 0, 0
+  index: -1
+star
+  rotate: false
+  xy: 309, 242
+  size: 263, 262
+  orig: 263, 262
+  offset: 0, 0
+  index: -1
+tornado
+  rotate: false
+  xy: 198, 24
+  size: 169, 173
+  orig: 169, 173
+  offset: 0, 0
+  index: -1

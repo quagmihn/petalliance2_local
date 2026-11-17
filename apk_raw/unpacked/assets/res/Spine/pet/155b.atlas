@@ -1,0 +1,69 @@
+
+155b.png
+size: 1024,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+dan1
+  rotate: false
+  xy: 132, 29
+  size: 131, 95
+  orig: 131, 95
+  offset: 0, 0
+  index: -1
+dan2
+  rotate: false
+  xy: 398, 61
+  size: 128, 63
+  orig: 128, 63
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 2, 2
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/dan1
+  rotate: false
+  xy: 265, 29
+  size: 131, 95
+  orig: 131, 95
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 2, 12
+  size: 112, 128
+  orig: 112, 128
+  offset: 0, 0
+  index: -1
+wei1
+  rotate: true
+  xy: 584, 85
+  size: 39, 40
+  orig: 39, 40
+  offset: 0, 0
+  index: -1
+weiba
+  rotate: false
+  xy: 528, 92
+  size: 54, 32
+  orig: 54, 32
+  offset: 0, 0
+  index: -1
+youer
+  rotate: false
+  xy: 664, 91
+  size: 34, 33
+  orig: 34, 33
+  offset: 0, 0
+  index: -1
+zuoer
+  rotate: false
+  xy: 626, 90
+  size: 36, 34
+  orig: 36, 34
+  offset: 0, 0
+  index: -1

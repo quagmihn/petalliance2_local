@@ -1,0 +1,20 @@
+
+em34.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em34
+  rotate: false
+  xy: 2, 112
+  size: 542, 568
+  orig: 542, 568
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 103, 108
+  orig: 103, 108
+  offset: 0, 0
+  index: -1

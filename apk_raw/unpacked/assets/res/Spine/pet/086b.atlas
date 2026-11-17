@@ -1,0 +1,83 @@
+
+086b.png
+size: 512,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+boshi
+  rotate: false
+  xy: 178, 52
+  size: 59, 32
+  orig: 59, 32
+  offset: 0, 0
+  index: -1
+bq_biyan
+  rotate: false
+  xy: 239, 61
+  size: 21, 23
+  orig: 21, 23
+  offset: 0, 0
+  index: -1
+bq_nu
+  rotate: false
+  xy: 328, 221
+  size: 32, 29
+  orig: 32, 29
+  offset: 0, 0
+  index: -1
+bq_shoushang
+  rotate: false
+  xy: 178, 14
+  size: 38, 36
+  orig: 38, 36
+  offset: 0, 0
+  index: -1
+diying
+  rotate: true
+  xy: 262, 124
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+han
+  rotate: true
+  xy: 362, 224
+  size: 26, 34
+  orig: 26, 34
+  offset: 0, 0
+  index: -1
+images/boshi
+  rotate: false
+  xy: 262, 218
+  size: 64, 32
+  orig: 64, 32
+  offset: 0, 0
+  index: -1
+images/shenti1
+  rotate: false
+  xy: 132, 86
+  size: 128, 164
+  orig: 128, 164
+  offset: 0, 0
+  index: -1
+nu
+  rotate: false
+  xy: 262, 178
+  size: 39, 38
+  orig: 39, 38
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 2, 86
+  size: 128, 164
+  orig: 128, 164
+  offset: 0, 0
+  index: -1
+shenti1
+  rotate: false
+  xy: 2, 2
+  size: 174, 82
+  orig: 174, 82
+  offset: 0, 0
+  index: -1

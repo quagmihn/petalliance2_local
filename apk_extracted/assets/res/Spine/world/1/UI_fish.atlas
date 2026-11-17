@@ -1,0 +1,20 @@
+
+UI_fish.png
+size: 128,16
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+fish01
+  rotate: false
+  xy: 35, 2
+  size: 29, 10
+  orig: 29, 10
+  offset: 0, 0
+  index: -1
+fish02
+  rotate: false
+  xy: 2, 2
+  size: 31, 10
+  orig: 31, 10
+  offset: 0, 0
+  index: -1

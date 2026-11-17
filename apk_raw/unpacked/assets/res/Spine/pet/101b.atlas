@@ -1,0 +1,146 @@
+
+101b.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bozi
+  rotate: false
+  xy: 250, 34
+  size: 131, 76
+  orig: 131, 76
+  offset: 0, 0
+  index: -1
+bozi2
+  rotate: true
+  xy: 117, 7
+  size: 24, 38
+  orig: 24, 38
+  offset: 0, 0
+  index: -1
+bozi3
+  rotate: false
+  xy: 584, 2
+  size: 34, 36
+  orig: 34, 36
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 824, 123
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+houbei
+  rotate: true
+  xy: 516, 8
+  size: 102, 66
+  orig: 102, 66
+  offset: 0, 0
+  index: -1
+images/bozi
+  rotate: false
+  xy: 383, 34
+  size: 131, 76
+  orig: 131, 76
+  offset: 0, 0
+  index: -1
+images/bozi2
+  rotate: true
+  xy: 656, 15
+  size: 24, 38
+  orig: 24, 38
+  offset: 0, 0
+  index: -1
+images/bozi3
+  rotate: false
+  xy: 620, 2
+  size: 34, 36
+  orig: 34, 36
+  offset: 0, 0
+  index: -1
+images/jin
+  rotate: false
+  xy: 117, 33
+  size: 131, 77
+  orig: 131, 77
+  offset: 0, 0
+  index: -1
+images/pifeng
+  rotate: false
+  xy: 308, 112
+  size: 304, 142
+  orig: 304, 142
+  offset: 0, 0
+  index: -1
+images/tou
+  rotate: true
+  xy: 888, 159
+  size: 95, 134
+  orig: 95, 134
+  offset: 0, 0
+  index: -1
+jiao1
+  rotate: true
+  xy: 713, 49
+  size: 59, 48
+  orig: 59, 48
+  offset: 0, 0
+  index: -1
+jiao2
+  rotate: false
+  xy: 770, 90
+  size: 52, 41
+  orig: 52, 41
+  offset: 0, 0
+  index: -1
+pifeng
+  rotate: false
+  xy: 2, 112
+  size: 304, 142
+  orig: 304, 142
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 2, 3
+  size: 107, 113
+  orig: 107, 113
+  offset: 0, 0
+  index: -1
+shou
+  rotate: true
+  xy: 614, 110
+  size: 144, 154
+  orig: 144, 154
+  offset: 0, 0
+  index: -1
+shou2
+  rotate: false
+  xy: 770, 133
+  size: 116, 121
+  orig: 116, 121
+  offset: 0, 0
+  index: -1
+tou
+  rotate: true
+  xy: 888, 67
+  size: 90, 134
+  orig: 90, 134
+  offset: 0, 0
+  index: -1
+tui1
+  rotate: false
+  xy: 656, 41
+  size: 55, 67
+  orig: 55, 67
+  offset: 0, 0
+  index: -1
+tui2
+  rotate: false
+  xy: 584, 40
+  size: 70, 68
+  orig: 70, 68
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,62 @@
+
+damingxiong.png
+size: 256,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+diying
+  rotate: false
+  xy: 2, 38
+  size: 103, 85
+  orig: 103, 85
+  offset: 0, 0
+  index: -1
+fuhao
+  rotate: false
+  xy: 107, 38
+  size: 25, 21
+  orig: 25, 21
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 107, 61
+  size: 78, 62
+  orig: 78, 62
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 2
+  size: 48, 34
+  orig: 48, 34
+  offset: 0, 0
+  index: -1
+youjiao
+  rotate: false
+  xy: 220, 89
+  size: 34, 34
+  orig: 34, 34
+  offset: 0, 0
+  index: -1
+youshou
+  rotate: false
+  xy: 187, 80
+  size: 31, 43
+  orig: 31, 43
+  offset: 0, 0
+  index: -1
+zuojiao
+  rotate: false
+  xy: 220, 53
+  size: 34, 34
+  orig: 34, 34
+  offset: 0, 0
+  index: -1
+zuoshou
+  rotate: false
+  xy: 52, 2
+  size: 26, 34
+  orig: 26, 34
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,41 @@
+
+70.png
+size: 512,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+eff01
+  rotate: false
+  xy: 2, 48
+  size: 199, 199
+  orig: 199, 199
+  offset: 0, 0
+  index: -1
+eff02
+  rotate: false
+  xy: 203, 159
+  size: 89, 88
+  orig: 89, 88
+  offset: 0, 0
+  index: -1
+eff03
+  rotate: false
+  xy: 203, 69
+  size: 89, 88
+  orig: 89, 88
+  offset: 0, 0
+  index: -1
+eff04
+  rotate: false
+  xy: 294, 192
+  size: 55, 55
+  orig: 55, 55
+  offset: 0, 0
+  index: -1
+eff05
+  rotate: true
+  xy: 2, 2
+  size: 44, 59
+  orig: 44, 59
+  offset: 0, 0
+  index: -1

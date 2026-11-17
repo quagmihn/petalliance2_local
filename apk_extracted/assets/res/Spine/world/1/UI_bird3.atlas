@@ -1,0 +1,27 @@
+
+UI_bird3.png
+size: 256,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+niao_0001
+  rotate: true
+  xy: 79, 42
+  size: 63, 112
+  orig: 63, 112
+  offset: 0, 0
+  index: -1
+niao_0002
+  rotate: false
+  xy: 2, 2
+  size: 75, 103
+  orig: 75, 103
+  offset: 0, 0
+  index: -1
+niao_0003
+  rotate: true
+  xy: 79, 10
+  size: 30, 99
+  orig: 30, 99
+  offset: 0, 0
+  index: -1

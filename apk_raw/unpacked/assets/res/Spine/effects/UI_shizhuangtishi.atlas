@@ -1,0 +1,26 @@
+
+UI_shizhuangtishi.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+a0001
+  rotate: false
+  xy: 2, 2
+  size: 89, 90
+  orig: 89, 90
+  offset: 0, 0
+  index: -1
+a0002
+  rotate: false
+  xy: 2, 94
+  size: 125, 142
+  orig: 125, 142
+  offset: 0, 0
+  index: -1
+a0004
+  rotate: false
+  xy: 129, 148
+  size: 88, 88
+  orig: 88, 88
+  offset: 0, 0
+  index: -1

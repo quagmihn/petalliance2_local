@@ -1,0 +1,20 @@
+
+em35.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em35
+  rotate: false
+  xy: 2, 2
+  size: 540, 506
+  orig: 540, 506
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 544, 425
+  size: 90, 83
+  orig: 90, 83
+  offset: 0, 0
+  index: -1

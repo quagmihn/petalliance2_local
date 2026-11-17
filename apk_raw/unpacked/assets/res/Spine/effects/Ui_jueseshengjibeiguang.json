@@ -1,0 +1,37 @@
+{
+"skeleton": { "hash": "B2DluluEVUWMLGIelUhazmern5M", "spine": "3.1.02", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "beiguang", "parent": "root" }
+],
+"slots": [
+	{ "name": "texiao/20001", "bone": "beiguang" }
+],
+"skins": {
+	"default": {
+		"texiao/20001": {
+			"texiao/20001": { "width": 600, "height": 600 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/20001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/20001" }
+				]
+			}
+		},
+		"bones": {
+			"beiguang": {
+				"rotate": [
+					{ "time": 0, "angle": 0 },
+					{ "time": 6, "angle": 180 },
+					{ "time": 12, "angle": 360 }
+				]
+			}
+		}
+	}
+}
+}

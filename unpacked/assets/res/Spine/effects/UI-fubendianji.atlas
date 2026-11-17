@@ -1,0 +1,41 @@
+
+UI-fubendianji.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/3
+  rotate: false
+  xy: 2, 2
+  size: 130, 130
+  orig: 130, 130
+  offset: 0, 0
+  index: -1
+texiao/4
+  rotate: false
+  xy: 134, 2
+  size: 130, 130
+  orig: 130, 130
+  offset: 0, 0
+  index: -1
+texiao/5
+  rotate: false
+  xy: 266, 2
+  size: 130, 130
+  orig: 130, 130
+  offset: 0, 0
+  index: -1
+texiao/6
+  rotate: false
+  xy: 398, 2
+  size: 130, 130
+  orig: 130, 130
+  offset: 0, 0
+  index: -1
+texiao/7
+  rotate: false
+  xy: 530, 2
+  size: 130, 130
+  orig: 130, 130
+  offset: 0, 0
+  index: -1

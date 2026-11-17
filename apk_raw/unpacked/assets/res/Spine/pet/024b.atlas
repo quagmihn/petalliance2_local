@@ -1,0 +1,83 @@
+
+024b.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+diying
+  rotate: false
+  xy: 125, 21
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/qi
+  rotate: false
+  xy: 125, 31
+  size: 55, 42
+  orig: 55, 42
+  offset: 0, 0
+  index: -1
+images/weiba4
+  rotate: false
+  xy: 430, 75
+  size: 43, 42
+  orig: 43, 42
+  offset: 0, 0
+  index: -1
+images/yuqi
+  rotate: true
+  xy: 281, 76
+  size: 41, 49
+  orig: 41, 49
+  offset: 0, 0
+  index: -1
+qi
+  rotate: false
+  xy: 125, 75
+  size: 55, 42
+  orig: 55, 42
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 2, 2
+  size: 121, 115
+  orig: 121, 115
+  offset: 0, 0
+  index: -1
+weiba1
+  rotate: false
+  xy: 182, 72
+  size: 46, 45
+  orig: 46, 45
+  offset: 0, 0
+  index: -1
+weiba2
+  rotate: true
+  xy: 332, 82
+  size: 35, 50
+  orig: 35, 50
+  offset: 0, 0
+  index: -1
+weiba3
+  rotate: false
+  xy: 384, 83
+  size: 44, 34
+  orig: 44, 34
+  offset: 0, 0
+  index: -1
+weiba4
+  rotate: false
+  xy: 182, 28
+  size: 43, 42
+  orig: 43, 42
+  offset: 0, 0
+  index: -1
+yuqi
+  rotate: true
+  xy: 230, 76
+  size: 41, 49
+  orig: 41, 49
+  offset: 0, 0
+  index: -1

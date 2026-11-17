@@ -1,0 +1,279 @@
+
+044b.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+diying
+  rotate: false
+  xy: 2, 2
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/youch3
+  rotate: false
+  xy: 323, 391
+  size: 122, 113
+  orig: 122, 113
+  offset: 0, 0
+  index: -1
+images/youchi2
+  rotate: false
+  xy: 2, 202
+  size: 183, 150
+  orig: 183, 150
+  offset: 0, 0
+  index: -1
+images/youchishi2
+  rotate: false
+  xy: 138, 105
+  size: 81, 94
+  orig: 81, 94
+  offset: 0, 0
+  index: -1
+images/youshou2
+  rotate: false
+  xy: 602, 359
+  size: 49, 38
+  orig: 49, 38
+  offset: 0, 0
+  index: -1
+images/youtui2
+  rotate: false
+  xy: 383, 189
+  size: 38, 62
+  orig: 38, 62
+  offset: 0, 0
+  index: -1
+images/zuochi2
+  rotate: false
+  xy: 2, 74
+  size: 134, 126
+  orig: 134, 126
+  offset: 0, 0
+  index: -1
+images/zuochi3
+  rotate: false
+  xy: 558, 399
+  size: 109, 105
+  orig: 109, 105
+  offset: 0, 0
+  index: -1
+images/zuochishi2
+  rotate: true
+  xy: 187, 201
+  size: 60, 110
+  orig: 60, 110
+  offset: 0, 0
+  index: -1
+images/zuoshou1
+  rotate: false
+  xy: 506, 345
+  size: 43, 52
+  orig: 43, 52
+  offset: 0, 0
+  index: -1
+images/zuotui2
+  rotate: true
+  xy: 461, 307
+  size: 36, 48
+  orig: 36, 48
+  offset: 0, 0
+  index: -1
+jmao
+  rotate: false
+  xy: 297, 112
+  size: 80, 63
+  orig: 80, 63
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 669, 411
+  size: 114, 93
+  orig: 114, 93
+  offset: 0, 0
+  index: -1
+tou
+  rotate: true
+  xy: 311, 253
+  size: 68, 91
+  orig: 68, 91
+  offset: 0, 0
+  index: -1
+wei1
+  rotate: false
+  xy: 114, 19
+  size: 63, 51
+  orig: 63, 51
+  offset: 0, 0
+  index: -1
+wei2
+  rotate: true
+  xy: 138, 72
+  size: 31, 69
+  orig: 31, 69
+  offset: 0, 0
+  index: -1
+youchi01
+  rotate: true
+  xy: 221, 113
+  size: 86, 74
+  orig: 86, 74
+  offset: 0, 0
+  index: -1
+youchi02
+  rotate: false
+  xy: 187, 263
+  size: 122, 113
+  orig: 122, 113
+  offset: 0, 0
+  index: -1
+youchi1
+  rotate: true
+  xy: 882, 423
+  size: 81, 94
+  orig: 81, 94
+  offset: 0, 0
+  index: -1
+youchi2
+  rotate: false
+  xy: 511, 303
+  size: 40, 40
+  orig: 40, 40
+  offset: 0, 0
+  index: -1
+youchi3
+  rotate: false
+  xy: 2, 354
+  size: 183, 150
+  orig: 183, 150
+  offset: 0, 0
+  index: -1
+youchi4
+  rotate: true
+  xy: 785, 417
+  size: 87, 95
+  orig: 87, 95
+  offset: 0, 0
+  index: -1
+youshou1
+  rotate: false
+  xy: 179, 16
+  size: 30, 54
+  orig: 30, 54
+  offset: 0, 0
+  index: -1
+youshou2
+  rotate: false
+  xy: 551, 359
+  size: 49, 38
+  orig: 49, 38
+  offset: 0, 0
+  index: -1
+youshou3
+  rotate: false
+  xy: 553, 319
+  size: 40, 38
+  orig: 40, 38
+  offset: 0, 0
+  index: -1
+youtui1
+  rotate: false
+  xy: 978, 406
+  size: 43, 56
+  orig: 43, 56
+  offset: 0, 0
+  index: -1
+youtui2
+  rotate: false
+  xy: 404, 259
+  size: 38, 62
+  orig: 38, 62
+  offset: 0, 0
+  index: -1
+zui1
+  rotate: false
+  xy: 423, 191
+  size: 17, 16
+  orig: 17, 16
+  offset: 0, 0
+  index: -1
+zui2
+  rotate: true
+  xy: 311, 364
+  size: 12, 10
+  orig: 12, 10
+  offset: 0, 0
+  index: -1
+zuochi1
+  rotate: true
+  xy: 299, 177
+  size: 74, 82
+  orig: 74, 82
+  offset: 0, 0
+  index: -1
+zuochi2
+  rotate: false
+  xy: 447, 399
+  size: 109, 105
+  orig: 109, 105
+  offset: 0, 0
+  index: -1
+zuochi3
+  rotate: false
+  xy: 187, 378
+  size: 134, 126
+  orig: 134, 126
+  offset: 0, 0
+  index: -1
+zuochi4
+  rotate: true
+  xy: 323, 323
+  size: 66, 103
+  orig: 66, 103
+  offset: 0, 0
+  index: -1
+zuochishi1
+  rotate: false
+  xy: 444, 259
+  size: 38, 46
+  orig: 38, 46
+  offset: 0, 0
+  index: -1
+zuochishi2
+  rotate: true
+  xy: 2, 12
+  size: 60, 110
+  orig: 60, 110
+  offset: 0, 0
+  index: -1
+zuoshou2
+  rotate: false
+  xy: 461, 345
+  size: 43, 52
+  orig: 43, 52
+  offset: 0, 0
+  index: -1
+zuoshou3
+  rotate: true
+  xy: 978, 464
+  size: 40, 44
+  orig: 40, 44
+  offset: 0, 0
+  index: -1
+zuotui1
+  rotate: false
+  xy: 428, 331
+  size: 31, 58
+  orig: 31, 58
+  offset: 0, 0
+  index: -1
+zuotui2
+  rotate: false
+  xy: 423, 209
+  size: 36, 48
+  orig: 36, 48
+  offset: 0, 0
+  index: -1

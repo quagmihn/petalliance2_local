@@ -1,0 +1,82 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>frames</key>
+		<dict>
+			<key>Map/TownMap/meterial/jingjichang.png</key>
+			<dict>
+				<key>frame</key>
+				<string>{{1,385},{371,332}}</string>
+				<key>offset</key>
+				<string>{0,0}</string>
+				<key>rotated</key>
+				<true />
+				<key>sourceSize</key>
+				<string>{371,332}</string>
+			</dict>
+			<key>Map/TownMap/meterial/paimaihang.png</key>
+			<dict>
+				<key>frame</key>
+				<string>{{1,1},{368,382}}</string>
+				<key>offset</key>
+				<string>{0,0}</string>
+				<key>rotated</key>
+				<false />
+				<key>sourceSize</key>
+				<string>{368,382}</string>
+			</dict>
+			<key>Map/TownMap/meterial/shenghuojineng.png</key>
+			<dict>
+				<key>frame</key>
+				<string>{{335,385},{330,341}}</string>
+				<key>offset</key>
+				<string>{0,0}</string>
+				<key>rotated</key>
+				<false />
+				<key>sourceSize</key>
+				<string>{330,341}</string>
+			</dict>
+			<key>Map/TownMap/meterial/gonghui.png</key>
+			<dict>
+				<key>frame</key>
+				<string>{{1,758},{349,250}}</string>
+				<key>offset</key>
+				<string>{0,0}</string>
+				<key>rotated</key>
+				<false />
+				<key>sourceSize</key>
+				<string>{349,250}</string>
+			</dict>
+			<key>Map/TownMap/meterial/jiheshi.png</key>
+			<dict>
+				<key>frame</key>
+				<string>{{352,728},{95,291}}</string>
+				<key>offset</key>
+				<string>{0,0}</string>
+				<key>rotated</key>
+				<false />
+				<key>sourceSize</key>
+				<string>{95,291}</string>
+			</dict>
+		</dict>
+		<key>metadata</key>
+		<dict>
+			<key>format</key>
+			<integer>2</integer>
+			<key>textureFileName</key>
+			<string>townplist2.png</string>
+			<key>realTextureFileName</key>
+			<string>townplist2.png</string>
+			<key>size</key>
+			<string>{1024,1024}</string>
+		</dict>
+		<key>texture</key>
+		<dict>
+			<key>width</key>
+			<integer>1024</integer>
+			<key>height</key>
+			<integer>1024</integer>
+		</dict>
+	</dict>
+</plist>

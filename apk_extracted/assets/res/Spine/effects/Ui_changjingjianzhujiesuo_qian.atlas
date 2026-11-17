@@ -1,0 +1,69 @@
+
+Ui_changjingjianzhujiesuo_qian.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10001
+  rotate: false
+  xy: 2, 234
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/10002
+  rotate: false
+  xy: 2, 2
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 154, 234
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/10004
+  rotate: false
+  xy: 154, 2
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/10005
+  rotate: false
+  xy: 306, 234
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/10006
+  rotate: false
+  xy: 306, 2
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/10007
+  rotate: false
+  xy: 458, 234
+  size: 150, 230
+  orig: 150, 230
+  offset: 0, 0
+  index: -1
+texiao/2
+  rotate: false
+  xy: 458, 22
+  size: 50, 210
+  orig: 50, 210
+  offset: 0, 0
+  index: -1
+texiao/3
+  rotate: false
+  xy: 610, 254
+  size: 50, 210
+  orig: 50, 210
+  offset: 0, 0
+  index: -1

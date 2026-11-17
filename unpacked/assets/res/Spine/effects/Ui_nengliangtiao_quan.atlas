@@ -1,0 +1,76 @@
+
+Ui_nengliangtiao_quan.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10001
+  rotate: false
+  xy: 2, 166
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1
+texiao/10002
+  rotate: false
+  xy: 2, 84
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 164, 166
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1
+texiao/10004
+  rotate: false
+  xy: 2, 2
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1
+texiao/10005
+  rotate: false
+  xy: 164, 84
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1
+texiao/10006
+  rotate: false
+  xy: 326, 166
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1
+texiao/10007
+  rotate: false
+  xy: 164, 2
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1
+texiao/10008
+  rotate: false
+  xy: 326, 84
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1
+texiao/10009
+  rotate: false
+  xy: 488, 166
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1
+texiao/10010
+  rotate: false
+  xy: 326, 2
+  size: 160, 80
+  orig: 160, 80
+  offset: 0, 0
+  index: -1

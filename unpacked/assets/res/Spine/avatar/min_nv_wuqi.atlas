@@ -1,0 +1,279 @@
+
+min_nv_wuqi.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+skins1/wuqi
+  rotate: true
+  xy: 70, 7
+  size: 32, 94
+  orig: 32, 94
+  offset: 0, 0
+  index: -1
+skins12/guaizhang
+  rotate: true
+  xy: 795, 191
+  size: 38, 75
+  orig: 38, 75
+  offset: 0, 0
+  index: -1
+skins14/wuqi
+  rotate: false
+  xy: 424, 239
+  size: 78, 98
+  orig: 78, 98
+  offset: 0, 0
+  index: -1
+skins2/zhangzi
+  rotate: false
+  xy: 75, 141
+  size: 99, 115
+  orig: 99, 115
+  offset: 0, 0
+  index: -1
+skins21/qiang
+  rotate: true
+  xy: 872, 177
+  size: 47, 74
+  orig: 47, 74
+  offset: 0, 0
+  index: -1
+skins25/mozhang
+  rotate: true
+  xy: 516, 387
+  size: 66, 125
+  orig: 66, 125
+  offset: 0, 0
+  index: -1
+skins27/wuqi
+  rotate: false
+  xy: 196, 261
+  size: 115, 88
+  orig: 115, 88
+  offset: 0, 0
+  index: -1
+skins3/fazhang
+  rotate: true
+  xy: 701, 368
+  size: 82, 95
+  orig: 82, 95
+  offset: 0, 0
+  index: -1
+skins33/fazhang
+  rotate: true
+  xy: 207, 351
+  size: 41, 134
+  orig: 41, 134
+  offset: 0, 0
+  index: -1
+skins34/wuqi
+  rotate: false
+  xy: 700, 293
+  size: 91, 73
+  orig: 91, 73
+  offset: 0, 0
+  index: -1
+skins35/qiang
+  rotate: false
+  xy: 970, 399
+  size: 52, 44
+  orig: 52, 44
+  offset: 0, 0
+  index: -1
+skins48/wuqi
+  rotate: true
+  xy: 824, 445
+  size: 56, 126
+  orig: 56, 126
+  offset: 0, 0
+  index: -1
+skins50/zhenguan
+  rotate: true
+  xy: 380, 394
+  size: 107, 134
+  orig: 107, 134
+  offset: 0, 0
+  index: -1
+skins57/huatong
+  rotate: false
+  xy: 2, 57
+  size: 71, 205
+  orig: 71, 205
+  offset: 0, 0
+  index: -1
+skins58/wuqi
+  rotate: true
+  xy: 516, 455
+  size: 46, 173
+  orig: 46, 173
+  offset: 0, 0
+  index: -1
+skins66/saoba
+  rotate: false
+  xy: 2, 264
+  size: 72, 237
+  orig: 72, 237
+  offset: 0, 0
+  index: -1
+skins72/wuqi
+  rotate: true
+  xy: 691, 452
+  size: 49, 131
+  orig: 49, 131
+  offset: 0, 0
+  index: -1
+skins73/wuqi
+  rotate: true
+  xy: 613, 192
+  size: 95, 92
+  orig: 95, 92
+  offset: 0, 0
+  index: -1
+skins74/wuqi
+  rotate: false
+  xy: 504, 279
+  size: 104, 106
+  orig: 104, 106
+  offset: 0, 0
+  index: -1
+skins75/wuqi
+  rotate: false
+  xy: 889, 357
+  size: 79, 86
+  orig: 79, 86
+  offset: 0, 0
+  index: -1
+skins76/bao
+  rotate: true
+  xy: 2, 2
+  size: 53, 66
+  orig: 53, 66
+  offset: 0, 0
+  index: -1
+skins77/hua
+  rotate: true
+  xy: 343, 339
+  size: 53, 112
+  orig: 53, 112
+  offset: 0, 0
+  index: -1
+skins78/hua
+  rotate: false
+  xy: 882, 226
+  size: 72, 68
+  orig: 72, 68
+  offset: 0, 0
+  index: -1
+skins79/shanzi
+  rotate: false
+  xy: 793, 298
+  size: 90, 59
+  orig: 90, 59
+  offset: 0, 0
+  index: -1
+wuqi/bagnbangtang
+  rotate: true
+  xy: 798, 359
+  size: 84, 89
+  orig: 84, 89
+  offset: 0, 0
+  index: -1
+wuqi/bagnqiugun
+  rotate: false
+  xy: 707, 200
+  size: 86, 91
+  orig: 86, 91
+  offset: 0, 0
+  index: -1
+wuqi/baozhi
+  rotate: false
+  xy: 237, 195
+  size: 68, 64
+  orig: 68, 64
+  offset: 0, 0
+  index: -1
+wuqi/chuizi
+  rotate: true
+  xy: 504, 191
+  size: 86, 107
+  orig: 86, 107
+  offset: 0, 0
+  index: -1
+wuqi/heibao
+  rotate: true
+  xy: 952, 445
+  size: 56, 57
+  orig: 56, 57
+  offset: 0, 0
+  index: -1
+wuqi/heimaozhua
+  rotate: true
+  xy: 75, 41
+  size: 98, 116
+  orig: 98, 116
+  offset: 0, 0
+  index: -1
+wuqi/jian
+  rotate: false
+  xy: 76, 351
+  size: 129, 150
+  orig: 129, 150
+  offset: 0, 0
+  index: -1
+wuqi/naijishan
+  rotate: false
+  xy: 313, 241
+  size: 109, 96
+  orig: 109, 96
+  offset: 0, 0
+  index: -1
+wuqi/qian
+  rotate: false
+  xy: 885, 296
+  size: 74, 59
+  orig: 74, 59
+  offset: 0, 0
+  index: -1
+wuqi/qiang
+  rotate: false
+  xy: 795, 231
+  size: 85, 65
+  orig: 85, 65
+  offset: 0, 0
+  index: -1
+wuqi/quanquanbang
+  rotate: true
+  xy: 76, 258
+  size: 91, 118
+  orig: 91, 118
+  offset: 0, 0
+  index: -1
+wuqi/tibao
+  rotate: false
+  xy: 643, 387
+  size: 56, 63
+  orig: 56, 63
+  offset: 0, 0
+  index: -1
+wuqi/yaoshi
+  rotate: false
+  xy: 610, 289
+  size: 88, 96
+  orig: 88, 96
+  offset: 0, 0
+  index: -1
+wuqi/ziliaoban
+  rotate: true
+  xy: 176, 183
+  size: 73, 59
+  orig: 73, 59
+  offset: 0, 0
+  index: -1
+wuqi/zuanshibang
+  rotate: true
+  xy: 207, 394
+  size: 107, 171
+  orig: 107, 171
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,83 @@
+
+179b.png
+size: 512,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+1/erduo1
+  rotate: false
+  xy: 2, 12
+  size: 80, 94
+  orig: 80, 94
+  offset: 0, 0
+  index: -1
+bizi
+  rotate: true
+  xy: 219, 171
+  size: 67, 102
+  orig: 67, 102
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 2, 2
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+erduo1
+  rotate: false
+  xy: 137, 148
+  size: 80, 90
+  orig: 80, 90
+  offset: 0, 0
+  index: -1
+erduo2
+  rotate: true
+  xy: 137, 91
+  size: 55, 70
+  orig: 55, 70
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 2, 108
+  size: 133, 130
+  orig: 133, 130
+  offset: 0, 0
+  index: -1
+tui1
+  rotate: false
+  xy: 84, 27
+  size: 48, 79
+  orig: 48, 79
+  offset: 0, 0
+  index: -1
+tui2
+  rotate: true
+  xy: 405, 189
+  size: 49, 77
+  orig: 49, 77
+  offset: 0, 0
+  index: -1
+tui3
+  rotate: true
+  xy: 323, 182
+  size: 56, 80
+  orig: 56, 80
+  offset: 0, 0
+  index: -1
+tui4
+  rotate: false
+  xy: 134, 46
+  size: 47, 43
+  orig: 47, 43
+  offset: 0, 0
+  index: -1
+weiba
+  rotate: false
+  xy: 219, 152
+  size: 21, 17
+  orig: 21, 17
+  offset: 0, 0
+  index: -1

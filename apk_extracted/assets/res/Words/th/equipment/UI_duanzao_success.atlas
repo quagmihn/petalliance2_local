@@ -1,0 +1,292 @@
+
+UI_duanzao_success.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Harmer0001
+  rotate: true
+  xy: 2, 26
+  size: 131, 205
+  orig: 131, 205
+  offset: 0, 0
+  index: -1
+Harmer0002
+  rotate: false
+  xy: 422, 170
+  size: 167, 182
+  orig: 167, 182
+  offset: 0, 0
+  index: -1
+Harmer0003
+  rotate: true
+  xy: 433, 2
+  size: 166, 133
+  orig: 166, 133
+  offset: 0, 0
+  index: -1
+chenggong
+  rotate: true
+  xy: 863, 147
+  size: 230, 98
+  orig: 230, 98
+  offset: 0, 0
+  index: -1
+dalizi0001
+  rotate: false
+  xy: 2, 854
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0002
+  rotate: false
+  xy: 2, 692
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0003
+  rotate: false
+  xy: 304, 854
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0004
+  rotate: false
+  xy: 2, 530
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0005
+  rotate: false
+  xy: 304, 692
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0006
+  rotate: false
+  xy: 606, 854
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0007
+  rotate: false
+  xy: 2, 368
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dianhuohua0001
+  rotate: true
+  xy: 908, 794
+  size: 220, 100
+  orig: 220, 100
+  offset: 0, 0
+  index: -1
+dianhuohua0002
+  rotate: false
+  xy: 211, 62
+  size: 220, 100
+  orig: 220, 100
+  offset: 0, 0
+  index: -1
+dianhuohua0003
+  rotate: false
+  xy: 568, 20
+  size: 220, 100
+  orig: 220, 100
+  offset: 0, 0
+  index: -1
+dianhuohua0004
+  rotate: false
+  xy: 790, 20
+  size: 220, 100
+  orig: 220, 100
+  offset: 0, 0
+  index: -1
+glow
+  rotate: false
+  xy: 2, 159
+  size: 207, 207
+  orig: 207, 207
+  offset: 0, 0
+  index: -1
+glow2
+  rotate: true
+  xy: 211, 164
+  size: 188, 209
+  orig: 188, 209
+  offset: 0, 0
+  index: -1
+huohua
+  rotate: true
+  xy: 878, 571
+  size: 221, 129
+  orig: 221, 129
+  offset: 0, 0
+  index: -1
+lizi0001
+  rotate: false
+  xy: 606, 732
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0002
+  rotate: false
+  xy: 304, 354
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0003
+  rotate: false
+  xy: 606, 610
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0004
+  rotate: false
+  xy: 549, 488
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0005
+  rotate: false
+  xy: 576, 366
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0006
+  rotate: false
+  xy: 591, 244
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0007
+  rotate: false
+  xy: 591, 122
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizishu0001
+  rotate: false
+  xy: 848, 379
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+tiezhen
+  rotate: false
+  xy: 304, 476
+  size: 243, 214
+  orig: 243, 214
+  offset: 0, 0
+  index: -1
+
+UI_duanzao_success2.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+lizishu0002
+  rotate: true
+  xy: 2, 296
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0003
+  rotate: true
+  xy: 194, 296
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0004
+  rotate: true
+  xy: 386, 296
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0005
+  rotate: true
+  xy: 578, 296
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0006
+  rotate: true
+  xy: 770, 296
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0007
+  rotate: true
+  xy: 2, 149
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0008
+  rotate: true
+  xy: 194, 149
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0009
+  rotate: true
+  xy: 386, 149
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0010
+  rotate: true
+  xy: 578, 149
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0011
+  rotate: true
+  xy: 770, 149
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0012
+  rotate: true
+  xy: 2, 2
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0013
+  rotate: true
+  xy: 194, 2
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1
+lizishu0014
+  rotate: true
+  xy: 386, 2
+  size: 145, 190
+  orig: 145, 190
+  offset: 0, 0
+  index: -1

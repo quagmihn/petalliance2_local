@@ -1,0 +1,20 @@
+
+em4.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em4
+  rotate: false
+  xy: 2, 2
+  size: 400, 505
+  orig: 400, 505
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 404, 398
+  size: 119, 109
+  orig: 119, 109
+  offset: 0, 0
+  index: -1

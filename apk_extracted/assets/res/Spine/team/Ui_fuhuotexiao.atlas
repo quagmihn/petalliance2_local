@@ -1,0 +1,41 @@
+
+Ui_fuhuotexiao.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10002
+  rotate: false
+  xy: 204, 182
+  size: 320, 320
+  orig: 320, 320
+  offset: 0, 0
+  index: -1
+texiao/2
+  rotate: false
+  xy: 2, 2
+  size: 200, 500
+  orig: 200, 500
+  offset: 0, 0
+  index: -1
+texiao/20001
+  rotate: false
+  xy: 526, 302
+  size: 320, 200
+  orig: 320, 200
+  offset: 0, 0
+  index: -1
+texiao/30001
+  rotate: false
+  xy: 526, 265
+  size: 90, 35
+  orig: 90, 35
+  offset: 0, 0
+  index: -1
+texiao/fx_ray_141
+  rotate: false
+  xy: 204, 52
+  size: 128, 128
+  orig: 128, 128
+  offset: 0, 0
+  index: -1

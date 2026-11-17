@@ -1,0 +1,20 @@
+
+em8.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em8
+  rotate: true
+  xy: 2, 2
+  size: 431, 572
+  orig: 431, 572
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 576, 322
+  size: 128, 111
+  orig: 128, 111
+  offset: 0, 0
+  index: -1

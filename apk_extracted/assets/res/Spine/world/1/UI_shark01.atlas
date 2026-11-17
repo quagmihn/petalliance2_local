@@ -1,0 +1,83 @@
+
+UI_shark01.png
+size: 1024,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+swim_0001
+  rotate: true
+  xy: 2, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0002
+  rotate: true
+  xy: 74, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0003
+  rotate: true
+  xy: 146, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0004
+  rotate: true
+  xy: 218, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0005
+  rotate: true
+  xy: 290, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0006
+  rotate: true
+  xy: 362, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0007
+  rotate: true
+  xy: 434, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0008
+  rotate: true
+  xy: 506, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0009
+  rotate: true
+  xy: 578, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0010
+  rotate: true
+  xy: 650, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1
+swim_0011
+  rotate: true
+  xy: 722, 2
+  size: 110, 70
+  orig: 110, 70
+  offset: 0, 0
+  index: -1

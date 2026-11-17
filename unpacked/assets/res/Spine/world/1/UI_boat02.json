@@ -1,0 +1,75 @@
+{
+"skeleton": { "hash": "N1Chxj9NiJmfs5IXjP2ef3WbvGU", "spine": "3.2.01", "width": 121.46, "height": 128.6, "images": "./../Pictures/boat/" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "boat", "parent": "root", "y": 4 },
+	{ "name": "wave", "parent": "root", "x": -3.28, "scaleX": 1.2, "scaleY": 1.2 }
+],
+"slots": [
+	{ "name": "wave_0001", "bone": "wave", "attachment": "wave_0001" },
+	{ "name": "xc", "bone": "boat", "attachment": "lxxc" }
+],
+"skins": {
+	"default": {
+		"wave_0001": {
+			"wave_0001": { "width": 100, "height": 47 },
+			"wave_0002": { "width": 104, "height": 48 },
+			"wave_0003": { "width": 105, "height": 48 },
+			"wave_0004": { "width": 98, "height": 45 }
+		},
+		"xc": {
+			"lxxc": { "x": -1.32, "y": 35.4, "width": 119, "height": 122 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"wave_0001": {
+				"attachment": [
+					{ "time": 0, "name": "wave_0001" },
+					{ "time": 0.1, "name": "wave_0002" },
+					{ "time": 0.2, "name": "wave_0003" },
+					{ "time": 0.3, "name": "wave_0004" },
+					{ "time": 0.4, "name": "wave_0001" },
+					{ "time": 0.5, "name": "wave_0002" },
+					{ "time": 0.6, "name": "wave_0003" },
+					{ "time": 0.7, "name": "wave_0004" },
+					{ "time": 0.8, "name": "wave_0001" },
+					{ "time": 0.9, "name": "wave_0002" },
+					{ "time": 1, "name": "wave_0003" },
+					{ "time": 1.1, "name": "wave_0004" },
+					{ "time": 1.2, "name": "wave_0001" },
+					{ "time": 1.3, "name": "wave_0002" },
+					{ "time": 1.4, "name": "wave_0003" },
+					{ "time": 1.5, "name": "wave_0004" },
+					{ "time": 1.6, "name": "wave_0001" },
+					{ "time": 1.7, "name": "wave_0002" },
+					{ "time": 1.8, "name": "wave_0003" },
+					{ "time": 1.9, "name": "wave_0004" }
+				]
+			}
+		},
+		"bones": {
+			"boat": {
+				"translate": [
+					{ "time": 0, "x": 0, "y": 0 },
+					{ "time": 0.5, "x": -1.19, "y": -1.32 },
+					{ "time": 1, "x": 0, "y": -2.65 },
+					{ "time": 1.5, "x": 1.19, "y": -0.73 },
+					{ "time": 2, "x": 0, "y": 0 }
+				]
+			},
+			"wave": {
+				"translate": [
+					{ "time": 0, "x": 0, "y": 0 },
+					{ "time": 0.5, "x": -1.92, "y": -1.69 },
+					{ "time": 1, "x": 0, "y": -4.67 },
+					{ "time": 1.4, "x": 1.28, "y": -3.23 },
+					{ "time": 1.9, "x": 0, "y": 0 }
+				]
+			}
+		}
+	}
+}
+}

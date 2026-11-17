@@ -1,0 +1,20 @@
+
+em37.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em37
+  rotate: true
+  xy: 2, 2
+  size: 488, 587
+  orig: 488, 587
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 591, 424
+  size: 119, 66
+  orig: 119, 66
+  offset: 0, 0
+  index: -1

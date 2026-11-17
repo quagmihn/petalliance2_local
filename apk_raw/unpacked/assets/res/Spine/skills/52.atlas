@@ -1,0 +1,62 @@
+
+52.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+fire-a
+  rotate: false
+  xy: 708, 325
+  size: 180, 180
+  orig: 180, 180
+  offset: 0, 0
+  index: -1
+fire-b
+  rotate: false
+  xy: 424, 269
+  size: 282, 236
+  orig: 282, 236
+  offset: 0, 0
+  index: -1
+fire-c
+  rotate: false
+  xy: 134, 21
+  size: 109, 111
+  orig: 109, 111
+  offset: 0, 0
+  index: -1
+firepiece
+  rotate: false
+  xy: 609, 210
+  size: 87, 57
+  orig: 87, 57
+  offset: 0, 0
+  index: -1
+particle
+  rotate: false
+  xy: 2, 134
+  size: 420, 371
+  orig: 420, 371
+  offset: 0, 0
+  index: -1
+shock
+  rotate: true
+  xy: 424, 130
+  size: 137, 183
+  orig: 137, 183
+  offset: 0, 0
+  index: -1
+smoke
+  rotate: true
+  xy: 890, 371
+  size: 134, 126
+  orig: 134, 126
+  offset: 0, 0
+  index: -1
+star
+  rotate: false
+  xy: 2, 2
+  size: 130, 130
+  orig: 130, 130
+  offset: 0, 0
+  index: -1

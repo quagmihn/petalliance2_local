@@ -1,0 +1,59 @@
+{
+"skeleton": { "hash": "TnEpB+8DQC54z8mOJHKGvR+GGAo", "spine": "3.1.02", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "shouzhi", "parent": "root", "x": 2, "y": -3.99 }
+],
+"slots": [
+	{ "name": "texiao/shoutao1", "bone": "shouzhi" }
+],
+"skins": {
+	"default": {
+		"texiao/shoutao1": {
+			"texiao/shoutao1": { "width": 110, "height": 140 },
+			"texiao/shoutao2": { "width": 110, "height": 140 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/shoutao1": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/shoutao1" },
+					{ "time": 0.7666, "name": "texiao/shoutao2" },
+					{ "time": 1.7333, "name": "texiao/shoutao1" }
+				],
+				"color": [
+					{ "time": 0, "color": "ffffffff", "curve": "stepped" },
+					{ "time": 2.0333, "color": "ffffffff" },
+					{ "time": 2.3333, "color": "ffffff00" }
+				]
+			}
+		},
+		"bones": {
+			"shouzhi": {
+				"rotate": [
+					{ "time": 0, "angle": 0 }
+				],
+				"translate": [
+					{ "time": 0, "x": -36.13, "y": -63.54 },
+					{ "time": 0.6, "x": -18.68, "y": -45.47 },
+					{ "time": 0.7666, "x": -16.19, "y": -40.49 },
+					{ "time": 1.6333, "x": 78.49, "y": -40.49, "curve": "stepped" },
+					{ "time": 1.7333, "x": 78.49, "y": -40.49 },
+					{ "time": 2.3333, "x": 71.02, "y": -57.31 }
+				],
+				"scale": [
+					{ "time": 0, "x": 1, "y": 1, "curve": "stepped" },
+					{ "time": 0.6, "x": 1, "y": 1 },
+					{ "time": 0.7666, "x": 0.893, "y": 0.893, "curve": "stepped" },
+					{ "time": 1.6333, "x": 0.893, "y": 0.893 },
+					{ "time": 1.7333, "x": 0.871, "y": 0.871 },
+					{ "time": 2.3333, "x": 1, "y": 1 }
+				]
+			}
+		}
+	}
+}
+}

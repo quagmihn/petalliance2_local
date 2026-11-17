@@ -1,0 +1,118 @@
+
+20020b.png
+size: 841,841
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+chi
+  rotate: true
+  xy: 2, 214
+  size: 388, 209
+  orig: 388, 210
+  offset: 0, 1
+  index: -1
+daimao
+  rotate: false
+  xy: 213, 374
+  size: 143, 228
+  orig: 143, 228
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 2, 2
+  size: 142, 21
+  orig: 142, 21
+  offset: 0, 0
+  index: -1
+effect_01
+  rotate: false
+  xy: 2, 25
+  size: 172, 187
+  orig: 174, 191
+  offset: 0, 0
+  index: -1
+effect_03
+  rotate: false
+  xy: 213, 184
+  size: 167, 188
+  orig: 174, 191
+  offset: 5, 1
+  index: -1
+effect_05
+  rotate: true
+  xy: 176, 21
+  size: 161, 190
+  orig: 174, 191
+  offset: 4, 1
+  index: -1
+effect_07
+  rotate: false
+  xy: 551, 222
+  size: 171, 179
+  orig: 174, 191
+  offset: 0, 2
+  index: -1
+effect_09
+  rotate: false
+  xy: 382, 30
+  size: 172, 178
+  orig: 174, 191
+  offset: 0, 2
+  index: -1
+effect_11
+  rotate: false
+  xy: 664, 651
+  size: 170, 188
+  orig: 174, 191
+  offset: 3, 0
+  index: -1
+effect_13
+  rotate: false
+  xy: 382, 210
+  size: 167, 187
+  orig: 174, 191
+  offset: 7, 1
+  index: -1
+effect_15
+  rotate: false
+  xy: 358, 399
+  size: 168, 190
+  orig: 174, 191
+  offset: 4, 1
+  index: -1
+effect_17
+  rotate: false
+  xy: 528, 403
+  size: 171, 186
+  orig: 174, 191
+  offset: 0, 2
+  index: -1
+effect_19
+  rotate: false
+  xy: 556, 42
+  size: 172, 178
+  orig: 174, 191
+  offset: 0, 2
+  index: -1
+mei
+  rotate: false
+  xy: 375, 591
+  size: 207, 47
+  orig: 208, 47
+  offset: 1, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 604
+  size: 371, 235
+  orig: 371, 235
+  offset: 0, 0
+  index: -1
+wei
+  rotate: false
+  xy: 375, 640
+  size: 287, 199
+  orig: 287, 199
+  offset: 0, 0
+  index: -1

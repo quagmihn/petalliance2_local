@@ -1,0 +1,139 @@
+
+UI_denglujiemian.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bg
+  rotate: false
+  xy: 470, 415
+  size: 160, 285
+  orig: 160, 285
+  offset: 0, 0
+  index: -1
+glow2
+  rotate: false
+  xy: 692, 800
+  size: 197, 200
+  orig: 197, 200
+  offset: 0, 0
+  index: -1
+lizituan
+  rotate: true
+  xy: 632, 349
+  size: 136, 148
+  orig: 136, 148
+  offset: 0, 0
+  index: -1
+nan1
+  rotate: false
+  xy: 2, 652
+  size: 238, 348
+  orig: 238, 348
+  offset: 0, 0
+  index: -1
+nan1_bai
+  rotate: false
+  xy: 2, 302
+  size: 238, 348
+  orig: 238, 348
+  offset: 0, 0
+  index: -1
+nan2
+  rotate: true
+  xy: 692, 648
+  size: 150, 159
+  orig: 150, 159
+  offset: 0, 0
+  index: -1
+nan2_bai
+  rotate: false
+  xy: 632, 487
+  size: 150, 159
+  orig: 150, 159
+  offset: 0, 0
+  index: -1
+nu1
+  rotate: false
+  xy: 242, 670
+  size: 226, 330
+  orig: 226, 330
+  offset: 0, 0
+  index: -1
+nu1_bai
+  rotate: false
+  xy: 242, 338
+  size: 226, 330
+  orig: 226, 330
+  offset: 0, 0
+  index: -1
+nu2
+  rotate: false
+  xy: 2, 2
+  size: 220, 298
+  orig: 220, 298
+  offset: 0, 0
+  index: -1
+nu2_bai
+  rotate: false
+  xy: 470, 702
+  size: 220, 298
+  orig: 220, 298
+  offset: 0, 0
+  index: -1
+nu3
+  rotate: true
+  xy: 470, 276
+  size: 137, 158
+  orig: 137, 158
+  offset: 0, 0
+  index: -1
+nu3_bai
+  rotate: false
+  xy: 784, 488
+  size: 137, 158
+  orig: 137, 158
+  offset: 0, 0
+  index: -1
+pet1
+  rotate: true
+  xy: 630, 253
+  size: 94, 109
+  orig: 94, 109
+  offset: 0, 0
+  index: -1
+pet1_bai
+  rotate: false
+  xy: 853, 687
+  size: 94, 109
+  orig: 94, 109
+  offset: 0, 0
+  index: -1
+pet2
+  rotate: false
+  xy: 949, 714
+  size: 68, 82
+  orig: 68, 82
+  offset: 0, 0
+  index: -1
+pet2_bai
+  rotate: false
+  xy: 741, 265
+  size: 68, 82
+  orig: 68, 82
+  offset: 0, 0
+  index: -1
+pet3
+  rotate: false
+  xy: 891, 900
+  size: 116, 100
+  orig: 116, 100
+  offset: 0, 0
+  index: -1
+pet3_bai
+  rotate: false
+  xy: 891, 798
+  size: 116, 100
+  orig: 116, 100
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,90 @@
+
+007b.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+diying
+  rotate: true
+  xy: 491, 74
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/youshou
+  rotate: true
+  xy: 153, 8
+  size: 33, 50
+  orig: 33, 50
+  offset: 0, 0
+  index: -1
+images/zuoshou
+  rotate: true
+  xy: 245, 6
+  size: 30, 38
+  orig: 30, 38
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 111, 43
+  size: 83, 98
+  orig: 83, 98
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 32
+  size: 107, 94
+  orig: 107, 94
+  offset: 0, 0
+  index: -1
+wei3
+  rotate: true
+  xy: 304, 66
+  size: 60, 105
+  orig: 60, 105
+  offset: 0, 0
+  index: -1
+youer
+  rotate: false
+  xy: 211, 38
+  size: 91, 88
+  orig: 91, 88
+  offset: 0, 0
+  index: -1
+youshou
+  rotate: true
+  xy: 304, 33
+  size: 31, 50
+  orig: 31, 50
+  offset: 0, 0
+  index: -1
+youtui
+  rotate: true
+  xy: 356, 24
+  size: 40, 44
+  orig: 40, 44
+  offset: 0, 0
+  index: -1
+zuoer
+  rotate: true
+  xy: 411, 51
+  size: 75, 78
+  orig: 75, 78
+  offset: 0, 0
+  index: -1
+zuoshou
+  rotate: true
+  xy: 205, 6
+  size: 30, 38
+  orig: 30, 38
+  offset: 0, 0
+  index: -1
+zuotui
+  rotate: true
+  xy: 111, 2
+  size: 39, 40
+  orig: 39, 40
+  offset: 0, 0
+  index: -1

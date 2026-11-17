@@ -1,0 +1,195 @@
+
+UI_duanzao_Fail.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Harmer0001
+  rotate: true
+  xy: 799, 197
+  size: 131, 205
+  orig: 131, 205
+  offset: 0, 0
+  index: -1
+Harmer0002
+  rotate: false
+  xy: 2, 2
+  size: 167, 182
+  orig: 167, 182
+  offset: 0, 0
+  index: -1
+Harmer0003
+  rotate: true
+  xy: 171, 18
+  size: 166, 133
+  orig: 166, 133
+  offset: 0, 0
+  index: -1
+dalizi0001
+  rotate: false
+  xy: 2, 860
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0002
+  rotate: false
+  xy: 304, 860
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0003
+  rotate: false
+  xy: 606, 860
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0004
+  rotate: true
+  xy: 2, 488
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0005
+  rotate: true
+  xy: 2, 186
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0006
+  rotate: true
+  xy: 164, 488
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+dalizi0007
+  rotate: true
+  xy: 164, 186
+  size: 300, 160
+  orig: 300, 160
+  offset: 0, 0
+  index: -1
+glow
+  rotate: false
+  xy: 448, 154
+  size: 207, 207
+  orig: 207, 207
+  offset: 0, 0
+  index: -1
+huohua
+  rotate: false
+  xy: 448, 363
+  size: 221, 129
+  orig: 221, 129
+  offset: 0, 0
+  index: -1
+lizi0001
+  rotate: false
+  xy: 448, 738
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0002
+  rotate: true
+  xy: 326, 588
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0003
+  rotate: false
+  xy: 720, 668
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0004
+  rotate: false
+  xy: 448, 616
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0005
+  rotate: false
+  xy: 720, 546
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0006
+  rotate: false
+  xy: 448, 494
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+lizi0007
+  rotate: true
+  xy: 326, 316
+  size: 270, 120
+  orig: 270, 120
+  offset: 0, 0
+  index: -1
+shibai
+  rotate: true
+  xy: 908, 790
+  size: 230, 98
+  orig: 230, 98
+  offset: 0, 0
+  index: -1
+smoke0001
+  rotate: false
+  xy: 306, 44
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+smoke0002
+  rotate: false
+  xy: 448, 12
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+smoke0003
+  rotate: false
+  xy: 590, 12
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+smoke0004
+  rotate: false
+  xy: 657, 188
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+smoke0005
+  rotate: false
+  xy: 732, 46
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+smoke0006
+  rotate: false
+  xy: 874, 55
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+tiezhen
+  rotate: false
+  xy: 720, 330
+  size: 243, 214
+  orig: 243, 214
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,69 @@
+
+Ui_jueseshengjiziti.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10001
+  rotate: false
+  xy: 2, 410
+  size: 450, 100
+  orig: 450, 100
+  offset: 0, 0
+  index: -1
+texiao/10002
+  rotate: false
+  xy: 2, 308
+  size: 450, 100
+  orig: 450, 100
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 454, 410
+  size: 450, 100
+  orig: 450, 100
+  offset: 0, 0
+  index: -1
+texiao/10004
+  rotate: false
+  xy: 2, 206
+  size: 450, 100
+  orig: 450, 100
+  offset: 0, 0
+  index: -1
+texiao/10005
+  rotate: false
+  xy: 454, 308
+  size: 450, 100
+  orig: 450, 100
+  offset: 0, 0
+  index: -1
+texiao/10006
+  rotate: false
+  xy: 2, 104
+  size: 450, 100
+  orig: 450, 100
+  offset: 0, 0
+  index: -1
+texiao/10007
+  rotate: false
+  xy: 2, 2
+  size: 450, 100
+  orig: 450, 100
+  offset: 0, 0
+  index: -1
+texiao/10008
+  rotate: false
+  xy: 454, 206
+  size: 450, 100
+  orig: 450, 100
+  offset: 0, 0
+  index: -1
+texiao/10009
+  rotate: false
+  xy: 454, 104
+  size: 450, 100
+  orig: 450, 100
+  offset: 0, 0
+  index: -1

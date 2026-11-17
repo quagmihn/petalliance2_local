@@ -1,0 +1,111 @@
+
+064b.png
+size: 1024,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+beijia
+  rotate: false
+  xy: 245, 13
+  size: 76, 46
+  orig: 76, 46
+  offset: 0, 0
+  index: -1
+beijia2
+  rotate: false
+  xy: 334, 65
+  size: 68, 61
+  orig: 68, 61
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 2, 3
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/beijia
+  rotate: false
+  xy: 404, 78
+  size: 77, 48
+  orig: 77, 48
+  offset: 0, 0
+  index: -1
+images/kuijia
+  rotate: false
+  xy: 2, 13
+  size: 120, 113
+  orig: 120, 113
+  offset: 0, 0
+  index: -1
+kuijia
+  rotate: false
+  xy: 124, 13
+  size: 119, 113
+  orig: 119, 113
+  offset: 0, 0
+  index: -1
+lian
+  rotate: true
+  xy: 334, 2
+  size: 61, 54
+  orig: 61, 54
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 245, 61
+  size: 87, 65
+  orig: 87, 65
+  offset: 0, 0
+  index: -1
+wei
+  rotate: false
+  xy: 544, 80
+  size: 56, 46
+  orig: 56, 46
+  offset: 0, 0
+  index: -1
+xiaba
+  rotate: false
+  xy: 483, 72
+  size: 59, 54
+  orig: 59, 54
+  offset: 0, 0
+  index: -1
+yan
+  rotate: false
+  xy: 792, 103
+  size: 17, 23
+  orig: 17, 23
+  offset: 0, 0
+  index: -1
+youtui1
+  rotate: false
+  xy: 658, 81
+  size: 46, 45
+  orig: 46, 45
+  offset: 0, 0
+  index: -1
+youtui2
+  rotate: false
+  xy: 602, 78
+  size: 54, 48
+  orig: 54, 48
+  offset: 0, 0
+  index: -1
+zuotui1
+  rotate: false
+  xy: 754, 95
+  size: 36, 31
+  orig: 36, 31
+  offset: 0, 0
+  index: -1
+zuotui2
+  rotate: false
+  xy: 706, 83
+  size: 46, 43
+  orig: 46, 43
+  offset: 0, 0
+  index: -1

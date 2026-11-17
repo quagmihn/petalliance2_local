@@ -1,0 +1,138 @@
+
+Ui_zhandoujiemianhuoyan_beimian.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10001
+  rotate: false
+  xy: 2, 646
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10002
+  rotate: false
+  xy: 2, 324
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 2, 2
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10004
+  rotate: true
+  xy: 224, 746
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10005
+  rotate: true
+  xy: 546, 746
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10006
+  rotate: false
+  xy: 224, 424
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10007
+  rotate: false
+  xy: 224, 102
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10008
+  rotate: true
+  xy: 446, 524
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10009
+  rotate: true
+  xy: 446, 302
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10010
+  rotate: true
+  xy: 446, 80
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/20001
+  rotate: true
+  xy: 768, 454
+  size: 290, 250
+  orig: 290, 250
+  offset: 0, 0
+  index: -1
+texiao/20002
+  rotate: true
+  xy: 768, 162
+  size: 290, 250
+  orig: 290, 250
+  offset: 0, 0
+  index: -1
+
+Ui_zhandoujiemianhuoyan_beimian2.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10011
+  rotate: true
+  xy: 2, 284
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/10012
+  rotate: true
+  xy: 324, 284
+  size: 220, 320
+  orig: 220, 320
+  offset: 0, 0
+  index: -1
+texiao/20003
+  rotate: false
+  xy: 646, 254
+  size: 290, 250
+  orig: 290, 250
+  offset: 0, 0
+  index: -1
+texiao/20004
+  rotate: false
+  xy: 2, 32
+  size: 290, 250
+  orig: 290, 250
+  offset: 0, 0
+  index: -1
+texiao/20005
+  rotate: false
+  xy: 294, 32
+  size: 290, 250
+  orig: 290, 250
+  offset: 0, 0
+  index: -1
+texiao/20006
+  rotate: false
+  xy: 586, 2
+  size: 290, 250
+  orig: 290, 250
+  offset: 0, 0
+  index: -1

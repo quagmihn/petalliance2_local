@@ -1,0 +1,76 @@
+
+027b.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bozi
+  rotate: false
+  xy: 204, 46
+  size: 109, 72
+  orig: 109, 72
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 204, 36
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+shenti1
+  rotate: false
+  xy: 2, 2
+  size: 90, 116
+  orig: 90, 116
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 94, 27
+  size: 108, 91
+  orig: 108, 91
+  offset: 0, 0
+  index: -1
+weiba
+  rotate: false
+  xy: 315, 81
+  size: 40, 37
+  orig: 40, 37
+  offset: 0, 0
+  index: -1
+youchujiao
+  rotate: true
+  xy: 315, 49
+  size: 30, 40
+  orig: 30, 40
+  offset: 0, 0
+  index: -1
+youjiao1
+  rotate: false
+  xy: 357, 96
+  size: 15, 22
+  orig: 15, 22
+  offset: 0, 0
+  index: -1
+youjiao2
+  rotate: false
+  xy: 137, 3
+  size: 15, 22
+  orig: 15, 22
+  offset: 0, 0
+  index: -1
+youjiao3
+  rotate: false
+  xy: 357, 74
+  size: 14, 20
+  orig: 14, 20
+  offset: 0, 0
+  index: -1
+zuochujiao
+  rotate: true
+  xy: 94, 2
+  size: 23, 41
+  orig: 23, 41
+  offset: 0, 0
+  index: -1

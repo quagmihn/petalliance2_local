@@ -1,0 +1,73 @@
+{
+"skeleton": { "hash": "ZtoBCH+zOMrrkQ4o096WEXTbiH0", "spine": "3.2.01", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "guangyun", "parent": "root" },
+	{ "name": "huoyan", "parent": "root" }
+],
+"slots": [
+	{ "name": "texiao/20001", "bone": "huoyan", "blend": "additive" },
+	{ "name": "texiao/4", "bone": "guangyun", "blend": "additive" }
+],
+"skins": {
+	"default": {
+		"texiao/20001": {
+			"texiao/20001": { "width": 350, "height": 220 },
+			"texiao/20003": { "width": 350, "height": 220 },
+			"texiao/20005": { "width": 350, "height": 220 },
+			"texiao/20007": { "width": 350, "height": 220 },
+			"texiao/20009": { "width": 350, "height": 220 },
+			"texiao/20011": { "width": 350, "height": 220 },
+			"texiao/20013": { "width": 350, "height": 220 },
+			"texiao/20015": { "width": 350, "height": 220 },
+			"texiao/20017": { "width": 350, "height": 220 },
+			"texiao/20019": { "width": 350, "height": 220 }
+		},
+		"texiao/4": {
+			"texiao/4": { "width": 240, "height": 200 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/4": {
+				"color": [
+					{ "time": 0, "color": "ffffff2b" },
+					{ "time": 0.3333, "color": "ffffff42" },
+					{ "time": 0.6666, "color": "ffffff2b" }
+				],
+				"attachment": [
+					{ "time": 0, "name": "texiao/4" },
+					{ "time": 0.6666, "name": "texiao/4" }
+				]
+			},
+			"texiao/20001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/20001" },
+					{ "time": 0.0666, "name": "texiao/20003" },
+					{ "time": 0.1333, "name": "texiao/20005" },
+					{ "time": 0.2, "name": "texiao/20007" },
+					{ "time": 0.2666, "name": "texiao/20009" },
+					{ "time": 0.3333, "name": "texiao/20011" },
+					{ "time": 0.4, "name": "texiao/20013" },
+					{ "time": 0.4666, "name": "texiao/20015" },
+					{ "time": 0.5333, "name": "texiao/20017" },
+					{ "time": 0.6, "name": "texiao/20019" },
+					{ "time": 0.6666, "name": "texiao/20019" }
+				]
+			}
+		},
+		"bones": {
+			"guangyun": {
+				"translate": [
+					{ "time": 0, "x": 34.71, "y": 14.29 }
+				],
+				"scale": [
+					{ "time": 0, "x": 1.502, "y": 1.037 }
+				]
+			}
+		}
+	}
+}
+}

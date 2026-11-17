@@ -1,0 +1,167 @@
+
+078b.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+XZ
+  rotate: false
+  xy: 144, 134
+  size: 101, 103
+  orig: 101, 103
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 165, 42
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/tx
+  rotate: false
+  xy: 240, 54
+  size: 70, 78
+  orig: 70, 78
+  offset: 0, 0
+  index: -1
+images/xz
+  rotate: false
+  xy: 247, 134
+  size: 101, 103
+  orig: 101, 103
+  offset: 0, 0
+  index: -1
+images/youchi
+  rotate: true
+  xy: 568, 151
+  size: 86, 103
+  orig: 86, 103
+  offset: 0, 0
+  index: -1
+images/youtui1
+  rotate: true
+  xy: 122, 16
+  size: 34, 41
+  orig: 34, 41
+  offset: 0, 0
+  index: -1
+images/youtui2
+  rotate: false
+  xy: 907, 192
+  size: 38, 45
+  orig: 38, 45
+  offset: 0, 0
+  index: -1
+images/youtui3
+  rotate: false
+  xy: 865, 189
+  size: 40, 48
+  orig: 40, 48
+  offset: 0, 0
+  index: -1
+images/zuochi
+  rotate: true
+  xy: 769, 157
+  size: 80, 94
+  orig: 80, 94
+  offset: 0, 0
+  index: -1
+images/zuotui1
+  rotate: true
+  xy: 312, 56
+  size: 30, 34
+  orig: 30, 34
+  offset: 0, 0
+  index: -1
+images/zuotui2
+  rotate: false
+  xy: 947, 197
+  size: 36, 40
+  orig: 36, 40
+  offset: 0, 0
+  index: -1
+images/zuotui3
+  rotate: false
+  xy: 350, 109
+  size: 36, 44
+  orig: 36, 44
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 350, 155
+  size: 82, 111
+  orig: 82, 111
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 52
+  size: 140, 185
+  orig: 140, 185
+  offset: 0, 0
+  index: -1
+tx
+  rotate: true
+  xy: 673, 156
+  size: 81, 94
+  orig: 81, 94
+  offset: 0, 0
+  index: -1
+youshou
+  rotate: true
+  xy: 463, 151
+  size: 86, 103
+  orig: 86, 103
+  offset: 0, 0
+  index: -1
+youtui1
+  rotate: false
+  xy: 388, 112
+  size: 34, 41
+  orig: 34, 41
+  offset: 0, 0
+  index: -1
+youtui2
+  rotate: false
+  xy: 44, 5
+  size: 38, 45
+  orig: 38, 45
+  offset: 0, 0
+  index: -1
+youtui3
+  rotate: false
+  xy: 2, 2
+  size: 40, 48
+  orig: 40, 48
+  offset: 0, 0
+  index: -1
+zuoshou
+  rotate: true
+  xy: 144, 52
+  size: 80, 94
+  orig: 80, 94
+  offset: 0, 0
+  index: -1
+zuotui1
+  rotate: true
+  xy: 865, 157
+  size: 30, 34
+  orig: 30, 34
+  offset: 0, 0
+  index: -1
+zuotui2
+  rotate: false
+  xy: 84, 10
+  size: 36, 40
+  orig: 36, 40
+  offset: 0, 0
+  index: -1
+zuotui3
+  rotate: false
+  xy: 312, 88
+  size: 36, 44
+  orig: 36, 44
+  offset: 0, 0
+  index: -1

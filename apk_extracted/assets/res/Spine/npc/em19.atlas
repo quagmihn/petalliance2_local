@@ -1,0 +1,20 @@
+
+em19.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em19
+  rotate: true
+  xy: 2, 2
+  size: 461, 528
+  orig: 461, 528
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 532, 362
+  size: 126, 101
+  orig: 126, 101
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,69 @@
+
+Ui_zhandoujiesuan.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/1
+  rotate: false
+  xy: 2, 300
+  size: 700, 700
+  orig: 700, 700
+  offset: 0, 0
+  index: -1
+texiao/chibang_you
+  rotate: false
+  xy: 580, 80
+  size: 198, 218
+  orig: 198, 218
+  offset: 0, 0
+  index: -1
+texiao/chibang_zuo
+  rotate: false
+  xy: 780, 136
+  size: 198, 218
+  orig: 198, 218
+  offset: 0, 0
+  index: -1
+texiao/choudai
+  rotate: false
+  xy: 2, 122
+  size: 576, 176
+  orig: 576, 176
+  offset: 0, 0
+  index: -1
+texiao/dun
+  rotate: false
+  xy: 704, 356
+  size: 244, 256
+  orig: 244, 256
+  offset: 0, 0
+  index: -1
+texiao/jian
+  rotate: false
+  xy: 830, 688
+  size: 164, 312
+  orig: 164, 312
+  offset: 0, 0
+  index: -1
+texiao/laba_you
+  rotate: false
+  xy: 2, 2
+  size: 130, 118
+  orig: 130, 118
+  offset: 0, 0
+  index: -1
+texiao/laba_zuo
+  rotate: false
+  xy: 134, 2
+  size: 130, 118
+  orig: 130, 118
+  offset: 0, 0
+  index: -1
+texiao/winString
+  rotate: true
+  xy: 704, 614
+  size: 386, 124
+  orig: 386, 124
+  offset: 0, 0
+  index: -1

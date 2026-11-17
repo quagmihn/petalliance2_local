@@ -1,0 +1,139 @@
+
+UI_shark02.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+rotate_0001
+  rotate: true
+  xy: 238, 19
+  size: 31, 27
+  orig: 31, 27
+  offset: 0, 0
+  index: -1
+rotate_0002
+  rotate: true
+  xy: 120, 22
+  size: 33, 28
+  orig: 33, 28
+  offset: 0, 0
+  index: -1
+rotate_0003
+  rotate: false
+  xy: 195, 17
+  size: 41, 33
+  orig: 41, 33
+  offset: 0, 0
+  index: -1
+rotate_0004
+  rotate: true
+  xy: 82, 2
+  size: 42, 36
+  orig: 42, 36
+  offset: 0, 0
+  index: -1
+rotate_0005
+  rotate: true
+  xy: 40, 7
+  size: 47, 40
+  orig: 47, 40
+  offset: 0, 0
+  index: -1
+rotate_0006
+  rotate: true
+  xy: 150, 10
+  size: 40, 43
+  orig: 40, 43
+  offset: 0, 0
+  index: -1
+rotate_0007
+  rotate: false
+  xy: 474, 23
+  size: 36, 55
+  orig: 36, 55
+  offset: 0, 0
+  index: -1
+rotate_0008
+  rotate: true
+  xy: 414, 48
+  size: 30, 58
+  orig: 30, 58
+  offset: 0, 0
+  index: -1
+rotate_0009
+  rotate: true
+  xy: 432, 80
+  size: 46, 74
+  orig: 46, 74
+  offset: 0, 0
+  index: -1
+rotate_0010
+  rotate: false
+  xy: 84, 57
+  size: 66, 69
+  orig: 66, 69
+  offset: 0, 0
+  index: -1
+rotate_0011
+  rotate: false
+  xy: 2, 56
+  size: 80, 70
+  orig: 80, 70
+  offset: 0, 0
+  index: -1
+rotate_0012
+  rotate: false
+  xy: 332, 46
+  size: 80, 39
+  orig: 80, 39
+  offset: 0, 0
+  index: -1
+rotate_0013
+  rotate: false
+  xy: 152, 87
+  size: 95, 39
+  orig: 95, 39
+  offset: 0, 0
+  index: -1
+rotate_0014
+  rotate: false
+  xy: 249, 53
+  size: 81, 33
+  orig: 81, 33
+  offset: 0, 0
+  index: -1
+rotate_0015
+  rotate: false
+  xy: 249, 88
+  size: 94, 38
+  orig: 94, 38
+  offset: 0, 0
+  index: -1
+rotate_0016
+  rotate: false
+  xy: 152, 52
+  size: 89, 33
+  orig: 89, 33
+  offset: 0, 0
+  index: -1
+rotate_0017
+  rotate: false
+  xy: 345, 87
+  size: 85, 39
+  orig: 85, 39
+  offset: 0, 0
+  index: -1
+rotate_0018
+  rotate: false
+  xy: 414, 11
+  size: 54, 35
+  orig: 54, 35
+  offset: 0, 0
+  index: -1
+rotate_0019
+  rotate: true
+  xy: 2, 2
+  size: 52, 36
+  orig: 52, 36
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,160 @@
+
+124b.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+L_shou
+  rotate: true
+  xy: 228, 71
+  size: 16, 27
+  orig: 16, 27
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 2, 89
+  size: 253, 37
+  orig: 253, 37
+  offset: 0, 0
+  index: -1
+images/youchibang
+  rotate: false
+  xy: 100, 11
+  size: 44, 26
+  orig: 44, 26
+  offset: 0, 0
+  index: -1
+images/youerduo
+  rotate: false
+  xy: 429, 98
+  size: 58, 28
+  orig: 58, 28
+  offset: 0, 0
+  index: -1
+images/zuochibang
+  rotate: true
+  xy: 429, 81
+  size: 15, 27
+  orig: 15, 27
+  offset: 0, 0
+  index: -1
+jiahao
+  rotate: false
+  xy: 267, 6
+  size: 32, 30
+  orig: 32, 30
+  offset: 0, 0
+  index: -1
+nu
+  rotate: false
+  xy: 168, 21
+  size: 39, 38
+  orig: 39, 38
+  offset: 0, 0
+  index: -1
+qi
+  rotate: true
+  xy: 233, 2
+  size: 34, 32
+  orig: 34, 32
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 2, 17
+  size: 70, 96
+  orig: 70, 96
+  offset: 0, 0
+  index: -1
+tou
+  rotate: true
+  xy: 257, 38
+  size: 88, 90
+  orig: 88, 90
+  offset: 0, 0
+  index: -1
+weiba1
+  rotate: false
+  xy: 100, 39
+  size: 66, 48
+  orig: 66, 48
+  offset: 0, 0
+  index: -1
+weiba2
+  rotate: false
+  xy: 349, 40
+  size: 48, 44
+  orig: 48, 44
+  offset: 0, 0
+  index: -1
+weiba3
+  rotate: false
+  xy: 349, 86
+  size: 78, 40
+  orig: 78, 40
+  offset: 0, 0
+  index: -1
+youchibang
+  rotate: true
+  xy: 399, 40
+  size: 44, 26
+  orig: 44, 26
+  offset: 0, 0
+  index: -1
+youerduo
+  rotate: false
+  xy: 168, 61
+  size: 58, 26
+  orig: 58, 26
+  offset: 0, 0
+  index: -1
+yougebo
+  rotate: true
+  xy: 301, 13
+  size: 23, 33
+  orig: 23, 33
+  offset: 0, 0
+  index: -1
+youjiao
+  rotate: false
+  xy: 233, 38
+  size: 21, 31
+  orig: 21, 31
+  offset: 0, 0
+  index: -1
+youtui
+  rotate: false
+  xy: 393, 2
+  size: 33, 36
+  orig: 33, 36
+  offset: 0, 0
+  index: -1
+yun
+  rotate: false
+  xy: 349, 2
+  size: 42, 36
+  orig: 42, 36
+  offset: 0, 0
+  index: -1
+zuochibang
+  rotate: false
+  xy: 146, 10
+  size: 15, 27
+  orig: 15, 27
+  offset: 0, 0
+  index: -1
+zuoer
+  rotate: true
+  xy: 489, 88
+  size: 38, 21
+  orig: 38, 21
+  offset: 0, 0
+  index: -1
+zuojiao
+  rotate: false
+  xy: 209, 23
+  size: 22, 36
+  orig: 22, 36
+  offset: 0, 0
+  index: -1

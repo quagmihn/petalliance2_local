@@ -1,0 +1,26 @@
+
+UI_pathindicator.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+elements0001
+  rotate: true
+  xy: 2, 2
+  size: 111, 135
+  orig: 111, 135
+  offset: 0, 0
+  index: -1
+elements0002
+  rotate: false
+  xy: 139, 25
+  size: 53, 55
+  orig: 53, 55
+  offset: 0, 0
+  index: -1
+elements0003
+  rotate: false
+  xy: 139, 82
+  size: 185, 31
+  orig: 185, 31
+  offset: 0, 0
+  index: -1

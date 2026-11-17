@@ -1,0 +1,132 @@
+
+UI_teleports_B.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+light
+  rotate: true
+  xy: 764, 392
+  size: 116, 152
+  orig: 116, 152
+  offset: 0, 0
+  index: -1
+line_0001
+  rotate: false
+  xy: 2, 358
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0002
+  rotate: false
+  xy: 2, 206
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0003
+  rotate: false
+  xy: 129, 358
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0004
+  rotate: false
+  xy: 2, 54
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0005
+  rotate: false
+  xy: 129, 206
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0006
+  rotate: false
+  xy: 256, 358
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0007
+  rotate: false
+  xy: 129, 54
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0008
+  rotate: false
+  xy: 256, 206
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0009
+  rotate: false
+  xy: 383, 358
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0010
+  rotate: false
+  xy: 256, 54
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0011
+  rotate: false
+  xy: 383, 206
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0012
+  rotate: false
+  xy: 510, 358
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0013
+  rotate: false
+  xy: 383, 54
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0014
+  rotate: false
+  xy: 510, 206
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+line_0015
+  rotate: false
+  xy: 637, 358
+  size: 125, 150
+  orig: 125, 150
+  offset: 0, 0
+  index: -1
+ring
+  rotate: false
+  xy: 2, 2
+  size: 90, 50
+  orig: 90, 50
+  offset: 0, 0
+  index: -1
+spell
+  rotate: false
+  xy: 510, 103
+  size: 76, 101
+  orig: 76, 101
+  offset: 0, 0
+  index: -1

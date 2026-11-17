@@ -1,0 +1,90 @@
+
+Ui_chongwulingqu_2.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10001
+  rotate: false
+  xy: 2, 146
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 2, 74
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10005
+  rotate: false
+  xy: 204, 146
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10007
+  rotate: false
+  xy: 2, 2
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10009
+  rotate: false
+  xy: 204, 74
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10011
+  rotate: false
+  xy: 406, 146
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10013
+  rotate: false
+  xy: 204, 2
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10015
+  rotate: false
+  xy: 406, 74
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10017
+  rotate: false
+  xy: 608, 146
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10019
+  rotate: false
+  xy: 406, 2
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/10021
+  rotate: false
+  xy: 608, 74
+  size: 200, 70
+  orig: 200, 70
+  offset: 0, 0
+  index: -1
+texiao/choose_calligraphy_final_form_en
+  rotate: false
+  xy: 810, 156
+  size: 190, 60
+  orig: 190, 60
+  offset: 0, 0
+  index: -1

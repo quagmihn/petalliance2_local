@@ -1,0 +1,26 @@
+
+UI_changjingmingcheng.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+guang
+  rotate: false
+  xy: 77, 59
+  size: 73, 66
+  orig: 73, 66
+  offset: 0, 0
+  index: -1
+hua
+  rotate: false
+  xy: 2, 52
+  size: 73, 73
+  orig: 73, 73
+  offset: 0, 0
+  index: -1
+star
+  rotate: true
+  xy: 2, 2
+  size: 48, 54
+  orig: 48, 54
+  offset: 0, 0
+  index: -1

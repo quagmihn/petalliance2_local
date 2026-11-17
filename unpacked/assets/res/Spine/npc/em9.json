@@ -1,0 +1,50 @@
+{
+"skeleton": { "hash": "4+mnW0+aZZn0/kM0cvZmdMkOIIA", "spine": "3.2.01", "width": 498, "height": 587, "images": "./images/" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "em9", "parent": "root", "length": 334.85, "rotation": 90.35, "x": -2.04, "y": 0.16 },
+	{ "name": "yukuai", "parent": "em9", "length": 99.41, "rotation": -87.98, "x": 382.28, "y": 53.98 }
+],
+"slots": [
+	{ "name": "em9", "bone": "em9", "attachment": "em9" },
+	{ "name": "yukuai", "bone": "yukuai", "attachment": "yukuai" }
+],
+"skins": {
+	"default": {
+		"em9": {
+			"em9": { "x": 293.29, "y": -7.58, "rotation": -90.35, "width": 498, "height": 587 }
+		},
+		"yukuai": {
+			"yukuai": { "x": 49.15, "y": -12.15, "rotation": -2.36, "width": 129, "height": 112 }
+		}
+	}
+},
+"animations": {
+	"yukuai": {
+		"bones": {
+			"em9": {
+				"rotate": [
+					{ "time": 0, "angle": 0 }
+				],
+				"translate": [
+					{ "time": 0, "x": 0, "y": 0 }
+				],
+				"scale": [
+					{ "time": 0, "x": 1, "y": 1 }
+				]
+			},
+			"yukuai": {
+				"rotate": [
+					{ "time": 0, "angle": 0 }
+				],
+				"translate": [
+					{ "time": 0, "x": 0, "y": 0 }
+				],
+				"scale": [
+					{ "time": 0, "x": 1, "y": 1 }
+				]
+			}
+		}
+	}
+}
+}

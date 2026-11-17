@@ -1,0 +1,72 @@
+{
+"skeleton": { "hash": "9g5dHQkWlXjlsjjqLRvCiuu1DTI", "spine": "3.2.01", "width": 234, "height": 225.66, "images": "../Pictures/UI_jianzhufx/" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "di", "parent": "root" },
+	{ "name": "glow", "parent": "root", "x": -14.09, "y": 6.16 },
+	{ "name": "rune", "parent": "root", "x": -33.02, "y": -38.9 },
+	{ "name": "yabian", "parent": "root", "x": -13.81, "y": 13.16, "scaleX": 1.1, "scaleY": 1.6, "shearX": -7.94 },
+	{ "name": "xuanwo", "parent": "yabian" }
+],
+"slots": [
+	{ "name": "ice01", "bone": "di", "attachment": "ice01" },
+	{ "name": "rune03", "bone": "rune", "attachment": "rune03", "blend": "additive" },
+	{ "name": "vortex05", "bone": "xuanwo", "attachment": "vortex05", "blend": "additive" },
+	{ "name": "glow03", "bone": "glow", "attachment": "glow03", "blend": "additive" }
+],
+"skins": {
+	"default": {
+		"glow03": {
+			"glow03": { "width": 195, "height": 217 }
+		},
+		"ice01": {
+			"ice01": { "width": 234, "height": 222 }
+		},
+		"rune03": {
+			"rune03": { "width": 82, "height": 91 }
+		},
+		"vortex05": {
+			"vortex05": { "width": 91, "height": 89 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"glow03": {
+				"color": [
+					{ "time": 0, "color": "ffffff7e" },
+					{ "time": 1, "color": "ffffff16" },
+					{ "time": 2, "color": "ffffff7e" }
+				]
+			},
+			"rune03": {
+				"color": [
+					{ "time": 0, "color": "ffffffff" },
+					{ "time": 1, "color": "ffffff44" },
+					{ "time": 2, "color": "ffffffff" }
+				],
+				"attachment": [
+					{ "time": 0, "name": "rune03" },
+					{ "time": 2, "name": "rune03" }
+				]
+			},
+			"vortex05": {
+				"attachment": [
+					{ "time": 0, "name": "vortex05" },
+					{ "time": 2, "name": "vortex05" }
+				]
+			}
+		},
+		"bones": {
+			"xuanwo": {
+				"rotate": [
+					{ "time": 0, "angle": 0 },
+					{ "time": 1, "angle": -180 },
+					{ "time": 2, "angle": -359 }
+				]
+			}
+		}
+	}
+}
+}

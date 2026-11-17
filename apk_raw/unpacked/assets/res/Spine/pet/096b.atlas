@@ -1,0 +1,251 @@
+
+096b.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+1/tou
+  rotate: false
+  xy: 132, 328
+  size: 127, 173
+  orig: 127, 173
+  offset: 0, 0
+  index: -1
+1/youshou2
+  rotate: false
+  xy: 382, 354
+  size: 119, 147
+  orig: 119, 147
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 694, 325
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/shenti
+  rotate: true
+  xy: 599, 325
+  size: 64, 93
+  orig: 64, 93
+  offset: 0, 0
+  index: -1
+images/tou
+  rotate: false
+  xy: 2, 152
+  size: 127, 173
+  orig: 127, 173
+  offset: 0, 0
+  index: -1
+images/youbi
+  rotate: false
+  xy: 976, 297
+  size: 45, 55
+  orig: 45, 55
+  offset: 0, 0
+  index: -1
+images/youshou1
+  rotate: true
+  xy: 596, 239
+  size: 84, 89
+  orig: 84, 89
+  offset: 0, 0
+  index: -1
+images/youshou2
+  rotate: false
+  xy: 261, 354
+  size: 119, 147
+  orig: 119, 147
+  offset: 0, 0
+  index: -1
+images/youshou3
+  rotate: false
+  xy: 796, 407
+  size: 99, 94
+  orig: 99, 94
+  offset: 0, 0
+  index: -1
+images/youtui
+  rotate: false
+  xy: 449, 261
+  size: 51, 91
+  orig: 51, 91
+  offset: 0, 0
+  index: -1
+images/zuobi
+  rotate: true
+  xy: 976, 354
+  size: 55, 46
+  orig: 55, 46
+  offset: 0, 0
+  index: -1
+images/zuoshou1
+  rotate: true
+  xy: 783, 335
+  size: 70, 85
+  orig: 70, 85
+  offset: 0, 0
+  index: -1
+images/zuoshou2
+  rotate: false
+  xy: 599, 391
+  size: 94, 110
+  orig: 94, 110
+  offset: 0, 0
+  index: -1
+images/zuoshou3
+  rotate: false
+  xy: 502, 242
+  size: 92, 81
+  orig: 92, 81
+  offset: 0, 0
+  index: -1
+images/zuotui
+  rotate: true
+  xy: 918, 326
+  size: 34, 56
+  orig: 34, 56
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 503, 325
+  size: 64, 94
+  orig: 64, 94
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 327
+  size: 128, 174
+  orig: 128, 174
+  offset: 0, 0
+  index: -1
+tx/3_firetail_dodge.img/0
+  rotate: false
+  xy: 760, 308
+  size: 31, 25
+  orig: 31, 25
+  offset: 0, 0
+  index: -1
+tx/3_firetail_dodge.img/1
+  rotate: true
+  xy: 731, 285
+  size: 38, 27
+  orig: 38, 27
+  offset: 0, 0
+  index: -1
+tx/3_firetail_dodge.img/2
+  rotate: false
+  xy: 687, 266
+  size: 42, 27
+  orig: 42, 27
+  offset: 0, 0
+  index: -1
+tx/3_firetail_dodge.img/3
+  rotate: false
+  xy: 687, 295
+  size: 42, 28
+  orig: 42, 28
+  offset: 0, 0
+  index: -1
+tx/3_firetail_dodge.img/4
+  rotate: false
+  xy: 983, 473
+  size: 39, 28
+  orig: 39, 28
+  offset: 0, 0
+  index: -1
+tx/3_firetail_dodge.img/5
+  rotate: false
+  xy: 687, 236
+  size: 40, 28
+  orig: 40, 28
+  offset: 0, 0
+  index: -1
+tx/3_firetail_dodge.img/6
+  rotate: false
+  xy: 793, 306
+  size: 27, 27
+  orig: 27, 27
+  offset: 0, 0
+  index: -1
+tx/3_firetail_dodge.img/7
+  rotate: false
+  xy: 822, 310
+  size: 22, 23
+  orig: 22, 23
+  offset: 0, 0
+  index: -1
+youbi
+  rotate: false
+  xy: 870, 349
+  size: 46, 56
+  orig: 46, 56
+  offset: 0, 0
+  index: -1
+youshou1
+  rotate: false
+  xy: 897, 411
+  size: 84, 90
+  orig: 84, 90
+  offset: 0, 0
+  index: -1
+youshou2
+  rotate: false
+  xy: 2, 2
+  size: 120, 148
+  orig: 120, 148
+  offset: 0, 0
+  index: -1
+youshou3
+  rotate: false
+  xy: 695, 407
+  size: 99, 94
+  orig: 99, 94
+  offset: 0, 0
+  index: -1
+youtui
+  rotate: true
+  xy: 261, 300
+  size: 52, 92
+  orig: 52, 92
+  offset: 0, 0
+  index: -1
+zuobi
+  rotate: false
+  xy: 918, 362
+  size: 56, 47
+  orig: 56, 47
+  offset: 0, 0
+  index: -1
+zuoshou1
+  rotate: true
+  xy: 695, 335
+  size: 70, 86
+  orig: 70, 86
+  offset: 0, 0
+  index: -1
+zuoshou2
+  rotate: false
+  xy: 503, 391
+  size: 94, 110
+  orig: 94, 110
+  offset: 0, 0
+  index: -1
+zuoshou3
+  rotate: false
+  xy: 355, 270
+  size: 92, 82
+  orig: 92, 82
+  offset: 0, 0
+  index: -1
+zuotui
+  rotate: false
+  xy: 983, 414
+  size: 34, 57
+  orig: 34, 57
+  offset: 0, 0
+  index: -1

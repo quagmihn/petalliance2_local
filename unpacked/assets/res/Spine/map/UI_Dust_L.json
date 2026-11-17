@@ -1,0 +1,71 @@
+{
+"skeleton": {
+	"hash": "gbPsckFWNqEJ7dEFleBI4d8apNo",
+	"spine": "3.2.01",
+	"width": 234,
+	"height": 210.8,
+	"images": "./../Pictures/UI_jianzhufx/"
+},
+"bones": [
+	{ "name": "root" },
+	{ "name": "base", "parent": "root", "x": 1.11, "y": -3.33 },
+	{ "name": "di", "parent": "root" },
+	{ "name": "glow", "parent": "root", "y": -0.68 },
+	{ "name": "yabian", "parent": "root", "x": -0.67, "y": -3.03, "scaleX": 1.14, "scaleY": 1.34, "shearX": 9.72 },
+	{ "name": "xuanwo", "parent": "yabian" },
+	{ "name": "zhuzi", "parent": "root", "x": 48.21, "y": -46.3 }
+],
+"slots": [
+	{ "name": "dust_L_01", "bone": "di", "attachment": "dust_L_01" },
+	{ "name": "base03", "bone": "base", "attachment": "base03" },
+	{ "name": "vortex03", "bone": "xuanwo", "attachment": "vortex03", "blend": "additive" },
+	{ "name": "glow02", "bone": "glow", "attachment": "glow02", "blend": "additive" },
+	{ "name": "dust_L_02", "bone": "zhuzi", "attachment": "dust_L_02" }
+],
+"skins": {
+	"default": {
+		"base03": {
+			"base03": { "x": 4.67, "y": -2.45, "width": 117, "height": 134 }
+		},
+		"dust_L_01": {
+			"dust_L_01": { "width": 234, "height": 202 }
+		},
+		"dust_L_02": {
+			"dust_L_02": { "width": 127, "height": 127 }
+		},
+		"glow02": {
+			"glow02": { "width": 177, "height": 184 }
+		},
+		"vortex03": {
+			"vortex03": { "width": 91, "height": 89 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"glow02": {
+				"color": [
+					{ "time": 0, "color": "ffffff4a" },
+					{ "time": 1, "color": "ffffff9f" },
+					{ "time": 2, "color": "ffffff4a" }
+				],
+				"attachment": [
+					{ "time": 0, "name": "glow02" },
+					{ "time": 1, "name": "glow02" },
+					{ "time": 2, "name": "glow02" }
+				]
+			}
+		},
+		"bones": {
+			"xuanwo": {
+				"rotate": [
+					{ "time": 0, "angle": 0 },
+					{ "time": 1, "angle": -180 },
+					{ "time": 2, "angle": -359 }
+				]
+			}
+		}
+	}
+}
+}

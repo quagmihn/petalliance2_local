@@ -1,0 +1,13 @@
+
+Ui_fubendianjishuye2.png
+size: 64,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/1
+  rotate: false
+  xy: 2, 2
+  size: 43, 68
+  orig: 43, 68
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,19 @@
+
+UI_beibaodaojuGet2.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+SG
+  rotate: false
+  xy: 110, 16
+  size: 89, 93
+  orig: 89, 93
+  offset: 0, 0
+  index: -1
+lizi1
+  rotate: false
+  xy: 2, 2
+  size: 106, 107
+  orig: 106, 107
+  offset: 0, 0
+  index: -1

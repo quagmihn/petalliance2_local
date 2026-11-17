@@ -1,0 +1,83 @@
+
+030b.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+1lian
+  rotate: false
+  xy: 2, 57
+  size: 164, 145
+  orig: 164, 145
+  offset: 0, 0
+  index: -1
+1you
+  rotate: false
+  xy: 715, 159
+  size: 58, 43
+  orig: 58, 43
+  offset: 0, 0
+  index: -1
+1zuo
+  rotate: false
+  xy: 2, 2
+  size: 55, 53
+  orig: 55, 53
+  offset: 0, 0
+  index: -1
+2
+  rotate: true
+  xy: 59, 11
+  size: 44, 60
+  orig: 44, 60
+  offset: 0, 0
+  index: -1
+2lian
+  rotate: false
+  xy: 334, 71
+  size: 160, 131
+  orig: 160, 131
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 334, 61
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/1tou
+  rotate: false
+  xy: 168, 57
+  size: 164, 145
+  orig: 164, 145
+  offset: 0, 0
+  index: -1
+images/1youjiao
+  rotate: false
+  xy: 121, 12
+  size: 58, 43
+  orig: 58, 43
+  offset: 0, 0
+  index: -1
+images/1zuojiao
+  rotate: false
+  xy: 658, 149
+  size: 55, 53
+  orig: 55, 53
+  offset: 0, 0
+  index: -1
+images/2jiao
+  rotate: false
+  xy: 658, 87
+  size: 44, 60
+  orig: 44, 60
+  offset: 0, 0
+  index: -1
+images/2tou
+  rotate: false
+  xy: 496, 71
+  size: 160, 131
+  orig: 160, 131
+  offset: 0, 0
+  index: -1

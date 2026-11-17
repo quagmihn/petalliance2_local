@@ -1,0 +1,20 @@
+
+em11.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em11
+  rotate: false
+  xy: 2, 100
+  size: 533, 553
+  orig: 533, 553
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 142, 96
+  orig: 142, 96
+  offset: 0, 0
+  index: -1

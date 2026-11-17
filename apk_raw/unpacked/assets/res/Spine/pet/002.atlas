@@ -1,0 +1,174 @@
+
+002.png
+size: 1024,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+aida_yanjing
+  rotate: false
+  xy: 231, 46
+  size: 64, 28
+  orig: 64, 28
+  offset: 0, 0
+  index: -1
+aida_zui
+  rotate: false
+  xy: 203, 14
+  size: 26, 20
+  orig: 26, 20
+  offset: 0, 0
+  index: -1
+biyan
+  rotate: false
+  xy: 136, 8
+  size: 65, 26
+  orig: 65, 26
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 231, 36
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+gongji_yanjing
+  rotate: false
+  xy: 70, 2
+  size: 64, 24
+  orig: 64, 24
+  offset: 0, 0
+  index: -1
+gongji_zui
+  rotate: false
+  xy: 993, 106
+  size: 28, 20
+  orig: 28, 20
+  offset: 0, 0
+  index: -1
+images2/ZUOBI2
+  rotate: false
+  xy: 433, 27
+  size: 50, 38
+  orig: 50, 38
+  offset: 0, 0
+  index: -1
+images2/youbi2
+  rotate: false
+  xy: 709, 70
+  size: 56, 56
+  orig: 56, 56
+  offset: 0, 0
+  index: -1
+images2/youer
+  rotate: true
+  xy: 939, 82
+  size: 44, 52
+  orig: 44, 52
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 114, 36
+  size: 90, 115
+  orig: 90, 115
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 28
+  size: 110, 98
+  orig: 110, 98
+  offset: 0, 0
+  index: -1
+weiba
+  rotate: false
+  xy: 231, 76
+  size: 102, 50
+  orig: 102, 50
+  offset: 0, 0
+  index: -1
+yanjing
+  rotate: false
+  xy: 2, 2
+  size: 66, 24
+  orig: 66, 24
+  offset: 0, 0
+  index: -1
+youbi1
+  rotate: true
+  xy: 385, 33
+  size: 37, 46
+  orig: 37, 46
+  offset: 0, 0
+  index: -1
+youbi2
+  rotate: true
+  xy: 830, 75
+  size: 51, 52
+  orig: 51, 52
+  offset: 0, 0
+  index: -1
+youer
+  rotate: true
+  xy: 335, 26
+  size: 44, 48
+  orig: 44, 48
+  offset: 0, 0
+  index: -1
+youtui
+  rotate: true
+  xy: 433, 67
+  size: 59, 92
+  orig: 59, 92
+  offset: 0, 0
+  index: -1
+zui
+  rotate: false
+  xy: 485, 51
+  size: 26, 14
+  orig: 26, 14
+  offset: 0, 0
+  index: -1
+zuobi1
+  rotate: false
+  xy: 767, 75
+  size: 61, 51
+  orig: 61, 51
+  offset: 0, 0
+  index: -1
+zuobi2
+  rotate: true
+  xy: 297, 29
+  size: 45, 36
+  orig: 45, 36
+  offset: 0, 0
+  index: -1
+zuobi3
+  rotate: true
+  xy: 623, 68
+  size: 58, 84
+  orig: 58, 84
+  offset: 0, 0
+  index: -1
+zuoer
+  rotate: true
+  xy: 884, 80
+  size: 46, 53
+  orig: 46, 53
+  offset: 0, 0
+  index: -1
+zuotui
+  rotate: true
+  xy: 335, 72
+  size: 54, 96
+  orig: 54, 96
+  offset: 0, 0
+  index: -1
+zuotui1
+  rotate: true
+  xy: 527, 76
+  size: 50, 94
+  orig: 50, 94
+  offset: 0, 0
+  index: -1

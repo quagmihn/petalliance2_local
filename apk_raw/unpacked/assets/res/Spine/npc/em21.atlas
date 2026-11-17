@@ -1,0 +1,20 @@
+
+em21.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em21
+  rotate: true
+  xy: 2, 2
+  size: 462, 559
+  orig: 462, 559
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 563, 345
+  size: 116, 119
+  orig: 116, 119
+  offset: 0, 0
+  index: -1

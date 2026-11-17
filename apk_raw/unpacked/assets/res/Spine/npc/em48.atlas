@@ -1,0 +1,20 @@
+
+em48.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em48
+  rotate: true
+  xy: 2, 2
+  size: 439, 571
+  orig: 439, 571
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 575, 325
+  size: 123, 116
+  orig: 123, 116
+  offset: 0, 0
+  index: -1

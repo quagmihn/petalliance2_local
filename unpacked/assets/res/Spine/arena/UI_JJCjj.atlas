@@ -1,0 +1,26 @@
+
+UI_JJCjj.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+jjcjj_0001
+  rotate: false
+  xy: 2, 46
+  size: 365, 149
+  orig: 365, 149
+  offset: 0, 0
+  index: -1
+jjcjj_0002
+  rotate: false
+  xy: 369, 66
+  size: 369, 129
+  orig: 369, 129
+  offset: 0, 0
+  index: -1
+jjcjj_0003
+  rotate: false
+  xy: 2, 2
+  size: 39, 42
+  orig: 39, 42
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,55 @@
+
+98.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+light01
+  rotate: false
+  xy: 2, 2
+  size: 77, 210
+  orig: 77, 210
+  offset: 0, 0
+  index: -1
+light02
+  rotate: false
+  xy: 570, 242
+  size: 273, 260
+  orig: 273, 260
+  offset: 0, 0
+  index: -1
+ring2
+  rotate: false
+  xy: 293, 226
+  size: 275, 276
+  orig: 275, 276
+  offset: 0, 0
+  index: -1
+shock
+  rotate: true
+  xy: 570, 8
+  size: 232, 233
+  orig: 232, 233
+  offset: 0, 0
+  index: -1
+star
+  rotate: false
+  xy: 2, 214
+  size: 289, 288
+  orig: 289, 288
+  offset: 0, 0
+  index: -1
+starparticle
+  rotate: false
+  xy: 81, 150
+  size: 62, 62
+  orig: 62, 62
+  offset: 0, 0
+  index: -1
+starparticle-tail
+  rotate: false
+  xy: 845, 312
+  size: 19, 190
+  orig: 19, 190
+  offset: 0, 0
+  index: -1

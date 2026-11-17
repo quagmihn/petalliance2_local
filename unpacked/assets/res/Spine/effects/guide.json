@@ -1,0 +1,54 @@
+{
+"skeleton": { "hash": "uPG6hQGEwYikEBlhCNgIDiG2eCo", "spine": "2.1.27", "width": 322, "height": 200, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "images/arrow", "parent": "root", "x": -64.64, "y": -0.14 },
+	{ "name": "images/guangquan", "parent": "root" }
+],
+"slots": [
+	{ "name": "images/guangquan", "bone": "images/guangquan", "attachment": "images/guangquan" },
+	{ "name": "images/arrow", "bone": "images/arrow", "attachment": "images/arrow" }
+],
+"skins": {
+	"default": {
+		"images/arrow": {
+			"images/arrow": { "x": -85.35, "y": 0.14, "width": 200, "height": 200 }
+		},
+		"images/guangquan": {
+			"images/guangquan": { "width": 144, "height": 145 }
+		}
+	}
+},
+"animations": {
+	"idle": {
+		"slots": {
+			"images/guangquan": {
+				"color": [
+					{ "time": 0, "color": "ffffffff" },
+					{ "time": 0.3, "color": "ffffff00", "curve": "stepped" },
+					{ "time": 0.3333, "color": "ffffff00" },
+					{ "time": 0.3666, "color": "ffffffff" },
+					{ "time": 0.6666, "color": "ffffff00" }
+				]
+			}
+		},
+		"bones": {
+			"images/arrow": {
+				"translate": [
+					{ "time": 0, "x": 0, "y": 0 },
+					{ "time": 0.4, "x": 55.26, "y": 0 },
+					{ "time": 0.6666, "x": 0, "y": 0 }
+				]
+			},
+			"images/guangquan": {
+				"scale": [
+					{ "time": 0, "x": 1, "y": 1 },
+					{ "time": 0.3, "x": 2, "y": 2 },
+					{ "time": 0.3333, "x": 1, "y": 1 },
+					{ "time": 0.6666, "x": 2, "y": 2 }
+				]
+			}
+		}
+	}
+}
+}

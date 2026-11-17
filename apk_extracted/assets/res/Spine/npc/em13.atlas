@@ -1,0 +1,20 @@
+
+em13.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em13
+  rotate: false
+  xy: 2, 110
+  size: 540, 587
+  orig: 540, 587
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 112, 106
+  orig: 112, 106
+  offset: 0, 0
+  index: -1

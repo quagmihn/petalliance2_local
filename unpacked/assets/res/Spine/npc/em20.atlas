@@ -1,0 +1,20 @@
+
+em20.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em20
+  rotate: false
+  xy: 2, 187
+  size: 525, 534
+  orig: 525, 534
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 96, 183
+  orig: 96, 183
+  offset: 0, 0
+  index: -1

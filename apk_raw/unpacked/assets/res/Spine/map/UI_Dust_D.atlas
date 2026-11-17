@@ -1,0 +1,41 @@
+
+UI_Dust_D.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+base02
+  rotate: true
+  xy: 564, 87
+  size: 117, 134
+  orig: 117, 134
+  offset: 0, 0
+  index: -1
+dust_D_01
+  rotate: false
+  xy: 2, 2
+  size: 234, 202
+  orig: 234, 202
+  offset: 0, 0
+  index: -1
+dust_D_02
+  rotate: false
+  xy: 435, 77
+  size: 127, 127
+  orig: 127, 127
+  offset: 0, 0
+  index: -1
+glow01
+  rotate: false
+  xy: 238, 9
+  size: 195, 195
+  orig: 195, 195
+  offset: 0, 0
+  index: -1
+vortex02
+  rotate: false
+  xy: 700, 115
+  size: 91, 89
+  orig: 91, 89
+  offset: 0, 0
+  index: -1

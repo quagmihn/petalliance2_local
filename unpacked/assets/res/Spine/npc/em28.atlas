@@ -1,0 +1,20 @@
+
+em28.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em28
+  rotate: true
+  xy: 2, 104
+  size: 386, 541
+  orig: 386, 541
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 147, 100
+  orig: 147, 100
+  offset: 0, 0
+  index: -1

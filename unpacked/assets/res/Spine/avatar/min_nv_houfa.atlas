@@ -1,0 +1,678 @@
+
+min_nv_houfa.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+skins1/toufa4
+  rotate: false
+  xy: 370, 204
+  size: 83, 32
+  orig: 83, 32
+  offset: 0, 0
+  index: -1
+skins11/houfa
+  rotate: false
+  xy: 635, 204
+  size: 26, 39
+  orig: 26, 39
+  offset: 0, 0
+  index: -1
+skins12/houfa
+  rotate: false
+  xy: 840, 592
+  size: 120, 68
+  orig: 120, 68
+  offset: 0, 0
+  index: -1
+skins13/houfa
+  rotate: false
+  xy: 2, 9
+  size: 145, 132
+  orig: 145, 132
+  offset: 0, 0
+  index: -1
+skins14/bianzi
+  rotate: true
+  xy: 140, 579
+  size: 70, 157
+  orig: 70, 157
+  offset: 0, 0
+  index: -1
+skins15/maozihou
+  rotate: false
+  xy: 662, 684
+  size: 121, 80
+  orig: 121, 80
+  offset: 0, 0
+  index: -1
+skins15/zuohoutoufa
+  rotate: true
+  xy: 578, 489
+  size: 99, 63
+  orig: 99, 63
+  offset: 0, 0
+  index: -1
+skins16/toufahou
+  rotate: false
+  xy: 2, 812
+  size: 141, 210
+  orig: 141, 210
+  offset: 0, 0
+  index: -1
+skins17/toufa3
+  rotate: true
+  xy: 962, 631
+  size: 107, 60
+  orig: 107, 60
+  offset: 0, 0
+  index: -1
+skins18/fa2
+  rotate: false
+  xy: 962, 598
+  size: 60, 31
+  orig: 60, 31
+  offset: 0, 0
+  index: -1
+skins18/mao2
+  rotate: true
+  xy: 273, 460
+  size: 117, 95
+  orig: 117, 95
+  offset: 0, 0
+  index: -1
+skins19/houfa
+  rotate: false
+  xy: 281, 131
+  size: 86, 87
+  orig: 86, 87
+  offset: 0, 0
+  index: -1
+skins2/toufa5
+  rotate: true
+  xy: 377, 326
+  size: 52, 109
+  orig: 52, 109
+  offset: 0, 0
+  index: -1
+skins2/toufa6
+  rotate: true
+  xy: 803, 498
+  size: 35, 84
+  orig: 35, 84
+  offset: 0, 0
+  index: -1
+skins21/houfa
+  rotate: false
+  xy: 370, 238
+  size: 88, 86
+  orig: 88, 86
+  offset: 0, 0
+  index: -1
+skins22/houfa
+  rotate: false
+  xy: 2, 627
+  size: 136, 183
+  orig: 136, 183
+  offset: 0, 0
+  index: -1
+skins25/youhoufa
+  rotate: true
+  xy: 145, 775
+  size: 87, 178
+  orig: 87, 178
+  offset: 0, 0
+  index: -1
+skins25/zuohoufa
+  rotate: true
+  xy: 510, 692
+  size: 64, 150
+  orig: 64, 150
+  offset: 0, 0
+  index: -1
+skins26/houfa
+  rotate: false
+  xy: 484, 388
+  size: 95, 97
+  orig: 95, 97
+  offset: 0, 0
+  index: -1
+skins26/youfashi
+  rotate: false
+  xy: 325, 776
+  size: 33, 37
+  orig: 33, 37
+  offset: 0, 0
+  index: -1
+skins26/youmawei
+  rotate: true
+  xy: 581, 310
+  size: 59, 78
+  orig: 59, 78
+  offset: 0, 0
+  index: -1
+skins26/zuofashi
+  rotate: false
+  xy: 663, 214
+  size: 26, 31
+  orig: 26, 31
+  offset: 0, 0
+  index: -1
+skins26/zuomawei
+  rotate: false
+  xy: 917, 531
+  size: 52, 59
+  orig: 52, 59
+  offset: 0, 0
+  index: -1
+skins27/bingjiao
+  rotate: true
+  xy: 372, 15
+  size: 25, 43
+  orig: 25, 43
+  offset: 0, 0
+  index: -1
+skins28/houfa
+  rotate: false
+  xy: 477, 487
+  size: 99, 101
+  orig: 99, 101
+  offset: 0, 0
+  index: -1
+skins28/houfa2
+  rotate: false
+  xy: 145, 864
+  size: 191, 158
+  orig: 191, 158
+  offset: 0, 0
+  index: -1
+skins29/toufa4
+  rotate: false
+  xy: 998, 959
+  size: 16, 63
+  orig: 16, 63
+  offset: 0, 0
+  index: -1
+skins29/toufa5
+  rotate: true
+  xy: 656, 247
+  size: 55, 83
+  orig: 55, 83
+  offset: 0, 0
+  index: -1
+skins29/toufa6
+  rotate: false
+  xy: 722, 395
+  size: 80, 87
+  orig: 80, 87
+  offset: 0, 0
+  index: -1
+skins3/houfa
+  rotate: false
+  xy: 571, 245
+  size: 83, 63
+  orig: 83, 63
+  offset: 0, 0
+  index: -1
+skins30/toufa4
+  rotate: true
+  xy: 338, 867
+  size: 155, 169
+  orig: 155, 169
+  offset: 0, 0
+  index: -1
+skins31/toufa2
+  rotate: false
+  xy: 488, 252
+  size: 81, 74
+  orig: 81, 74
+  offset: 0, 0
+  index: -1
+skins32/houfa
+  rotate: true
+  xy: 151, 178
+  size: 148, 122
+  orig: 148, 122
+  offset: 0, 0
+  index: -1
+skins33/houfa
+  rotate: false
+  xy: 643, 494
+  size: 97, 93
+  orig: 97, 93
+  offset: 0, 0
+  index: -1
+skins33/toufahou
+  rotate: false
+  xy: 742, 484
+  size: 59, 103
+  orig: 59, 103
+  offset: 0, 0
+  index: -1
+skins33/zuofa
+  rotate: false
+  xy: 998, 912
+  size: 22, 45
+  orig: 22, 45
+  offset: 0, 0
+  index: -1
+skins34/houfa
+  rotate: false
+  xy: 149, 2
+  size: 114, 94
+  orig: 114, 94
+  offset: 0, 0
+  index: -1
+skins36/houfa
+  rotate: true
+  xy: 509, 881
+  size: 141, 168
+  orig: 141, 168
+  offset: 0, 0
+  index: -1
+skins37/dingmao1
+  rotate: true
+  xy: 265, 66
+  size: 30, 14
+  orig: 30, 14
+  offset: 0, 0
+  index: -1
+skins37/dingmao2
+  rotate: false
+  xy: 998, 889
+  size: 24, 21
+  orig: 24, 21
+  offset: 0, 0
+  index: -1
+skins37/houfa2
+  rotate: false
+  xy: 133, 471
+  size: 138, 106
+  orig: 138, 106
+  offset: 0, 0
+  index: -1
+skins38/houfa
+  rotate: false
+  xy: 657, 766
+  size: 126, 112
+  orig: 126, 112
+  offset: 0, 0
+  index: -1
+skins39/bingjiao
+  rotate: false
+  xy: 976, 468
+  size: 27, 43
+  orig: 27, 43
+  offset: 0, 0
+  index: -1
+skins39/houfa4
+  rotate: false
+  xy: 840, 760
+  size: 113, 120
+  orig: 113, 120
+  offset: 0, 0
+  index: -1
+skins4/houfa
+  rotate: false
+  xy: 370, 487
+  size: 105, 105
+  orig: 105, 105
+  offset: 0, 0
+  index: -1
+skins40/houfa
+  rotate: true
+  xy: 376, 727
+  size: 138, 132
+  orig: 138, 132
+  offset: 0, 0
+  index: -1
+skins41/houfa
+  rotate: true
+  xy: 679, 880
+  size: 142, 157
+  orig: 142, 157
+  offset: 0, 0
+  index: -1
+skins42/houfa2
+  rotate: true
+  xy: 425, 71
+  size: 78, 28
+  orig: 78, 28
+  offset: 0, 0
+  index: -1
+skins43/youbian
+  rotate: false
+  xy: 916, 422
+  size: 55, 44
+  orig: 55, 44
+  offset: 0, 0
+  index: -1
+skins43/zuobian
+  rotate: true
+  xy: 741, 238
+  size: 72, 55
+  orig: 72, 55
+  offset: 0, 0
+  index: -1
+skins44/toufa5
+  rotate: false
+  xy: 2, 143
+  size: 147, 152
+  orig: 147, 152
+  offset: 0, 0
+  index: -1
+skins45/toufahou1
+  rotate: false
+  xy: 782, 600
+  size: 54, 26
+  orig: 54, 26
+  offset: 0, 0
+  index: -1
+skins46/maozi02
+  rotate: true
+  xy: 971, 541
+  size: 55, 48
+  orig: 55, 48
+  offset: 0, 0
+  index: -1
+skins46/toufa04
+  rotate: false
+  xy: 369, 151
+  size: 80, 51
+  orig: 80, 51
+  offset: 0, 0
+  index: -1
+skins47/houfa
+  rotate: true
+  xy: 269, 340
+  size: 118, 106
+  orig: 118, 106
+  offset: 0, 0
+  index: -1
+skins48/toufa3
+  rotate: true
+  xy: 838, 882
+  size: 140, 158
+  orig: 140, 158
+  offset: 0, 0
+  index: -1
+skins5/houfa
+  rotate: false
+  xy: 488, 212
+  size: 79, 38
+  orig: 79, 38
+  offset: 0, 0
+  index: -1
+skins50/toufa4
+  rotate: false
+  xy: 1005, 480
+  size: 17, 31
+  orig: 17, 31
+  offset: 0, 0
+  index: -1
+skins50/toufa5
+  rotate: true
+  xy: 840, 662
+  size: 96, 113
+  orig: 96, 113
+  offset: 0, 0
+  index: -1
+skins50/tufa5
+  rotate: false
+  xy: 864, 388
+  size: 50, 108
+  orig: 50, 108
+  offset: 0, 0
+  index: -1
+skins54/bian
+  rotate: false
+  xy: 373, 80
+  size: 50, 69
+  orig: 50, 69
+  offset: 0, 0
+  index: -1
+skins55/houfa
+  rotate: false
+  xy: 2, 297
+  size: 131, 158
+  orig: 131, 158
+  offset: 0, 0
+  index: -1
+skins56/bian1
+  rotate: false
+  xy: 581, 371
+  size: 66, 116
+  orig: 66, 116
+  offset: 0, 0
+  index: -1
+skins56/bian2
+  rotate: false
+  xy: 299, 622
+  size: 75, 151
+  orig: 75, 151
+  offset: 0, 0
+  index: -1
+skins57/bian1
+  rotate: false
+  xy: 299, 585
+  size: 65, 35
+  orig: 65, 35
+  offset: 0, 0
+  index: -1
+skins57/bian2
+  rotate: true
+  xy: 488, 328
+  size: 58, 91
+  orig: 58, 91
+  offset: 0, 0
+  index: -1
+skins57/bian3
+  rotate: false
+  xy: 804, 397
+  size: 58, 99
+  orig: 58, 99
+  offset: 0, 0
+  index: -1
+skins57/houfa
+  rotate: false
+  xy: 803, 535
+  size: 112, 55
+  orig: 112, 55
+  offset: 0, 0
+  index: -1
+skins57/houfa1
+  rotate: false
+  xy: 325, 815
+  size: 49, 47
+  orig: 49, 47
+  offset: 0, 0
+  index: -1
+skins58/youbian
+  rotate: true
+  xy: 281, 66
+  size: 63, 90
+  orig: 63, 90
+  offset: 0, 0
+  index: -1
+skins58/zuobian
+  rotate: false
+  xy: 785, 628
+  size: 53, 103
+  orig: 53, 103
+  offset: 0, 0
+  index: -1
+skins6/houfa
+  rotate: false
+  xy: 661, 304
+  size: 77, 68
+  orig: 77, 68
+  offset: 0, 0
+  index: -1
+skins6/zuoerji
+  rotate: true
+  xy: 976, 513
+  size: 26, 46
+  orig: 26, 46
+  offset: 0, 0
+  index: -1
+skins60/houfa
+  rotate: false
+  xy: 135, 328
+  size: 132, 141
+  orig: 132, 141
+  offset: 0, 0
+  index: -1
+skins63/houfa
+  rotate: false
+  xy: 2, 457
+  size: 129, 168
+  orig: 129, 168
+  offset: 0, 0
+  index: -1
+skins65/houfa
+  rotate: false
+  xy: 376, 594
+  size: 131, 131
+  orig: 131, 131
+  offset: 0, 0
+  index: -1
+skins66/maozi2
+  rotate: true
+  xy: 785, 733
+  size: 145, 53
+  orig: 145, 53
+  offset: 0, 0
+  index: -1
+skins66/toufa3
+  rotate: false
+  xy: 648, 589
+  size: 132, 93
+  orig: 132, 93
+  offset: 0, 0
+  index: -1
+skins67/naohoutoufa
+  rotate: false
+  xy: 740, 312
+  size: 53, 81
+  orig: 53, 81
+  offset: 0, 0
+  index: -1
+skins68/toufa1
+  rotate: true
+  xy: 509, 590
+  size: 100, 137
+  orig: 100, 137
+  offset: 0, 0
+  index: -1
+skins68/toufa2
+  rotate: false
+  xy: 275, 220
+  size: 93, 118
+  orig: 93, 118
+  offset: 0, 0
+  index: -1
+skins7/toufahou2
+  rotate: true
+  xy: 455, 206
+  size: 30, 31
+  orig: 30, 31
+  offset: 0, 0
+  index: -1
+skins70/daizi
+  rotate: true
+  xy: 569, 208
+  size: 35, 64
+  orig: 35, 64
+  offset: 0, 0
+  index: -1
+skins70/toufa2
+  rotate: false
+  xy: 373, 42
+  size: 50, 36
+  orig: 50, 36
+  offset: 0, 0
+  index: -1
+skins70/toufa3
+  rotate: true
+  xy: 916, 468
+  size: 61, 58
+  orig: 61, 58
+  offset: 0, 0
+  index: -1
+skins71/houmiantoufa
+  rotate: false
+  xy: 510, 758
+  size: 145, 121
+  orig: 145, 121
+  offset: 0, 0
+  index: -1
+skins72/toufa8
+  rotate: true
+  xy: 265, 7
+  size: 57, 90
+  orig: 57, 90
+  offset: 0, 0
+  index: -1
+skins74/bianzi1
+  rotate: true
+  xy: 151, 98
+  size: 78, 128
+  orig: 78, 128
+  offset: 0, 0
+  index: -1
+skins74/bianzi2
+  rotate: false
+  xy: 649, 374
+  size: 71, 118
+  orig: 71, 118
+  offset: 0, 0
+  index: -1
+skins76/nao hou toufa
+  rotate: false
+  xy: 955, 740
+  size: 60, 140
+  orig: 60, 140
+  offset: 0, 0
+  index: -1
+skins77/toufa houmian
+  rotate: true
+  xy: 916, 380
+  size: 40, 53
+  orig: 40, 53
+  offset: 0, 0
+  index: -1
+skins78/fazan
+  rotate: true
+  xy: 460, 239
+  size: 85, 26
+  orig: 85, 26
+  offset: 0, 0
+  index: -1
+skins78/houfa
+  rotate: false
+  xy: 357, 22
+  size: 13, 42
+  orig: 13, 42
+  offset: 0, 0
+  index: -1
+skins8/houfa
+  rotate: false
+  xy: 377, 380
+  size: 105, 105
+  orig: 105, 105
+  offset: 0, 0
+  index: -1
+skins8/zuotoufa
+  rotate: true
+  xy: 973, 424
+  size: 42, 49
+  orig: 42, 49
+  offset: 0, 0
+  index: -1
+skins9/houfa
+  rotate: true
+  xy: 140, 651
+  size: 122, 157
+  orig: 122, 157
+  offset: 0, 0
+  index: -1

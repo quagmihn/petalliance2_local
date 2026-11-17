@@ -1,0 +1,13 @@
+
+min_nv_wuqi2.png
+size: 128,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+wuqi/dunpai
+  rotate: false
+  xy: 2, 2
+  size: 67, 88
+  orig: 67, 88
+  offset: 0, 0
+  index: -1

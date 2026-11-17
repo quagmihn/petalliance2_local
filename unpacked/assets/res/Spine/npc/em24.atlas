@@ -1,0 +1,20 @@
+
+em24.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em24
+  rotate: true
+  xy: 2, 2
+  size: 429, 548
+  orig: 429, 548
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 552, 339
+  size: 129, 92
+  orig: 129, 92
+  offset: 0, 0
+  index: -1

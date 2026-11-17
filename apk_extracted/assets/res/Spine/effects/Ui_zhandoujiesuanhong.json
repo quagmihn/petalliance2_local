@@ -1,0 +1,78 @@
+{
+"skeleton": { "hash": "4XRPZE8+Z5OhHnuYKqZ2W04K4HI", "spine": "3.2.01", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "guangyun", "parent": "root" },
+	{ "name": "huoyan", "parent": "root" }
+],
+"slots": [
+	{ "name": "texiao/10001", "bone": "huoyan", "blend": "additive" },
+	{ "name": "texiao/3", "bone": "guangyun", "blend": "additive" }
+],
+"skins": {
+	"default": {
+		"texiao/10001": {
+			"texiao/10001": { "width": 350, "height": 220 },
+			"texiao/10002": { "width": 350, "height": 220 },
+			"texiao/10003": { "width": 350, "height": 220 },
+			"texiao/10004": { "width": 350, "height": 220 },
+			"texiao/10005": { "width": 350, "height": 220 },
+			"texiao/10006": { "width": 350, "height": 220 },
+			"texiao/10007": { "width": 350, "height": 220 },
+			"texiao/10008": { "width": 350, "height": 220 },
+			"texiao/10009": { "width": 350, "height": 220 },
+			"texiao/10010": { "width": 350, "height": 220 }
+		},
+		"texiao/3": {
+			"texiao/2": { "width": 240, "height": 200 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/3": {
+				"color": [
+					{ "time": 0, "color": "ffffff33" },
+					{ "time": 0.3333, "color": "ffffff6e" },
+					{ "time": 0.6666, "color": "ffffff33" }
+				],
+				"attachment": [
+					{ "time": 0, "name": "texiao/2" },
+					{ "time": 0.6666, "name": "texiao/2" }
+				]
+			},
+			"texiao/10001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/10001" },
+					{ "time": 0.0666, "name": "texiao/10002" },
+					{ "time": 0.1333, "name": "texiao/10003" },
+					{ "time": 0.2, "name": "texiao/10004" },
+					{ "time": 0.2666, "name": "texiao/10005" },
+					{ "time": 0.3333, "name": "texiao/10006" },
+					{ "time": 0.4, "name": "texiao/10007" },
+					{ "time": 0.4666, "name": "texiao/10008" },
+					{ "time": 0.5333, "name": "texiao/10009" },
+					{ "time": 0.6, "name": "texiao/10010" },
+					{ "time": 0.6666, "name": "texiao/10010" }
+				]
+			}
+		},
+		"bones": {
+			"huoyan": {
+				"scale": [
+					{ "time": 0, "x": -1, "y": 1 }
+				]
+			},
+			"guangyun": {
+				"translate": [
+					{ "time": 0, "x": -12.65, "y": 2.09 }
+				],
+				"scale": [
+					{ "time": 0, "x": -1.38, "y": 0.916 }
+				]
+			}
+		}
+	}
+}
+}

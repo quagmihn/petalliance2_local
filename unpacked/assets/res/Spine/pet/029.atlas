@@ -1,0 +1,90 @@
+
+029.png
+size: 512,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+biyan
+  rotate: false
+  xy: 336, 185
+  size: 92, 13
+  orig: 92, 13
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 336, 175
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/lian
+  rotate: false
+  xy: 2, 87
+  size: 165, 144
+  orig: 165, 144
+  offset: 0, 0
+  index: -1
+lian
+  rotate: false
+  xy: 169, 88
+  size: 165, 143
+  orig: 165, 143
+  offset: 0, 0
+  index: -1
+yan
+  rotate: false
+  xy: 2, 53
+  size: 92, 32
+  orig: 92, 32
+  offset: 0, 0
+  index: -1
+yan_aida
+  rotate: false
+  xy: 336, 200
+  size: 92, 31
+  orig: 92, 31
+  offset: 0, 0
+  index: -1
+yan_gongji
+  rotate: false
+  xy: 2, 24
+  size: 92, 27
+  orig: 92, 27
+  offset: 0, 0
+  index: -1
+you
+  rotate: false
+  xy: 430, 185
+  size: 57, 46
+  orig: 57, 46
+  offset: 0, 0
+  index: -1
+zui
+  rotate: false
+  xy: 2, 2
+  size: 48, 20
+  orig: 48, 20
+  offset: 0, 0
+  index: -1
+zui_aida
+  rotate: false
+  xy: 96, 26
+  size: 49, 17
+  orig: 49, 17
+  offset: 0, 0
+  index: -1
+zui_gongji
+  rotate: true
+  xy: 489, 189
+  size: 42, 15
+  orig: 42, 15
+  offset: 0, 0
+  index: -1
+zuo
+  rotate: false
+  xy: 96, 45
+  size: 69, 40
+  orig: 69, 40
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,76 @@
+
+Ui_chongwushengji.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/1
+  rotate: false
+  xy: 2, 296
+  size: 260, 210
+  orig: 260, 210
+  offset: 0, 0
+  index: -1
+texiao/10
+  rotate: false
+  xy: 526, 154
+  size: 110, 140
+  orig: 110, 140
+  offset: 0, 0
+  index: -1
+texiao/2
+  rotate: false
+  xy: 2, 84
+  size: 260, 210
+  orig: 260, 210
+  offset: 0, 0
+  index: -1
+texiao/3
+  rotate: false
+  xy: 264, 296
+  size: 260, 210
+  orig: 260, 210
+  offset: 0, 0
+  index: -1
+texiao/4
+  rotate: false
+  xy: 264, 84
+  size: 260, 210
+  orig: 260, 210
+  offset: 0, 0
+  index: -1
+texiao/5
+  rotate: false
+  xy: 526, 296
+  size: 260, 210
+  orig: 260, 210
+  offset: 0, 0
+  index: -1
+texiao/6
+  rotate: true
+  xy: 254, 37
+  size: 45, 130
+  orig: 45, 130
+  offset: 0, 0
+  index: -1
+texiao/7
+  rotate: false
+  xy: 788, 306
+  size: 45, 200
+  orig: 45, 200
+  offset: 0, 0
+  index: -1
+texiao/8
+  rotate: true
+  xy: 2, 2
+  size: 18, 180
+  orig: 18, 180
+  offset: 0, 0
+  index: -1
+texiao/9
+  rotate: false
+  xy: 2, 22
+  size: 250, 60
+  orig: 250, 60
+  offset: 0, 0
+  index: -1

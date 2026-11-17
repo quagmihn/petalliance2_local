@@ -1,0 +1,83 @@
+{
+"bones": [
+	{ "name": "root" },
+	{ "name": "bone", "parent": "root" },
+	{ "name": "bone2", "parent": "root" }
+],
+"slots": [
+	{ "name": "fx", "bone": "bone", "attachment": "fx", "additive": true },
+	{ "name": "fx2", "bone": "bone2", "color": "c8ff00ff", "attachment": "fx", "additive": true }
+],
+"skins": {
+	"default": {
+		"fx": {
+			"fx": { "scaleX": 2, "scaleY": 2, "width": 348, "height": 134 }
+		},
+		"fx2": {
+			"fx": { "color": "e0ff00ff", "scaleX": 2, "scaleY": 2, "width": 348, "height": 134 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"bones": {
+			"bone": {
+				"rotate": [
+					{ "time": 0, "angle": 0, "curve": "stepped" },
+					{ "time": 0.6666, "angle": 0, "curve": "stepped" },
+					{ "time": 1.3333, "angle": 0 }
+				],
+				"translate": [
+					{ "time": 0, "x": 0, "y": 0, "curve": "stepped" },
+					{ "time": 0.6666, "x": 0, "y": 0, "curve": "stepped" },
+					{ "time": 1.3333, "x": 0, "y": 0 }
+				],
+				"scale": [
+					{ "time": 0, "x": 1.03, "y": 1 },
+					{ "time": 0.6666, "x": 0.969, "y": 0.97 },
+					{ "time": 1.3333, "x": 1.03, "y": 1 }
+				]
+			},
+			"bone2": {
+				"rotate": [
+					{ "time": 0.1333, "angle": 0, "curve": "stepped" },
+					{ "time": 0.4, "angle": 0, "curve": "stepped" },
+					{ "time": 0.6666, "angle": 0, "curve": "stepped" },
+					{ "time": 0.9333, "angle": 0, "curve": "stepped" },
+					{ "time": 1.2, "angle": 0 }
+				],
+				"translate": [
+					{ "time": 0.1333, "x": 0, "y": 0, "curve": "stepped" },
+					{ "time": 0.4, "x": 0, "y": 0, "curve": "stepped" },
+					{ "time": 0.6666, "x": 0, "y": 0, "curve": "stepped" },
+					{ "time": 0.9333, "x": 0, "y": 0, "curve": "stepped" },
+					{ "time": 1.2, "x": 0, "y": 0 }
+				],
+				"scale": [
+					{ "time": 0.1333, "x": 1.4, "y": 1 },
+					{ "time": 0.4, "x": 0.853, "y": 1 },
+					{ "time": 0.6666, "x": 0.041, "y": 0.984 },
+					{ "time": 0.9333, "x": 0.85, "y": 1 },
+					{ "time": 1.2, "x": 1.4, "y": 1 }
+				]
+			}
+		},
+		"slots": {
+			"fx2": {
+				"attachment": [
+					{ "time": 0.1, "name": null },
+					{ "time": 0.1333, "name": "fx" },
+					{ "time": 1.2, "name": "fx" },
+					{ "time": 1.2333, "name": null }
+				],
+				"color": [
+					{ "time": 0.1333, "color": "ffffff00" },
+					{ "time": 0.4, "color": "ffffff80", "curve": "stepped" },
+					{ "time": 0.9333, "color": "ffffff80" },
+					{ "time": 1.2, "color": "ffffff00" }
+				]
+			}
+		}
+	}
+}
+}

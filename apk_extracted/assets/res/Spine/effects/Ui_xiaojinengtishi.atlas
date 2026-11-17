@@ -1,0 +1,125 @@
+
+Ui_xiaojinengtishi.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10001
+  rotate: false
+  xy: 2, 368
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10002
+  rotate: false
+  xy: 2, 246
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 124, 368
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10004
+  rotate: false
+  xy: 2, 124
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10005
+  rotate: false
+  xy: 124, 246
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10006
+  rotate: false
+  xy: 246, 368
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10007
+  rotate: false
+  xy: 2, 2
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10008
+  rotate: false
+  xy: 124, 124
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10009
+  rotate: false
+  xy: 246, 246
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10010
+  rotate: false
+  xy: 368, 368
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10011
+  rotate: false
+  xy: 124, 2
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10012
+  rotate: false
+  xy: 246, 124
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10013
+  rotate: false
+  xy: 368, 246
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10014
+  rotate: false
+  xy: 490, 368
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10015
+  rotate: false
+  xy: 246, 2
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10016
+  rotate: false
+  xy: 368, 124
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1
+texiao/10017
+  rotate: false
+  xy: 490, 246
+  size: 120, 120
+  orig: 120, 120
+  offset: 0, 0
+  index: -1

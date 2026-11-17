@@ -1,0 +1,19 @@
+
+guihun.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+di
+  rotate: true
+  xy: 2, 10
+  size: 115, 141
+  orig: 115, 141
+  offset: 0, 0
+  index: -1
+ghost
+  rotate: false
+  xy: 145, 2
+  size: 86, 123
+  orig: 86, 123
+  offset: 0, 0
+  index: -1

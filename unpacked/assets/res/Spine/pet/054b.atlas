@@ -1,0 +1,83 @@
+
+054b.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+chibangyou
+  rotate: true
+  xy: 655, 151
+  size: 100, 175
+  orig: 100, 175
+  offset: 0, 0
+  index: -1
+chibanzuo
+  rotate: true
+  xy: 655, 43
+  size: 106, 156
+  orig: 106, 156
+  offset: 0, 0
+  index: -1
+diying
+  rotate: true
+  xy: 1009, 199
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+houtui1
+  rotate: true
+  xy: 2, 2
+  size: 27, 40
+  orig: 27, 40
+  offset: 0, 0
+  index: -1
+houtui2
+  rotate: false
+  xy: 971, 101
+  size: 32, 48
+  orig: 32, 48
+  offset: 0, 0
+  index: -1
+images/weiba
+  rotate: false
+  xy: 2, 31
+  size: 241, 220
+  orig: 241, 220
+  offset: 0, 0
+  index: -1
+images/youchibang
+  rotate: true
+  xy: 832, 151
+  size: 100, 175
+  orig: 100, 175
+  offset: 0, 0
+  index: -1
+images/zuochibang
+  rotate: true
+  xy: 813, 43
+  size: 106, 156
+  orig: 106, 156
+  offset: 0, 0
+  index: -1
+qiantui
+  rotate: false
+  xy: 485, 51
+  size: 46, 46
+  orig: 46, 46
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 485, 99
+  size: 168, 152
+  orig: 168, 152
+  offset: 0, 0
+  index: -1
+weiba
+  rotate: false
+  xy: 245, 31
+  size: 238, 220
+  orig: 238, 220
+  offset: 0, 0
+  index: -1

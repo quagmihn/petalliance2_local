@@ -1,0 +1,69 @@
+
+Ui_chongwulingqu_2.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/70001
+  rotate: false
+  xy: 2, 146
+  size: 250, 70
+  orig: 250, 70
+  offset: 0, 0
+  index: -1
+texiao/70002
+  rotate: false
+  xy: 2, 74
+  size: 250, 70
+  orig: 250, 70
+  offset: 0, 0
+  index: -1
+texiao/70003
+  rotate: false
+  xy: 254, 146
+  size: 250, 70
+  orig: 250, 70
+  offset: 0, 0
+  index: -1
+texiao/70004
+  rotate: false
+  xy: 2, 2
+  size: 250, 70
+  orig: 250, 70
+  offset: 0, 0
+  index: -1
+texiao/70005
+  rotate: false
+  xy: 254, 74
+  size: 250, 70
+  orig: 250, 70
+  offset: 0, 0
+  index: -1
+texiao/70006
+  rotate: false
+  xy: 506, 146
+  size: 250, 70
+  orig: 250, 70
+  offset: 0, 0
+  index: -1
+texiao/70007
+  rotate: false
+  xy: 254, 2
+  size: 250, 70
+  orig: 250, 70
+  offset: 0, 0
+  index: -1
+texiao/70008
+  rotate: false
+  xy: 506, 74
+  size: 250, 70
+  orig: 250, 70
+  offset: 0, 0
+  index: -1
+texiao/choose_calligraphy_final_form_en
+  rotate: false
+  xy: 758, 170
+  size: 240, 46
+  orig: 240, 46
+  offset: 0, 0
+  index: -1

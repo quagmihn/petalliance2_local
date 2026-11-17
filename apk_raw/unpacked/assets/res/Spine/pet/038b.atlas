@@ -1,0 +1,90 @@
+
+038b.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+diying
+  rotate: false
+  xy: 289, 52
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/youer
+  rotate: true
+  xy: 289, 62
+  size: 49, 58
+  orig: 49, 58
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 204, 58
+  size: 83, 53
+  orig: 83, 53
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 35
+  size: 129, 76
+  orig: 129, 76
+  offset: 0, 0
+  index: -1
+toushi
+  rotate: false
+  xy: 250, 24
+  size: 37, 32
+  orig: 37, 32
+  offset: 0, 0
+  index: -1
+weiba
+  rotate: false
+  xy: 133, 39
+  size: 69, 72
+  orig: 69, 72
+  offset: 0, 0
+  index: -1
+youer
+  rotate: true
+  xy: 349, 64
+  size: 47, 55
+  orig: 47, 55
+  offset: 0, 0
+  index: -1
+youhoutui
+  rotate: true
+  xy: 406, 79
+  size: 32, 60
+  orig: 32, 60
+  offset: 0, 0
+  index: -1
+youqiantui
+  rotate: true
+  xy: 2, 2
+  size: 31, 62
+  orig: 31, 62
+  offset: 0, 0
+  index: -1
+zuoer
+  rotate: false
+  xy: 468, 74
+  size: 38, 37
+  orig: 38, 37
+  offset: 0, 0
+  index: -1
+zuohoutui
+  rotate: true
+  xy: 204, 28
+  size: 28, 44
+  orig: 28, 44
+  offset: 0, 0
+  index: -1
+zuoqiantui
+  rotate: true
+  xy: 66, 6
+  size: 27, 49
+  orig: 27, 49
+  offset: 0, 0
+  index: -1

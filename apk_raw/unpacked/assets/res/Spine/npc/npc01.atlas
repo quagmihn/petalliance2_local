@@ -1,0 +1,76 @@
+
+npc01.png
+size: 256,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bianzi
+  rotate: false
+  xy: 175, 160
+  size: 38, 84
+  orig: 38, 84
+  offset: 0, 0
+  index: -1
+diying
+  rotate: true
+  xy: 154, 115
+  size: 129, 19
+  orig: 129, 19
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 2, 2
+  size: 80, 98
+  orig: 80, 98
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 102
+  size: 150, 142
+  orig: 150, 142
+  offset: 0, 0
+  index: -1
+yanjing
+  rotate: true
+  xy: 211, 95
+  size: 63, 26
+  orig: 63, 26
+  offset: 0, 0
+  index: -1
+yifu
+  rotate: false
+  xy: 84, 40
+  size: 63, 60
+  orig: 63, 60
+  offset: 0, 0
+  index: -1
+youbi
+  rotate: false
+  xy: 215, 178
+  size: 33, 66
+  orig: 33, 66
+  offset: 0, 0
+  index: -1
+youtui
+  rotate: true
+  xy: 84, 7
+  size: 31, 67
+  orig: 31, 67
+  offset: 0, 0
+  index: -1
+zuobi
+  rotate: false
+  xy: 149, 41
+  size: 30, 55
+  orig: 30, 55
+  offset: 0, 0
+  index: -1
+zuotui
+  rotate: false
+  xy: 175, 98
+  size: 34, 60
+  orig: 34, 60
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,83 @@
+
+Ui_zhandoujiesuanlan.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/20001
+  rotate: false
+  xy: 2, 686
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/20003
+  rotate: false
+  xy: 2, 464
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/20005
+  rotate: false
+  xy: 354, 686
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/20007
+  rotate: false
+  xy: 2, 242
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/20009
+  rotate: false
+  xy: 354, 464
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/20011
+  rotate: true
+  xy: 706, 556
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/20013
+  rotate: false
+  xy: 2, 20
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/20015
+  rotate: false
+  xy: 354, 242
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/20017
+  rotate: false
+  xy: 354, 20
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/20019
+  rotate: true
+  xy: 706, 204
+  size: 350, 220
+  orig: 350, 220
+  offset: 0, 0
+  index: -1
+texiao/4
+  rotate: false
+  xy: 706, 2
+  size: 240, 200
+  orig: 240, 200
+  offset: 0, 0
+  index: -1

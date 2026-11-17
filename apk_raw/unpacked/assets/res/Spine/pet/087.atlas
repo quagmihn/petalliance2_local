@@ -1,0 +1,181 @@
+
+087.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+L_er
+  rotate: true
+  xy: 250, 76
+  size: 53, 69
+  orig: 53, 69
+  offset: 0, 0
+  index: -1
+R_er
+  rotate: false
+  xy: 250, 131
+  size: 91, 51
+  orig: 91, 51
+  offset: 0, 0
+  index: -1
+R_yezi
+  rotate: true
+  xy: 787, 169
+  size: 32, 41
+  orig: 32, 41
+  offset: 0, 0
+  index: -1
+R_yezi2
+  rotate: true
+  xy: 2, 2
+  size: 46, 23
+  orig: 46, 23
+  offset: 0, 0
+  index: -1
+biyan
+  rotate: true
+  xy: 466, 150
+  size: 19, 21
+  orig: 19, 21
+  offset: 0, 0
+  index: -1
+diying
+  rotate: true
+  xy: 1006, 209
+  size: 45, 7
+  orig: 45, 7
+  offset: 0, 0
+  index: -1
+gongji
+  rotate: false
+  xy: 52, 7
+  size: 36, 41
+  orig: 36, 41
+  offset: 0, 0
+  index: -1
+han
+  rotate: false
+  xy: 378, 134
+  size: 26, 35
+  orig: 26, 35
+  offset: 0, 0
+  index: -1
+images/tou
+  rotate: false
+  xy: 489, 148
+  size: 132, 106
+  orig: 132, 106
+  offset: 0, 0
+  index: -1
+images/weiba4
+  rotate: false
+  xy: 623, 170
+  size: 162, 41
+  orig: 162, 41
+  offset: 0, 0
+  index: -1
+images/yanjing
+  rotate: false
+  xy: 436, 136
+  size: 28, 33
+  orig: 28, 33
+  offset: 0, 0
+  index: -1
+images/yezi1
+  rotate: true
+  xy: 830, 169
+  size: 32, 41
+  orig: 32, 41
+  offset: 0, 0
+  index: -1
+images/yezi2
+  rotate: true
+  xy: 27, 2
+  size: 46, 23
+  orig: 46, 23
+  offset: 0, 0
+  index: -1
+images/youer
+  rotate: true
+  xy: 880, 201
+  size: 53, 69
+  orig: 53, 69
+  offset: 0, 0
+  index: -1
+images/zuoer
+  rotate: false
+  xy: 787, 203
+  size: 91, 51
+  orig: 91, 51
+  offset: 0, 0
+  index: -1
+nu
+  rotate: false
+  xy: 951, 201
+  size: 53, 53
+  orig: 53, 53
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: false
+  xy: 2, 50
+  size: 112, 204
+  orig: 112, 204
+  offset: 0, 0
+  index: -1
+shetou
+  rotate: false
+  xy: 321, 96
+  size: 36, 33
+  orig: 36, 33
+  offset: 0, 0
+  index: -1
+shouji
+  rotate: false
+  xy: 343, 131
+  size: 33, 38
+  orig: 33, 38
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 116, 76
+  size: 132, 106
+  orig: 132, 106
+  offset: 0, 0
+  index: -1
+weiba1
+  rotate: false
+  xy: 347, 171
+  size: 140, 83
+  orig: 140, 83
+  offset: 0, 0
+  index: -1
+weiba2
+  rotate: false
+  xy: 116, 184
+  size: 229, 70
+  orig: 229, 70
+  offset: 0, 0
+  index: -1
+weiba4
+  rotate: false
+  xy: 623, 213
+  size: 162, 41
+  orig: 162, 41
+  offset: 0, 0
+  index: -1
+yanjing
+  rotate: false
+  xy: 406, 136
+  size: 28, 33
+  orig: 28, 33
+  offset: 0, 0
+  index: -1
+yankuangqian
+  rotate: false
+  xy: 116, 47
+  size: 29, 27
+  orig: 29, 27
+  offset: 0, 0
+  index: -1

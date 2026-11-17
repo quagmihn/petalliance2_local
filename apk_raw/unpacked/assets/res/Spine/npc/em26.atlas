@@ -1,0 +1,20 @@
+
+em26.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em26
+  rotate: true
+  xy: 2, 96
+  size: 334, 549
+  orig: 334, 549
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 2, 2
+  size: 125, 92
+  orig: 125, 92
+  offset: 0, 0
+  index: -1

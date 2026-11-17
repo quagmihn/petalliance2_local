@@ -1,0 +1,90 @@
+
+min_nv_houshouzhi.png
+size: 128,32
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+skins17/youmuzhitao
+  rotate: false
+  xy: 2, 2
+  size: 9, 11
+  orig: 9, 11
+  offset: 0, 0
+  index: -1
+skins18/youshouzhi
+  rotate: false
+  xy: 35, 2
+  size: 8, 12
+  orig: 8, 12
+  offset: 0, 0
+  index: -1
+skins21/zuodamuzhi
+  rotate: false
+  xy: 56, 9
+  size: 10, 5
+  orig: 10, 5
+  offset: 0, 0
+  index: -1
+skins23/damuzhi
+  rotate: false
+  xy: 20, 17
+  size: 13, 13
+  orig: 13, 13
+  offset: 0, 0
+  index: -1
+skins27/youshoutao2
+  rotate: false
+  xy: 60, 16
+  size: 8, 14
+  orig: 8, 14
+  offset: 0, 0
+  index: -1
+skins37/shoutaomuzhi
+  rotate: false
+  xy: 45, 6
+  size: 9, 8
+  orig: 9, 8
+  offset: 0, 0
+  index: -1
+skins42/muzhitao
+  rotate: false
+  xy: 49, 16
+  size: 9, 14
+  orig: 9, 14
+  offset: 0, 0
+  index: -1
+skins43/youshouzhi
+  rotate: false
+  xy: 2, 15
+  size: 16, 15
+  orig: 16, 15
+  offset: 0, 0
+  index: -1
+skins48/zuoxiumuzhi
+  rotate: false
+  xy: 70, 22
+  size: 8, 8
+  orig: 8, 8
+  offset: 0, 0
+  index: -1
+skins49/zuoshouzhi
+  rotate: false
+  xy: 35, 16
+  size: 12, 14
+  orig: 12, 14
+  offset: 0, 0
+  index: -1
+skins71/youshoutao2
+  rotate: false
+  xy: 24, 2
+  size: 9, 13
+  orig: 9, 13
+  offset: 0, 0
+  index: -1
+youshouzhi
+  rotate: false
+  xy: 13, 2
+  size: 9, 11
+  orig: 9, 11
+  offset: 0, 0
+  index: -1

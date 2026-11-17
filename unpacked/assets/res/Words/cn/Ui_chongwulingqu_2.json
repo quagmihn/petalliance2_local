@@ -1,0 +1,54 @@
+{
+"skeleton": { "hash": "N5phE6vOV0C848iDy5Zfp0CRseM", "spine": "3.1.02", "width": 240, "height": 46, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "tiziguangxiao", "parent": "root" },
+	{ "name": "ziti", "parent": "root" }
+],
+"slots": [
+	{ "name": "texiao/choose_calligraphy_final_form_en", "bone": "ziti", "attachment": "texiao/choose_calligraphy_final_form_en" },
+	{ "name": "texiao/70001", "bone": "tiziguangxiao" }
+],
+"skins": {
+	"default": {
+		"texiao/70001": {
+			"texiao/70001": { "width": 250, "height": 70 },
+			"texiao/70002": { "width": 250, "height": 70 },
+			"texiao/70003": { "width": 250, "height": 70 },
+			"texiao/70004": { "width": 250, "height": 70 },
+			"texiao/70005": { "width": 250, "height": 70 },
+			"texiao/70006": { "width": 250, "height": 70 },
+			"texiao/70007": { "width": 250, "height": 70 },
+			"texiao/70008": { "width": 250, "height": 70 }
+		},
+		"texiao/choose_calligraphy_final_form_en": {
+			"texiao/choose_calligraphy_final_form_en": { "width": 240, "height": 46 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/70001": {
+				"attachment": [
+					{ "time": 0.4333, "name": "texiao/70001" },
+					{ "time": 0.5333, "name": "texiao/70002" },
+					{ "time": 0.6333, "name": "texiao/70003" },
+					{ "time": 0.7333, "name": "texiao/70004" },
+					{ "time": 0.8333, "name": "texiao/70005" },
+					{ "time": 0.9333, "name": "texiao/70006" },
+					{ "time": 1.0333, "name": "texiao/70007" },
+					{ "time": 1.1333, "name": "texiao/70008" },
+					{ "time": 1.2333, "name": null }
+				]
+			},
+			"texiao/choose_calligraphy_final_form_en": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/choose_calligraphy_final_form_en" },
+					{ "time": 1.6666, "name": "texiao/choose_calligraphy_final_form_en" }
+				]
+			}
+		}
+	}
+}
+}

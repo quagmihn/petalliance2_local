@@ -1,0 +1,38 @@
+{
+"skeleton": { "hash": "qpqOZ2mdg2VWBEM77r4wYZU9QG8", "spine": "2.1.27", "width": 138, "height": 210, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "guangquan", "parent": "root" }
+],
+"slots": [
+	{ "name": "guangquan", "bone": "guangquan", "attachment": "guangquan" }
+],
+"skins": {
+	"default": {
+		"guangquan": {
+			"guangquan": { "width": 138, "height": 210 }
+		}
+	}
+},
+"animations": {
+	"idle": {
+		"slots": {
+			"guangquan": {
+				"color": [
+					{ "time": 0, "color": "ffffffff", "curve": "stepped" },
+					{ "time": 0.1666, "color": "ffffffff" },
+					{ "time": 0.3333, "color": "ffffff00" }
+				]
+			}
+		},
+		"bones": {
+			"guangquan": {
+				"scale": [
+					{ "time": 0, "x": 0.5, "y": 0.5 },
+					{ "time": 0.3333, "x": 1.5, "y": 1.5 }
+				]
+			}
+		}
+	}
+}
+}

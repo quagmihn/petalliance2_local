@@ -1,0 +1,41 @@
+
+Bosszhan_zhanliup.png
+size: 1024,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+glow
+  rotate: false
+  xy: 2, 46
+  size: 251, 205
+  orig: 251, 205
+  offset: 0, 0
+  index: -1
+glow2
+  rotate: false
+  xy: 482, 76
+  size: 171, 175
+  orig: 171, 175
+  offset: 0, 0
+  index: -1
+light
+  rotate: false
+  xy: 255, 29
+  size: 225, 222
+  orig: 225, 222
+  offset: 0, 0
+  index: -1
+tex
+  rotate: false
+  xy: 2, 2
+  size: 135, 42
+  orig: 135, 42
+  offset: 0, 0
+  index: -1
+yueya
+  rotate: false
+  xy: 655, 203
+  size: 114, 48
+  orig: 114, 48
+  offset: 0, 0
+  index: -1

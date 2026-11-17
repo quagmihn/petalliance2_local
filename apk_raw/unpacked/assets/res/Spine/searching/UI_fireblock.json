@@ -1,0 +1,77 @@
+{
+"skeleton": { "hash": "M40j7QTdYFJCfuqdX6Jire6QQkU", "spine": "3.2.01", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "guangyun", "parent": "root" },
+	{ "name": "huoyan", "parent": "root" }
+],
+"slots": [
+	{ "name": "texiao/未命名-10001", "bone": "huoyan" },
+	{ "name": "texiao/2", "bone": "guangyun", "blend": "additive" }
+],
+"skins": {
+	"default": {
+		"texiao/2": {
+			"texiao/2": { "width": 200, "height": 200 }
+		},
+		"texiao/未命名-10001": {
+			"texiao/未命名-10001": { "width": 300, "height": 380 },
+			"texiao/未命名-10003": { "width": 300, "height": 380 },
+			"texiao/未命名-10005": { "width": 300, "height": 380 },
+			"texiao/未命名-10007": { "width": 300, "height": 380 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/2": {
+				"color": [
+					{ "time": 0, "color": "ffffff36" },
+					{ "time": 0.4, "color": "ffffff7b" },
+					{ "time": 0.8, "color": "ffffff36" }
+				],
+				"attachment": [
+					{ "time": 0, "name": "texiao/2" },
+					{ "time": 0.8, "name": "texiao/2" }
+				]
+			},
+			"texiao/未命名-10001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/未命名-10001" },
+					{ "time": 0.1, "name": "texiao/未命名-10003" },
+					{ "time": 0.2, "name": "texiao/未命名-10005" },
+					{ "time": 0.3, "name": "texiao/未命名-10007" },
+					{ "time": 0.4, "name": "texiao/未命名-10001" },
+					{ "time": 0.5, "name": "texiao/未命名-10003" },
+					{ "time": 0.6, "name": "texiao/未命名-10005" },
+					{ "time": 0.7, "name": "texiao/未命名-10007" },
+					{ "time": 0.8, "name": "texiao/未命名-10007" }
+				]
+			}
+		},
+		"bones": {
+			"huoyan": {
+				"translate": [
+					{ "time": 0, "x": 0.66, "y": 41.16 }
+				],
+				"scale": [
+					{ "time": 0, "x": 0.4, "y": 0.4, "curve": "stepped" },
+					{ "time": 0.4, "x": -0.4, "y": 0.4 }
+				]
+			},
+			"guangyun": {
+				"rotate": [
+					{ "time": 0, "angle": -1.48 }
+				],
+				"translate": [
+					{ "time": 0, "x": 0.36, "y": 18.91 }
+				],
+				"scale": [
+					{ "time": 0, "x": 0.906, "y": 0.906 }
+				]
+			}
+		}
+	}
+}
+}

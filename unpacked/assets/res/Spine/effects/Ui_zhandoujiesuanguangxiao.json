@@ -1,0 +1,46 @@
+{
+"skeleton": { "hash": "QPPrKP3QxxoBwqZ7gcLWnKtgH/U", "spine": "3.1.02", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "guangxiao", "parent": "root" }
+],
+"slots": [
+	{ "name": "texiao/1", "bone": "guangxiao" }
+],
+"skins": {
+	"default": {
+		"texiao/1": {
+			"texiao/1": { "width": 700, "height": 700 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/1": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/1" },
+					{ "time": 0.1666, "name": "texiao/1" },
+					{ "time": 0.2333, "name": "texiao/1" }
+				]
+			}
+		},
+		"bones": {
+			"guangxiao": {
+				"rotate": [
+					{ "time": 0, "angle": 0 },
+					{ "time": 6, "angle": 180 },
+					{ "time": 12, "angle": 360 },
+					{ "time": 18, "angle": 540 },
+					{ "time": 24, "angle": 720 }
+				],
+				"scale": [
+					{ "time": 0, "x": 0.606, "y": 0.606 },
+					{ "time": 0.1666, "x": 1.42, "y": 1.42 },
+					{ "time": 0.2333, "x": 1.117, "y": 1.117 }
+				]
+			}
+		}
+	}
+}
+}

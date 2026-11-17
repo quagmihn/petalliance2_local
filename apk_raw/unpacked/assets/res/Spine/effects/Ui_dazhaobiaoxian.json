@@ -1,0 +1,60 @@
+{
+"skeleton": { "hash": "ZHilKoLZHxqYGdGe8T8dZx4P7R8", "spine": "3.1.02", "width": 0, "height": 0, "images": "" },
+"bones": [
+	{ "name": "root" },
+	{ "name": "shandianguangxiao", "parent": "root", "rotation": 0.04 }
+],
+"slots": [
+	{ "name": "texiao/20001", "bone": "shandianguangxiao" }
+],
+"skins": {
+	"default": {
+		"texiao/20001": {
+			"texiao/20001": { "rotation": -0.05, "width": 240, "height": 260 },
+			"texiao/20002": { "rotation": -0.05, "width": 240, "height": 260 },
+			"texiao/20003": { "rotation": -0.05, "width": 240, "height": 260 },
+			"texiao/20004": { "rotation": -0.05, "width": 240, "height": 260 },
+			"texiao/20005": { "rotation": -0.05, "width": 240, "height": 260 },
+			"texiao/20006": { "rotation": -0.05, "width": 240, "height": 260 },
+			"texiao/20007": { "rotation": -0.05, "width": 240, "height": 260 },
+			"texiao/20008": { "rotation": -0.05, "width": 240, "height": 260 },
+			"texiao/20009": { "rotation": -0.05, "width": 240, "height": 260 },
+			"texiao/20010": { "rotation": -0.05, "width": 240, "height": 260 }
+		}
+	}
+},
+"animations": {
+	"animation": {
+		"slots": {
+			"texiao/20001": {
+				"attachment": [
+					{ "time": 0, "name": "texiao/20001" },
+					{ "time": 0.0666, "name": "texiao/20002" },
+					{ "time": 0.1333, "name": "texiao/20003" },
+					{ "time": 0.2, "name": "texiao/20004" },
+					{ "time": 0.2666, "name": "texiao/20005" },
+					{ "time": 0.3333, "name": "texiao/20006" },
+					{ "time": 0.4, "name": "texiao/20007" },
+					{ "time": 0.4666, "name": "texiao/20008" },
+					{ "time": 0.5333, "name": "texiao/20009" },
+					{ "time": 0.6, "name": "texiao/20010" },
+					{ "time": 0.6666, "name": null }
+				],
+				"color": [
+					{ "time": 0, "color": "ffffffff", "curve": "stepped" },
+					{ "time": 0.3333, "color": "ffffffff" },
+					{ "time": 0.6666, "color": "ffffff00" }
+				]
+			}
+		},
+		"bones": {
+			"shandianguangxiao": {
+				"scale": [
+					{ "time": 0.1333, "x": 1, "y": 1, "curve": "stepped" },
+					{ "time": 0.2, "x": 1.3, "y": 1.3 }
+				]
+			}
+		}
+	}
+}
+}

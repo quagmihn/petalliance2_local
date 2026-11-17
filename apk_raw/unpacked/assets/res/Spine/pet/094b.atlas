@@ -1,0 +1,90 @@
+
+094b.png
+size: 512,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+diying
+  rotate: false
+  xy: 2, 7
+  size: 52, 8
+  orig: 52, 8
+  offset: 0, 0
+  index: -1
+images/tou
+  rotate: false
+  xy: 134, 17
+  size: 130, 109
+  orig: 130, 109
+  offset: 0, 0
+  index: -1
+images/weiba2
+  rotate: false
+  xy: 438, 102
+  size: 23, 24
+  orig: 23, 24
+  offset: 0, 0
+  index: -1
+nu
+  rotate: false
+  xy: 334, 72
+  size: 54, 54
+  orig: 54, 54
+  offset: 0, 0
+  index: -1
+shang
+  rotate: false
+  xy: 266, 20
+  size: 44, 41
+  orig: 44, 41
+  offset: 0, 0
+  index: -1
+shengti
+  rotate: false
+  xy: 266, 63
+  size: 66, 63
+  orig: 66, 63
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 2, 17
+  size: 130, 109
+  orig: 130, 109
+  offset: 0, 0
+  index: -1
+weiba1
+  rotate: false
+  xy: 390, 75
+  size: 20, 10
+  orig: 20, 10
+  offset: 0, 0
+  index: -1
+weiba2
+  rotate: false
+  xy: 266, 2
+  size: 16, 16
+  orig: 16, 16
+  offset: 0, 0
+  index: -1
+youshou
+  rotate: false
+  xy: 312, 29
+  size: 19, 32
+  orig: 19, 32
+  offset: 0, 0
+  index: -1
+youtui
+  rotate: false
+  xy: 390, 87
+  size: 22, 39
+  orig: 22, 39
+  offset: 0, 0
+  index: -1
+zuotui
+  rotate: false
+  xy: 414, 88
+  size: 22, 38
+  orig: 22, 38
+  offset: 0, 0
+  index: -1

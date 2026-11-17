@@ -1,0 +1,76 @@
+
+Ui_shilianchoudaojuwaikuang.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+texiao/10001
+  rotate: false
+  xy: 2, 668
+  size: 250, 220
+  orig: 250, 220
+  offset: 0, 0
+  index: -1
+texiao/10003
+  rotate: false
+  xy: 2, 446
+  size: 250, 220
+  orig: 250, 220
+  offset: 0, 0
+  index: -1
+texiao/10006
+  rotate: false
+  xy: 254, 668
+  size: 250, 220
+  orig: 250, 220
+  offset: 0, 0
+  index: -1
+texiao/10008
+  rotate: false
+  xy: 2, 224
+  size: 250, 220
+  orig: 250, 220
+  offset: 0, 0
+  index: -1
+texiao/10010
+  rotate: false
+  xy: 254, 446
+  size: 250, 220
+  orig: 250, 220
+  offset: 0, 0
+  index: -1
+texiao/10012
+  rotate: false
+  xy: 506, 668
+  size: 250, 220
+  orig: 250, 220
+  offset: 0, 0
+  index: -1
+texiao/10014
+  rotate: false
+  xy: 2, 2
+  size: 250, 220
+  orig: 250, 220
+  offset: 0, 0
+  index: -1
+texiao/10017
+  rotate: false
+  xy: 254, 224
+  size: 250, 220
+  orig: 250, 220
+  offset: 0, 0
+  index: -1
+texiao/10019
+  rotate: false
+  xy: 506, 446
+  size: 250, 220
+  orig: 250, 220
+  offset: 0, 0
+  index: -1
+texiao/20004
+  rotate: false
+  xy: 758, 688
+  size: 240, 200
+  orig: 240, 200
+  offset: 0, 0
+  index: -1

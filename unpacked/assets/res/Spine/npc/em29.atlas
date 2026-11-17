@@ -1,0 +1,20 @@
+
+em29.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em29
+  rotate: true
+  xy: 2, 2
+  size: 438, 567
+  orig: 438, 567
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 571, 314
+  size: 167, 126
+  orig: 167, 126
+  offset: 0, 0
+  index: -1

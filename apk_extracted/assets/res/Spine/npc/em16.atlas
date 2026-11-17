@@ -1,0 +1,20 @@
+
+em16.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em16
+  rotate: true
+  xy: 2, 2
+  size: 463, 561
+  orig: 463, 561
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: false
+  xy: 565, 343
+  size: 70, 122
+  orig: 70, 122
+  offset: 0, 0
+  index: -1

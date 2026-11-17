@@ -1,0 +1,153 @@
+
+20000.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+aida
+  rotate: true
+  xy: 273, 427
+  size: 207, 80
+  orig: 207, 80
+  offset: 0, 0
+  index: -1
+biyan
+  rotate: true
+  xy: 943, 820
+  size: 187, 68
+  orig: 187, 68
+  offset: 0, 0
+  index: -1
+chibang1
+  rotate: true
+  xy: 2, 23
+  size: 224, 361
+  orig: 224, 361
+  offset: 0, 0
+  index: -1
+chibang2
+  rotate: true
+  xy: 387, 763
+  size: 244, 394
+  orig: 244, 394
+  offset: 0, 0
+  index: -1
+diying
+  rotate: false
+  xy: 2, 2
+  size: 129, 19
+  orig: 129, 19
+  offset: 0, 0
+  index: -1
+effect_01
+  rotate: false
+  xy: 783, 833
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_03
+  rotate: true
+  xy: 387, 603
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_05
+  rotate: true
+  xy: 563, 603
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_07
+  rotate: false
+  xy: 355, 427
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_09
+  rotate: false
+  xy: 273, 251
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_11
+  rotate: false
+  xy: 515, 427
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_13
+  rotate: false
+  xy: 433, 251
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_15
+  rotate: false
+  xy: 365, 75
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_17
+  rotate: false
+  xy: 593, 251
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+effect_19
+  rotate: false
+  xy: 525, 75
+  size: 158, 174
+  orig: 158, 174
+  offset: 0, 0
+  index: -1
+huangguang
+  rotate: false
+  xy: 2, 636
+  size: 383, 371
+  orig: 383, 371
+  offset: 0, 0
+  index: -1
+nu
+  rotate: true
+  xy: 675, 503
+  size: 98, 90
+  orig: 98, 90
+  offset: 0, 0
+  index: -1
+shan
+  rotate: true
+  xy: 783, 725
+  size: 106, 115
+  orig: 106, 115
+  offset: 0, 0
+  index: -1
+shenti
+  rotate: true
+  xy: 2, 249
+  size: 385, 269
+  orig: 385, 269
+  offset: 0, 0
+  index: -1
+yan
+  rotate: true
+  xy: 685, 62
+  size: 187, 68
+  orig: 187, 68
+  offset: 0, 0
+  index: -1
+yangongji
+  rotate: false
+  xy: 365, 10
+  size: 190, 63
+  orig: 190, 63
+  offset: 0, 0
+  index: -1

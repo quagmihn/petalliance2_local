@@ -1,0 +1,20 @@
+
+em33.png
+size: 1024,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+em33
+  rotate: true
+  xy: 2, 88
+  size: 404, 529
+  orig: 404, 529
+  offset: 0, 0
+  index: -1
+yukuai
+  rotate: true
+  xy: 2, 2
+  size: 84, 104
+  orig: 84, 104
+  offset: 0, 0
+  index: -1
