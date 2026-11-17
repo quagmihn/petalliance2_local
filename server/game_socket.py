@@ -8,7 +8,10 @@ import time
 import uuid
 
 from db.database import Database
-from handlers import auth, battle, chat, economy, inventory, map as map_handler, pet, player
+from handlers import treasure
+from handlers import character_state
+from handlers import (auth, battle, chat, economy, inventory, map as map_handler,
+                      pet, player, territory, world_boss)
 from protocol import (Reader, frame, read_frame, redact_payload,
                       ProtocolDecodeError, redact_response_payload,
                       safe_request_fields)
@@ -19,6 +22,9 @@ log = logging.getLogger("game_socket")
 
 # IDs copied from ProtoCommand.lua (little-endian WORDs in the frame).
 CMD = {
+    "read_info": 690, "read_info_ack": 721,
+    "get_life_skill_data": 128, "get_life_skill_data_ack": 181,
+    "get_treasure_box_data": 227, "get_treasure_box_data_ack": 225,
     "platform_login": 2130, "platform_login_ack": 2126,
     "device_login": 2156, "device_login_ack": 2183,
     "device_bind": 2211, "device_bind_ack": 2179,
@@ -67,6 +73,9 @@ CMD = {
     "pet_star_up": 1596, "pet_evolve": 1247, "pet_super_evolve": 729,
     "pet_skill_level": 1302, "pet_equip_strengthen": 561,
     "change_channel": 380, "change_channel_ack": 386,
+    "chat": 45, "chat_ack": 35,
+    "query_self_territory": 1644, "query_self_territory_ack": 1664,
+    "get_week_champion": 501, "get_week_champion_ack": 498,
     "get_home": 118, "get_home_ack": 32,
     "create_pve_battle": 136, "create_pve_battle_ack": 210,
     "pve_battle_end": 263, "pve_battle_end_ack": 186,
@@ -81,8 +90,11 @@ ACK_NAME = {2126: "GC_PLATFORMLOGIN_ACK", 2179: "GC_DEVICEBIND_ACK",
             1526: "GC_CAPSULEEGGCDS_ACK", 386: "GC_CHANGECHANNEL_ACK"}
 ACK_NAME.update({value: key.upper() for key, value in CMD.items() if key.endswith("_ack")})
 EXPECTED_ACKS = {
+    690: (721,), 128: (181,),
+    227: (225,),
     118: (32,), 380: (386,), 154: (152,), 662: (655,), 785: (26, 404),
     3133: (3132,), 400: (726, 404), 632: (630,), 45: (35,),
+    1644: (1664,), 501: (498,),
     136: (210,), 263: (186,),
 }
 
@@ -105,6 +117,12 @@ class Session:
 
 
 async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, bytes] | None:
+    if msg_id == CMD["read_info"]:
+        return await character_state.read_info(session, payload)
+    if msg_id == CMD["get_life_skill_data"]:
+        return await character_state.life_skill(session, payload)
+    if msg_id == CMD["get_treasure_box_data"]:
+        return await treasure.get_data(session, payload)
     if msg_id == 131: return await auth.client_info(session, payload)
     if msg_id == CMD["platform_login"]: return await auth.platform_login(session, payload)
     if msg_id == CMD["device_bind"]: return await auth.device_bind(session, payload)
@@ -141,6 +159,9 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["get_finished_adventures"]: return await map_handler.get_finished_adventures(session, payload)
     if msg_id == CMD["get_server_time"]: return await player.get_server_time(session, payload)
     if msg_id == CMD["change_channel"]: return await chat.change_channel(session, payload)
+    if msg_id == CMD["chat"]: return await chat.send_chat(session, payload)
+    if msg_id == CMD["query_self_territory"]: return await territory.query_self_territory(session, payload)
+    if msg_id == CMD["get_week_champion"]: return await world_boss.get_week_champion(session, payload)
     if msg_id == CMD["quest_list"]: return await map_handler.get_quests(session, payload)
     if msg_id == CMD["get_home"]: return await map_handler.get_home(session, payload)
     if msg_id in (CMD["create_pve_battle"], CMD["pve_battle_end"]):

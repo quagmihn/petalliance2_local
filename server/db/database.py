@@ -80,9 +80,12 @@ class Database:
         )
 
     async def create_starting_pet(self, char_id: int, template_id: int) -> asyncpg.Record:
+        from pet_config import starting_skills
+        skills, passive = starting_skills(template_id)
         return await self.pool.fetchrow(
-            """INSERT INTO pets(char_id,pet_template_id,slot_index)
-               VALUES($1,$2,0) RETURNING *""", char_id, template_id
+            """INSERT INTO pets(char_id,pet_template_id,slot_index,skills_json,passive_skills_json)
+               VALUES($1,$2,0,$3::jsonb,$4::jsonb) RETURNING *""",
+            char_id, template_id, json.dumps(skills), json.dumps(passive)
         )
 
     async def create_character_with_pet(self, account_id: int, world_id: int, name: str,
@@ -105,9 +108,12 @@ class Database:
                     "SELECT * FROM pets WHERE char_id=$1 ORDER BY pet_uid LIMIT 1", char["char_id"]
                 )
                 if first_pet is None and pet_template_id:
+                    from pet_config import starting_skills
+                    skills, passive = starting_skills(pet_template_id)
                     first_pet = await conn.fetchrow(
-                        """INSERT INTO pets(char_id,pet_template_id,slot_index)
-                           VALUES($1,$2,0) RETURNING *""", char["char_id"], pet_template_id,
+                        """INSERT INTO pets(char_id,pet_template_id,slot_index,skills_json,passive_skills_json)
+                           VALUES($1,$2,0,$3::jsonb,$4::jsonb) RETURNING *""",
+                        char["char_id"], pet_template_id, json.dumps(skills), json.dumps(passive),
                     )
                 # NewQuestInfo.dat for client 1.0.128745 defines quest 1 as
                 # the first strong tutorial quest. Seed only newly created
@@ -121,7 +127,7 @@ class Database:
                     )
                     await conn.execute(
                         """INSERT INTO homes(char_id,home_data)
-                           VALUES($1,jsonb_build_object('level',1,'homeName',$2,'furnitures','{}'::jsonb))
+                           VALUES($1,jsonb_build_object('level',1,'homeName',$2::text,'furnitures','{}'::jsonb))
                            ON CONFLICT(char_id) DO NOTHING""",
                         char["char_id"], char["name"],
                     )
@@ -301,7 +307,7 @@ class Database:
                     char_id, quest.quest_id, json.dumps(progress))
                 await conn.execute(
                     """UPDATE characters SET gold=gold+$2,exp=exp+$3,
-                       diamond=diamond+$4,game_values=game_values || jsonb_build_object('map_lock',$5)
+                       diamond=diamond+$4,game_values=game_values || jsonb_build_object('map_lock',$5::text)
                        WHERE char_id=$1""",
                     char_id, gold, exp, quest.diamond_reward, map_lock)
                 return True, new_children

@@ -41,3 +41,14 @@ local endAck=reader(string.char(0,0,16,0,0,0))
 local endDecoded=Proto.parseP_GC_PVEBattleEnd_Ack(endAck)
 assert(endDecoded.code==0 and endDecoded.exp==16)
 print("LUA_BATTLE_PROTO_OK request_hex="..(packet:gsub(".",function(c) return string.format("%02x",c:byte()) end)))
+
+Proto.Command.CG_GETTREASUREBOXDATA_REQ=227
+Proto.Command.GC_GETTREASUREBOXDATA_ACK=225
+assert(loadfile("decoded_lua/assets/src/Net/Proto/Proto_TreasureBox.lua"))()
+local treasureRequest={}; Proto.writeP_CG_GetTreasureBoxData_Req(treasureRequest,{})
+assert(table.concat(treasureRequest)==string.char(227,0))
+local treasureAck=reader(string.char(0,0)..'[{"type":1,"time":123}]\0')
+local boxes=Proto.parseP_GC_GetTreasureBoxData_Ack(treasureAck)
+assert(boxes.code==0 and boxes.boxes=='[{"type":1,"time":123}]')
+assert(treasureAck.pos==#treasureAck.data+1)
+print("LUA_TREASURE_PROTO_OK")

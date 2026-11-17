@@ -1,0 +1,459 @@
+FILE acceptance-client.log
+11-17 15:32:56.893  2797  2823 D cocos2d-x debug info: [15:32:56 LUA-print] [SCENE_DIAG] from= to=LoginScene stack=stack traceback:
+11-17 15:33:07.919  2797  2823 D cocos2d-x debug info: [15:33:07 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_PLATFORMLOGIN_ACK expected_id=2126 scene=LoginScene login_progress=false
+11-17 15:33:07.950  2797  2823 D cocos2d-x debug info: [15:33:07 LUA-print] [NET_DIAG] callback_pending register ack_id=2126 replaced=false
+11-17 15:33:08.092  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_DEVICEBIND_ACK expected_id=2179 scene=LoginScene login_progress=false
+11-17 15:33:08.124  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=2179 replaced=false
+11-17 15:33:08.124  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending resolve ack_id=2126 code=0
+11-17 15:33:08.124  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_PLATFORMLOGIN_ACK expected_id=2126 code=0 loading_visible=true
+11-17 15:33:08.178  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending resolve ack_id=2179 code=0
+11-17 15:33:08.178  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_DEVICEBIND_ACK expected_id=2179 code=0 loading_visible=false
+11-17 15:33:08.182  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_ClientInfo_ACK expected_id=132 scene=LoginScene login_progress=false
+11-17 15:33:08.202  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=132 replaced=false
+11-17 15:33:08.202  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_DEVICELOGIN_ACK expected_id=2183 scene=LoginScene login_progress=false
+11-17 15:33:08.207  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=2183 replaced=false
+11-17 15:33:08.207  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending resolve ack_id=132 code=0
+11-17 15:33:08.207  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_ClientInfo_ACK expected_id=132 code=0 loading_visible=true
+11-17 15:33:08.289  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending resolve ack_id=2183 code=0
+11-17 15:33:08.289  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_DEVICELOGIN_ACK expected_id=2183 code=0 loading_visible=false
+11-17 15:33:08.290  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_QueryPokemons_Ack expected_id=3139 scene=LoginScene login_progress=false
+11-17 15:33:08.301  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=3139 replaced=false
+11-17 15:33:08.408  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending resolve ack_id=3139 code=0
+11-17 15:33:08.408  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_QueryPokemons_Ack expected_id=3139 code=0 loading_visible=true
+11-17 15:33:08.412  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [SCENE_DIAG] from=LoginScene to=MainScene stack=stack traceback:
+11-17 15:33:08.420  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetItemPacket_Ack expected_id=37 scene=MainScene
+11-17 15:33:08.421  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=37 replaced=false
+11-17 15:33:08.531  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending resolve ack_id=37 code=0
+11-17 15:33:08.531  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetItemPacket_Ack expected_id=37 code=0
+11-17 15:33:08.531  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetPetArmys_Ack expected_id=1774 scene=MainScene
+11-17 15:33:08.533  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=1774 replaced=false
+11-17 15:33:08.535  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending unmatched actual_ack_id=112 code=nil
+11-17 15:33:08.653  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1774 code=0
+11-17 15:33:08.653  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetPetArmys_Ack expected_id=1774 code=0
+11-17 15:33:08.653  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetFinishedAdventures_Ack expected_id=3081 scene=MainScene
+11-17 15:33:08.658  2797  2823 D cocos2d-x debug info: [15:33:08 LUA-print] [NET_DIAG] callback_pending register ack_id=3081 replaced=false
+11-17 15:33:09.442  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending resolve ack_id=3081 code=0
+11-17 15:33:09.442  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetFinishedAdventures_Ack expected_id=3081 code=0
+11-17 15:33:09.442  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:33:09.450  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:33:09.535  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:33:09.535  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:33:09.542  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:33:09.577  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:33:09.638  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:33:09.638  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:33:09.639  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:33:09.659  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:33:09.745  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:33:09.745  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:33:09.747  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] home_request mode=async request_id=118 expected_ack=GC_GETHOME_ACK char_id=10 scene=MainScene
+11-17 15:33:09.747  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GETHOME_ACK expected_id=32 scene=MainScene
+11-17 15:33:09.748  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending register ack_id=32 replaced=false
+11-17 15:33:09.748  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetExploreData_Ack expected_id=1109 scene=MainScene
+11-17 15:33:09.749  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending register ack_id=1109 replaced=false
+11-17 15:33:09.864  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] home_ack actual_id=32 code=0 char_id=10 home_bytes=52 scene=MainScene
+11-17 15:33:09.865  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending resolve ack_id=32 code=0
+11-17 15:33:09.865  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GETHOME_ACK expected_id=32 code=0
+11-17 15:33:09.866  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1109 code=0
+11-17 15:33:09.866  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetExploreData_Ack expected_id=1109 code=0
+11-17 15:33:09.866  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetMyMapNodeEventInfo_Ack expected_id=1433 scene=MainScene
+11-17 15:33:09.867  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending register ack_id=1433 replaced=false
+11-17 15:33:09.989  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1433 code=0
+11-17 15:33:09.989  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetMyMapNodeEventInfo_Ack expected_id=1433 code=0
+11-17 15:33:09.991  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_CapsuleEggCDs_Ack expected_id=1526 scene=MainScene
+11-17 15:33:09.992  2797  2823 D cocos2d-x debug info: [15:33:09 LUA-print] [NET_DIAG] callback_pending register ack_id=1526 replaced=false
+11-17 15:33:10.112  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1526 code=0
+11-17 15:33:10.112  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_CapsuleEggCDs_Ack expected_id=1526 code=0
+11-17 15:33:10.113  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_LoadSigninData_Ack expected_id=676 scene=MainScene
+11-17 15:33:10.114  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending register ack_id=676 replaced=false
+11-17 15:33:10.233  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending resolve ack_id=676 code=0
+11-17 15:33:10.233  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_LoadSigninData_Ack expected_id=676 code=0
+11-17 15:33:10.235  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_RecoverStepNumber_Ack expected_id=17 scene=MainScene
+11-17 15:33:10.237  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending register ack_id=17 replaced=false
+11-17 15:33:10.355  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending resolve ack_id=17 code=0
+11-17 15:33:10.355  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_RecoverStepNumber_Ack expected_id=17 code=0
+11-17 15:33:10.356  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetPetWiki_Ack expected_id=54 scene=MainScene
+11-17 15:33:10.357  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending register ack_id=54 replaced=false
+11-17 15:33:10.477  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending resolve ack_id=54 code=0
+11-17 15:33:10.477  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetPetWiki_Ack expected_id=54 code=0
+11-17 15:33:10.478  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetWishingTreesData_Ack expected_id=97 scene=MainScene
+11-17 15:33:10.480  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending register ack_id=97 replaced=false
+11-17 15:33:10.601  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending resolve ack_id=97 code=0
+11-17 15:33:10.601  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetWishingTreesData_Ack expected_id=97 code=0
+11-17 15:33:10.603  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_VipAwardInfo_Ack expected_id=62 scene=MainScene
+11-17 15:33:10.605  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending register ack_id=62 replaced=false
+11-17 15:33:10.731  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending resolve ack_id=62 code=0
+11-17 15:33:10.731  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_VipAwardInfo_Ack expected_id=62 code=0
+11-17 15:33:10.732  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetPokemonAchievements_Ack expected_id=74 scene=MainScene
+11-17 15:33:10.733  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending register ack_id=74 replaced=false
+11-17 15:33:10.847  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending resolve ack_id=74 code=0
+11-17 15:33:10.847  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetPokemonAchievements_Ack expected_id=74 code=0
+11-17 15:33:10.848  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetPotentials_Ack expected_id=70 scene=MainScene
+11-17 15:33:10.848  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending register ack_id=70 replaced=false
+11-17 15:33:10.971  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending resolve ack_id=70 code=0
+11-17 15:33:10.971  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetPotentials_Ack expected_id=70 code=0
+11-17 15:33:10.972  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetActivitiesData_Ack expected_id=152 scene=MainScene
+11-17 15:33:10.976  2797  2823 D cocos2d-x debug info: [15:33:10 LUA-print] [NET_DIAG] callback_pending register ack_id=152 replaced=false
+11-17 15:33:11.101  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=152 code=0
+11-17 15:33:11.101  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetActivitiesData_Ack expected_id=152 code=0
+11-17 15:33:11.102  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetMyFriends_Ack expected_id=253 scene=MainScene
+11-17 15:33:11.104  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=253 replaced=false
+11-17 15:33:11.218  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=253 code=0
+11-17 15:33:11.218  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetMyFriends_Ack expected_id=253 code=0
+11-17 15:33:11.219  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCurrentAdventrue_Ack expected_id=2997 scene=MainScene
+11-17 15:33:11.220  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=2997 replaced=false
+11-17 15:33:11.342  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=2997 code=0
+11-17 15:33:11.343  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCurrentAdventrue_Ack expected_id=2997 code=0
+11-17 15:33:11.344  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=ZC_LoadMonthCard_Ack expected_id=3106 scene=MainScene
+11-17 15:33:11.346  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=3106 replaced=false
+11-17 15:33:11.465  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=3106 code=0
+11-17 15:33:11.465  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=ZC_LoadMonthCard_Ack expected_id=3106 code=0
+11-17 15:33:11.466  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetWorldOpenTime_Ack expected_id=410 scene=MainScene
+11-17 15:33:11.467  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=410 replaced=false
+11-17 15:33:11.591  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=410 code=0
+11-17 15:33:11.591  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetWorldOpenTime_Ack expected_id=410 code=0
+11-17 15:33:11.593  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetScienceDatas_Ack expected_id=651 scene=MainScene
+11-17 15:33:11.594  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=651 replaced=false
+11-17 15:33:11.712  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=651 code=0
+11-17 15:33:11.712  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetScienceDatas_Ack expected_id=651 code=0
+11-17 15:33:11.716  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:33:11.719  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:33:11.720  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_CheckUnReadMail_Ack expected_id=1077 scene=MainScene
+11-17 15:33:11.722  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=1077 replaced=false
+11-17 15:33:11.723  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:33:11.723  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:33:11.723  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GETTREASUREBOXDATA_ACK expected_id=225 scene=MainScene
+11-17 15:33:11.723  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=225 replaced=false
+11-17 15:33:11.724  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1077 code=0
+11-17 15:33:11.724  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_CheckUnReadMail_Ack expected_id=1077 code=0
+11-17 15:33:11.725  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_GetWorldBoss_Ack expected_id=450 scene=MainScene login_progress=true
+11-17 15:33:11.726  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=450 replaced=false
+11-17 15:33:11.726  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=225 code=0
+11-17 15:33:11.726  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GETTREASUREBOXDATA_ACK expected_id=225 code=0
+11-17 15:33:11.726  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=450 code=0
+11-17 15:33:11.726  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_GetWorldBoss_Ack expected_id=450 code=0 loading_visible=false
+11-17 15:33:11.728  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=ZC_QuestList_Ack expected_id=26 scene=MainScene
+11-17 15:33:11.729  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=26 replaced=false
+11-17 15:33:11.836  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=26 code=0
+11-17 15:33:11.836  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=ZC_QuestList_Ack expected_id=26 code=0
+11-17 15:33:11.840  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 scene=MainScene login_progress=true
+11-17 15:33:11.843  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=386 replaced=false
+11-17 15:33:11.845  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:33:11.846  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:33:11.847  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] recv quest id:	1
+11-17 15:33:11.847  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] recv quest id:	10001
+11-17 15:33:11.847  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] new mission	10001
+11-17 15:33:11.848  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [SCENE_DIAG] from=MainScene to=LabScene stack=stack traceback:
+11-17 15:33:11.884  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending unmatched actual_ack_id=404 code=nil
+11-17 15:33:11.885  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=386 code=0
+11-17 15:33:11.885  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 code=0 loading_visible=false
+11-17 15:33:11.887  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:33:11.887  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:33:11.887  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=MC_ReadInfo_Ack expected_id=721 scene=LabScene
+11-17 15:33:11.888  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=721 replaced=false
+11-17 15:33:11.888  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetLifeSkillData_Ack expected_id=181 scene=LabScene
+11-17 15:33:11.889  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=181 replaced=false
+11-17 15:33:11.945  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=721 code=0
+11-17 15:33:11.945  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=MC_ReadInfo_Ack expected_id=721 code=0
+11-17 15:33:11.946  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=LabScene
+11-17 15:33:11.993  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:33:11.994  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] callback_pending resolve ack_id=181 code=0
+11-17 15:33:11.994  2797  2823 D cocos2d-x debug info: [15:33:11 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetLifeSkillData_Ack expected_id=181 code=0
+11-17 15:33:12.049  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:33:12.049  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:33:12.056  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=LabScene login_progress=false
+11-17 15:33:12.137  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:33:12.169  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:33:12.169  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0 loading_visible=true
+11-17 15:33:12.256  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_GetMyFriends_Ack expected_id=253 scene=LabScene login_progress=false
+11-17 15:33:12.259  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] callback_pending register ack_id=253 replaced=false
+11-17 15:33:12.303  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_QuerySelfTerritoryIDInfo_Ack expected_id=1664 scene=LabScene login_progress=false
+11-17 15:33:12.304  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] callback_pending register ack_id=1664 replaced=false
+11-17 15:33:12.423  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] callback_pending resolve ack_id=253 code=0
+11-17 15:33:12.423  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_GetMyFriends_Ack expected_id=253 code=0 loading_visible=true
+11-17 15:33:12.424  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1664 code=0
+11-17 15:33:12.424  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_QuerySelfTerritoryIDInfo_Ack expected_id=1664 code=0 loading_visible=false
+11-17 15:33:12.424  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=LabScene
+11-17 15:33:12.431  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:12.548  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:12.549  2797  2823 D cocos2d-x debug info: [15:33:12 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:19.137  2797  2823 D cocos2d-x debug info: [15:33:19 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=LabScene
+11-17 15:33:19.144  2797  2823 D cocos2d-x debug info: [15:33:19 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:19.155  2797  2823 D cocos2d-x debug info: [15:33:19 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:19.155  2797  2823 D cocos2d-x debug info: [15:33:19 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:19.155  2797  2823 D cocos2d-x debug info: [15:33:19 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=LabScene
+11-17 15:33:19.163  2797  2823 D cocos2d-x debug info: [15:33:19 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:19.261  2797  2823 D cocos2d-x debug info: [15:33:19 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:19.261  2797  2823 D cocos2d-x debug info: [15:33:19 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:20.169  2797  2823 D cocos2d-x debug info: [15:33:20 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=LabScene
+11-17 15:33:20.200  2797  2823 D cocos2d-x debug info: [15:33:20 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:20.238  2797  2823 D cocos2d-x debug info: [15:33:20 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:20.238  2797  2823 D cocos2d-x debug info: [15:33:20 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:20.238  2797  2823 D cocos2d-x debug info: [15:33:20 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=LabScene
+11-17 15:33:20.248  2797  2823 D cocos2d-x debug info: [15:33:20 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:20.364  2797  2823 D cocos2d-x debug info: [15:33:20 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:20.364  2797  2823 D cocos2d-x debug info: [15:33:20 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:21.540  2797  2823 D cocos2d-x debug info: [15:33:21 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=LabScene
+11-17 15:33:21.553  2797  2823 D cocos2d-x debug info: [15:33:21 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:21.562  2797  2823 D cocos2d-x debug info: [15:33:21 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:21.562  2797  2823 D cocos2d-x debug info: [15:33:21 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:21.562  2797  2823 D cocos2d-x debug info: [15:33:21 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=LabScene
+11-17 15:33:21.569  2797  2823 D cocos2d-x debug info: [15:33:21 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:21.573  2797  2823 D cocos2d-x debug info: [15:33:21 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:21.573  2797  2823 D cocos2d-x debug info: [15:33:21 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:22.001  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [SCENE_DIAG] from=LabScene to=TownScene stack=stack traceback:
+11-17 15:33:22.344  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 scene=TownScene login_progress=false
+11-17 15:33:22.348  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending register ack_id=386 replaced=false
+11-17 15:33:22.348  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_GetMyFriends_Ack expected_id=253 scene=TownScene login_progress=false
+11-17 15:33:22.348  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending register ack_id=253 replaced=false
+11-17 15:33:22.541  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_QuerySelfTerritoryIDInfo_Ack expected_id=1664 scene=TownScene login_progress=false
+11-17 15:33:22.541  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending register ack_id=1664 replaced=false
+11-17 15:33:22.587  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetWeekChampionData_Ack expected_id=498 scene=TownScene
+11-17 15:33:22.588  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending register ack_id=498 replaced=false
+11-17 15:33:22.606  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=TownScene
+11-17 15:33:22.613  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:22.753  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=386 code=0
+11-17 15:33:22.753  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 code=0 loading_visible=true
+11-17 15:33:22.754  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=253 code=0
+11-17 15:33:22.754  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_GetMyFriends_Ack expected_id=253 code=0 loading_visible=false
+11-17 15:33:22.755  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1664 code=0
+11-17 15:33:22.755  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_QuerySelfTerritoryIDInfo_Ack expected_id=1664 code=0 loading_visible=false
+11-17 15:33:22.756  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=498 code=0
+11-17 15:33:22.756  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetWeekChampionData_Ack expected_id=498 code=0
+11-17 15:33:22.757  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=TownScene
+11-17 15:33:22.804  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:33:22.811  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:22.811  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:22.811  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=TownScene
+11-17 15:33:22.818  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:22.820  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:33:22.820  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:33:22.822  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:22.822  2797  2823 D cocos2d-x debug info: [15:33:22 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:42.850  2797  2823 D cocos2d-x debug info: [15:33:42 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=TownScene
+11-17 15:33:42.868  2797  2823 D cocos2d-x debug info: [15:33:42 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:42.933  2797  2823 D cocos2d-x debug info: [15:33:42 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:42.933  2797  2823 D cocos2d-x debug info: [15:33:42 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:33:49.150  2797  2823 D cocos2d-x debug info: [15:33:49 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_CREATEPVEBATTLE_ACK expected_id=210 scene=TownScene login_progress=false
+11-17 15:33:49.154  2797  2823 D cocos2d-x debug info: [15:33:49 LUA-print] [NET_DIAG] callback_pending register ack_id=210 replaced=false
+11-17 15:33:49.219  2797  2823 D cocos2d-x debug info: [15:33:49 LUA-print] [SCENE_DIAG] from=TownScene to=BattleScene stack=stack traceback:
+11-17 15:33:49.267  2797  2823 D cocos2d-x debug info: [15:33:49 LUA-print] [NET_DIAG] callback_pending resolve ack_id=210 code=0
+11-17 15:33:49.267  2797  2823 D cocos2d-x debug info: [15:33:49 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_CREATEPVEBATTLE_ACK expected_id=210 code=0 loading_visible=false
+11-17 15:33:49.835  2797  2823 D cocos2d-x debug info: [15:33:49 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=BattleScene
+11-17 15:33:49.843  2797  2823 D cocos2d-x debug info: [15:33:49 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:33:49.934  2797  2823 D cocos2d-x debug info: [15:33:49 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:33:49.934  2797  2823 D cocos2d-x debug info: [15:33:49 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:35:22.437  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_PVEBATTLEEND_ACK expected_id=186 scene=BattleScene login_progress=false
+11-17 15:35:22.453  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] [NET_DIAG] callback_pending register ack_id=186 replaced=false
+11-17 15:35:22.454  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=ZC_CommitQuest_Ack expected_id=726 scene=BattleScene login_progress=false
+11-17 15:35:22.455  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] [NET_DIAG] callback_pending register ack_id=726 replaced=false
+11-17 15:35:22.455  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] 这个引导有下级任务id:	2
+11-17 15:35:22.455  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] 这个引导有下级任务id:	10002
+11-17 15:35:22.539  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=186 code=0
+11-17 15:35:22.539  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_PVEBATTLEEND_ACK expected_id=186 code=0 loading_visible=true
+11-17 15:35:22.540  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=726 code=0
+11-17 15:35:22.540  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=ZC_CommitQuest_Ack expected_id=726 code=0 loading_visible=false
+11-17 15:35:22.540  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] recv quest id:	2
+11-17 15:35:22.540  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] new mission	2
+11-17 15:35:22.540  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] recv quest id:	10002
+11-17 15:35:22.540  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] new mission	10002
+11-17 15:35:22.541  2797  2823 D cocos2d-x debug info: [15:35:22 LUA-print] [NET_DIAG] callback_pending unmatched actual_ack_id=404 code=nil
+
+FILE relogin-client.log
+11-17 15:36:12.580  2986  3012 D cocos2d-x debug info: [15:36:12 LUA-print] [SCENE_DIAG] from= to=LoginScene stack=stack traceback:
+11-17 15:36:22.130  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_PLATFORMLOGIN_ACK expected_id=2126 scene=LoginScene login_progress=false
+11-17 15:36:22.155  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending register ack_id=2126 replaced=false
+11-17 15:36:22.291  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_DEVICEBIND_ACK expected_id=2179 scene=LoginScene login_progress=false
+11-17 15:36:22.305  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending register ack_id=2179 replaced=false
+11-17 15:36:22.305  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=2126 code=0
+11-17 15:36:22.305  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_PLATFORMLOGIN_ACK expected_id=2126 code=0 loading_visible=true
+11-17 15:36:22.383  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=2179 code=0
+11-17 15:36:22.383  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_DEVICEBIND_ACK expected_id=2179 code=0 loading_visible=false
+11-17 15:36:22.388  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_ClientInfo_ACK expected_id=132 scene=LoginScene login_progress=false
+11-17 15:36:22.407  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending register ack_id=132 replaced=false
+11-17 15:36:22.407  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_DEVICELOGIN_ACK expected_id=2183 scene=LoginScene login_progress=false
+11-17 15:36:22.411  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending register ack_id=2183 replaced=false
+11-17 15:36:22.412  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=132 code=0
+11-17 15:36:22.412  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_ClientInfo_ACK expected_id=132 code=0 loading_visible=true
+11-17 15:36:22.493  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=2183 code=0
+11-17 15:36:22.493  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_DEVICELOGIN_ACK expected_id=2183 code=0 loading_visible=false
+11-17 15:36:22.493  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_QueryPokemons_Ack expected_id=3139 scene=LoginScene login_progress=false
+11-17 15:36:22.502  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending register ack_id=3139 replaced=false
+11-17 15:36:22.613  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=3139 code=0
+11-17 15:36:22.613  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_QueryPokemons_Ack expected_id=3139 code=0 loading_visible=true
+11-17 15:36:22.616  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [SCENE_DIAG] from=LoginScene to=MainScene stack=stack traceback:
+11-17 15:36:22.648  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetItemPacket_Ack expected_id=37 scene=MainScene
+11-17 15:36:22.649  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending register ack_id=37 replaced=false
+11-17 15:36:22.726  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=37 code=0
+11-17 15:36:22.727  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetItemPacket_Ack expected_id=37 code=0
+11-17 15:36:22.727  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetPetArmys_Ack expected_id=1774 scene=MainScene
+11-17 15:36:22.728  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending register ack_id=1774 replaced=false
+11-17 15:36:22.730  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending unmatched actual_ack_id=112 code=nil
+11-17 15:36:22.849  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1774 code=0
+11-17 15:36:22.849  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetPetArmys_Ack expected_id=1774 code=0
+11-17 15:36:22.850  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetFinishedAdventures_Ack expected_id=3081 scene=MainScene
+11-17 15:36:22.853  2986  3012 D cocos2d-x debug info: [15:36:22 LUA-print] [NET_DIAG] callback_pending register ack_id=3081 replaced=false
+11-17 15:36:23.541  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] callback_pending resolve ack_id=3081 code=0
+11-17 15:36:23.541  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetFinishedAdventures_Ack expected_id=3081 code=0
+11-17 15:36:23.541  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:36:23.549  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:36:23.724  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:36:23.724  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:36:23.730  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:36:23.759  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:36:23.843  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:36:23.843  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:36:23.844  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:36:23.852  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:36:23.965  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:36:23.965  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:36:23.967  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] home_request mode=async request_id=118 expected_ack=GC_GETHOME_ACK char_id=10 scene=MainScene
+11-17 15:36:23.967  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GETHOME_ACK expected_id=32 scene=MainScene
+11-17 15:36:23.968  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] callback_pending register ack_id=32 replaced=false
+11-17 15:36:23.968  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetExploreData_Ack expected_id=1109 scene=MainScene
+11-17 15:36:23.969  2986  3012 D cocos2d-x debug info: [15:36:23 LUA-print] [NET_DIAG] callback_pending register ack_id=1109 replaced=false
+11-17 15:36:24.085  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] home_ack actual_id=32 code=0 char_id=10 home_bytes=52 scene=MainScene
+11-17 15:36:24.086  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending resolve ack_id=32 code=0
+11-17 15:36:24.086  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GETHOME_ACK expected_id=32 code=0
+11-17 15:36:24.087  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1109 code=0
+11-17 15:36:24.087  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetExploreData_Ack expected_id=1109 code=0
+11-17 15:36:24.088  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetMyMapNodeEventInfo_Ack expected_id=1433 scene=MainScene
+11-17 15:36:24.089  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending register ack_id=1433 replaced=false
+11-17 15:36:24.206  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1433 code=0
+11-17 15:36:24.206  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetMyMapNodeEventInfo_Ack expected_id=1433 code=0
+11-17 15:36:24.207  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_CapsuleEggCDs_Ack expected_id=1526 scene=MainScene
+11-17 15:36:24.208  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending register ack_id=1526 replaced=false
+11-17 15:36:24.330  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1526 code=0
+11-17 15:36:24.330  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_CapsuleEggCDs_Ack expected_id=1526 code=0
+11-17 15:36:24.331  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_LoadSigninData_Ack expected_id=676 scene=MainScene
+11-17 15:36:24.331  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending register ack_id=676 replaced=false
+11-17 15:36:24.453  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending resolve ack_id=676 code=0
+11-17 15:36:24.453  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_LoadSigninData_Ack expected_id=676 code=0
+11-17 15:36:24.454  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_RecoverStepNumber_Ack expected_id=17 scene=MainScene
+11-17 15:36:24.455  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending register ack_id=17 replaced=false
+11-17 15:36:24.575  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending resolve ack_id=17 code=0
+11-17 15:36:24.575  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_RecoverStepNumber_Ack expected_id=17 code=0
+11-17 15:36:24.575  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetPetWiki_Ack expected_id=54 scene=MainScene
+11-17 15:36:24.575  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending register ack_id=54 replaced=false
+11-17 15:36:24.697  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending resolve ack_id=54 code=0
+11-17 15:36:24.698  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetPetWiki_Ack expected_id=54 code=0
+11-17 15:36:24.698  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetWishingTreesData_Ack expected_id=97 scene=MainScene
+11-17 15:36:24.699  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending register ack_id=97 replaced=false
+11-17 15:36:24.822  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending resolve ack_id=97 code=0
+11-17 15:36:24.822  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetWishingTreesData_Ack expected_id=97 code=0
+11-17 15:36:24.822  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_VipAwardInfo_Ack expected_id=62 scene=MainScene
+11-17 15:36:24.823  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending register ack_id=62 replaced=false
+11-17 15:36:24.953  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending resolve ack_id=62 code=0
+11-17 15:36:24.954  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_VipAwardInfo_Ack expected_id=62 code=0
+11-17 15:36:24.954  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetPokemonAchievements_Ack expected_id=74 scene=MainScene
+11-17 15:36:24.957  2986  3012 D cocos2d-x debug info: [15:36:24 LUA-print] [NET_DIAG] callback_pending register ack_id=74 replaced=false
+11-17 15:36:25.069  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=74 code=0
+11-17 15:36:25.070  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetPokemonAchievements_Ack expected_id=74 code=0
+11-17 15:36:25.071  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetPotentials_Ack expected_id=70 scene=MainScene
+11-17 15:36:25.072  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=70 replaced=false
+11-17 15:36:25.191  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=70 code=0
+11-17 15:36:25.191  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetPotentials_Ack expected_id=70 code=0
+11-17 15:36:25.192  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetActivitiesData_Ack expected_id=152 scene=MainScene
+11-17 15:36:25.196  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=152 replaced=false
+11-17 15:36:25.319  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=152 code=0
+11-17 15:36:25.319  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetActivitiesData_Ack expected_id=152 code=0
+11-17 15:36:25.320  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetMyFriends_Ack expected_id=253 scene=MainScene
+11-17 15:36:25.321  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=253 replaced=false
+11-17 15:36:25.437  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=253 code=0
+11-17 15:36:25.437  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetMyFriends_Ack expected_id=253 code=0
+11-17 15:36:25.438  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCurrentAdventrue_Ack expected_id=2997 scene=MainScene
+11-17 15:36:25.439  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=2997 replaced=false
+11-17 15:36:25.560  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=2997 code=0
+11-17 15:36:25.560  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCurrentAdventrue_Ack expected_id=2997 code=0
+11-17 15:36:25.561  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=ZC_LoadMonthCard_Ack expected_id=3106 scene=MainScene
+11-17 15:36:25.563  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=3106 replaced=false
+11-17 15:36:25.684  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=3106 code=0
+11-17 15:36:25.684  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=ZC_LoadMonthCard_Ack expected_id=3106 code=0
+11-17 15:36:25.685  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetWorldOpenTime_Ack expected_id=410 scene=MainScene
+11-17 15:36:25.686  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=410 replaced=false
+11-17 15:36:25.807  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=410 code=0
+11-17 15:36:25.807  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetWorldOpenTime_Ack expected_id=410 code=0
+11-17 15:36:25.808  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetScienceDatas_Ack expected_id=651 scene=MainScene
+11-17 15:36:25.809  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=651 replaced=false
+11-17 15:36:25.930  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=651 code=0
+11-17 15:36:25.930  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetScienceDatas_Ack expected_id=651 code=0
+11-17 15:36:25.932  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:36:25.936  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:36:25.936  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_CheckUnReadMail_Ack expected_id=1077 scene=MainScene
+11-17 15:36:25.937  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=1077 replaced=false
+11-17 15:36:25.938  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:36:25.938  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:36:25.938  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GETTREASUREBOXDATA_ACK expected_id=225 scene=MainScene
+11-17 15:36:25.938  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=225 replaced=false
+11-17 15:36:25.938  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1077 code=0
+11-17 15:36:25.939  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_CheckUnReadMail_Ack expected_id=1077 code=0
+11-17 15:36:25.939  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_GetWorldBoss_Ack expected_id=450 scene=MainScene login_progress=true
+11-17 15:36:25.941  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=450 replaced=false
+11-17 15:36:25.941  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=225 code=0
+11-17 15:36:25.941  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GETTREASUREBOXDATA_ACK expected_id=225 code=0
+11-17 15:36:25.942  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending resolve ack_id=450 code=0
+11-17 15:36:25.942  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_GetWorldBoss_Ack expected_id=450 code=0 loading_visible=false
+11-17 15:36:25.943  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] request mode=async expected_ack=ZC_QuestList_Ack expected_id=26 scene=MainScene
+11-17 15:36:25.944  2986  3012 D cocos2d-x debug info: [15:36:25 LUA-print] [NET_DIAG] callback_pending register ack_id=26 replaced=false
+11-17 15:36:26.052  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=26 code=0
+11-17 15:36:26.052  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=ZC_QuestList_Ack expected_id=26 code=0
+11-17 15:36:26.058  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 scene=MainScene login_progress=true
+11-17 15:36:26.062  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=386 replaced=false
+11-17 15:36:26.064  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=MainScene
+11-17 15:36:26.066  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:36:26.066  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] recv quest id:	1
+11-17 15:36:26.066  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] recv quest id:	2
+11-17 15:36:26.067  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] new mission	2
+11-17 15:36:26.067  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] recv quest id:	10001
+11-17 15:36:26.067  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] recv quest id:	10002
+11-17 15:36:26.067  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] new mission	10002
+11-17 15:36:26.068  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [SCENE_DIAG] from=MainScene to=TownScene stack=stack traceback:
+11-17 15:36:26.110  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending unmatched actual_ack_id=404 code=nil
+11-17 15:36:26.110  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=386 code=0
+11-17 15:36:26.111  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 code=0 loading_visible=false
+11-17 15:36:26.112  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:36:26.112  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:36:26.113  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=async expected_ack=MC_ReadInfo_Ack expected_id=721 scene=TownScene
+11-17 15:36:26.114  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=721 replaced=false
+11-17 15:36:26.114  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetLifeSkillData_Ack expected_id=181 scene=TownScene
+11-17 15:36:26.115  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=181 replaced=false
+11-17 15:36:26.170  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=721 code=0
+11-17 15:36:26.170  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=MC_ReadInfo_Ack expected_id=721 code=0
+11-17 15:36:26.170  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=TownScene
+11-17 15:36:26.217  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:36:26.217  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=181 code=0
+11-17 15:36:26.217  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetLifeSkillData_Ack expected_id=181 code=0
+11-17 15:36:26.273  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:36:26.273  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:36:26.282  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=TownScene login_progress=false
+11-17 15:36:26.371  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:36:26.376  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:36:26.376  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0 loading_visible=true
+11-17 15:36:26.454  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 scene=TownScene login_progress=false
+11-17 15:36:26.458  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=386 replaced=false
+11-17 15:36:26.458  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_GetMyFriends_Ack expected_id=253 scene=TownScene login_progress=false
+11-17 15:36:26.458  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=253 replaced=false
+11-17 15:36:26.638  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=blocking expected_ack=GC_QuerySelfTerritoryIDInfo_Ack expected_id=1664 scene=TownScene login_progress=false
+11-17 15:36:26.639  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=1664 replaced=false
+11-17 15:36:26.685  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetWeekChampionData_Ack expected_id=498 scene=TownScene
+11-17 15:36:26.686  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=498 replaced=false
+11-17 15:36:26.786  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=386 code=0
+11-17 15:36:26.786  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_ChangeChannel_Ack expected_id=386 code=0 loading_visible=true
+11-17 15:36:26.788  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=253 code=0
+11-17 15:36:26.788  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_GetMyFriends_Ack expected_id=253 code=0 loading_visible=false
+11-17 15:36:26.788  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=1664 code=0
+11-17 15:36:26.788  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=blocking expected_ack=GC_QuerySelfTerritoryIDInfo_Ack expected_id=1664 code=0 loading_visible=false
+11-17 15:36:26.788  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=TownScene
+11-17 15:36:26.797  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:36:26.797  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=498 code=0
+11-17 15:36:26.797  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetWeekChampionData_Ack expected_id=498 code=0
+11-17 15:36:26.797  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 scene=TownScene
+11-17 15:36:26.822  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending register ack_id=747 replaced=false
+11-17 15:36:26.833  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:36:26.833  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1
+11-17 15:36:26.835  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] callback_pending resolve ack_id=747 code=0
+11-17 15:36:26.835  2986  3012 D cocos2d-x debug info: [15:36:26 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCharacterValues_Ack expected_id=747 code=0
+11-17 15:36:46.864  2986  3012 D cocos2d-x debug info: [15:36:46 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_Chat_Ack expected_id=35 scene=TownScene
+11-17 15:36:46.882  2986  3012 D cocos2d-x debug info: [15:36:46 LUA-print] [NET_DIAG] callback_pending register ack_id=35 replaced=false
+11-17 15:36:46.946  2986  3012 D cocos2d-x debug info: [15:36:46 LUA-print] [NET_DIAG] callback_pending resolve ack_id=35 code=1
+11-17 15:36:46.946  2986  3012 D cocos2d-x debug info: [15:36:46 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_Chat_Ack expected_id=35 code=1

@@ -5,6 +5,7 @@ import json
 import logging
 
 from protocol import Reader, Writer
+from pet_config import tutorial_monster
 
 log = logging.getLogger("game_socket")
 
@@ -19,7 +20,7 @@ FIRST_GUIDE_BATTLE = {
     "skill1": 371,
     "skill2": 0,
     "skill3": 0,
-    "hp": 1782,             # MonstrosityInfo.dat amendmentHP
+    "hp": tutorial_monster()["hp"],  # amendmentHP is per-mille, not absolute HP
     "petStage": 0,
     "petStar": 0,
     "skin": 0,

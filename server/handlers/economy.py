@@ -121,6 +121,12 @@ async def capsule_egg(session, payload: bytes):
 
 async def load_month_card(session, payload: bytes):
     Reader(payload).finish()
+    row = await session.db.pool.fetchrow(
+        "SELECT month_card_until FROM characters WHERE char_id=$1", session.char_id)
+    # No entitlement exists for a new character. The login chain requires a
+    # successful read with an empty vector and the isNeverBuy DWORD.
+    if row is not None and row["month_card_until"] is None:
+        return 3106, success_code().u8(0).u32(1).bytes()
     return 3106, Writer().i32(1).string("").i32(0).bytes()
 
 

@@ -70,6 +70,11 @@ CREATE TABLE IF NOT EXISTS pets (
     equips_json JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
+-- Stage is the independent strengthening counter used by PetAdvanceInfo.
+-- Evolution changes species; it must not be reused as a strengthening level.
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS training_stage INTEGER NOT NULL DEFAULT 0 CHECK (training_stage >= 0);
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS passive_skills_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+
 CREATE TABLE IF NOT EXISTS inventory (
     id BIGSERIAL PRIMARY KEY,
     char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
