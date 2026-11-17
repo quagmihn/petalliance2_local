@@ -336,8 +336,12 @@ function CharInfo.update(jsonCode)
                 print("charInfo~~~~~~~~~~pvpServerID",v)
                 BattlePVPMgr.setserverID(tonumber(v))
             elseif key == "treasureboxselect" then
-                print("charInfo~~~~~~~~~~treasureBoxSelect",sz_T2S(v))
-                if #v > 0 then
+                if type(v) ~= "string" then
+                    print("[CHAR_VALUE_DIAG] treasureboxselect expected string, got "..type(v))
+                else
+                    print("charInfo~~~~~~~~~~treasureBoxSelect",sz_T2S(v))
+                end
+                if type(v) == "string" and #v > 0 then
                     local TreasureBoxSend = require("src.Net.Send.TreasureBoxSend")
                     NetInterface.send("GC_SelectTreasureBox_Ack", function()
                         TreasureBoxSend.sendCG_SelectTreasureBox_Req({boxID=0})

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import struct
 import time
 
+from character_values import validate_character_values
 from protocol import Reader, Writer, success_code
 
 
@@ -66,7 +68,12 @@ async def get_character_values(session, payload: bytes):
     r.finish()
     if session.char_id is None:
         raise ValueError("character values requested before character selection")
-    values = await session.db.character_values(session.char_id, keys)
+    raw_values = await session.db.character_values(session.char_id, keys)
+    values = validate_character_values(keys, raw_values)
+    logger = logging.getLogger("game_socket")
+    logger.info("character_values_typed char_id=%s requested=%d returned=%d types=%s",
+                session.char_id, len(keys), len(values),
+                {key: type(value).__name__ for key, value in values.items()})
     return 747, Writer().u16(0).string(json.dumps(values, separators=(",", ":"))).bytes()
 
 

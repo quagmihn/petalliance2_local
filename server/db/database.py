@@ -240,8 +240,8 @@ class Database:
     async def commit_configured_tutorial_quest(self, char_id: int, quest,
                                                all_quests: dict[int, Any]) -> tuple[bool, list[int]]:
         """Atomically validate, complete, reward, unlock, and activate configured children."""
-        amount = quest.objectives[0].amount if quest.objectives else 0
-        if quest.quest_id not in (1, 10001, 10002, 10003) or amount <= 0:
+        objectives = quest.objectives
+        if not objectives or any(objective.amount <= 0 for objective in objectives):
             return False, []
         async with self.pool.acquire() as conn:
             async with conn.transaction():
@@ -263,23 +263,15 @@ class Database:
                         char_id, quest.parent_id)
                     if parent != 1:
                         return False, []
-                if quest.quest_id == 1:
-                    proof = await conn.fetchval("SELECT 1 FROM pets WHERE char_id=$1 LIMIT 1", char_id)
-                elif quest.quest_id == 10001:
-                    proof = await conn.fetchval(
-                        """SELECT 1 FROM tutorial_battle_sessions
-                           WHERE char_id=$1 AND state='won' AND group_id=99998 LIMIT 1""", char_id)
-                elif quest.quest_id == 10002:
-                    proof = char["level"] >= 2
-                else:  # 10003 follows the configured first main-mission claim (quest 2).
-                    proof = await conn.fetchval(
-                        "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=2 AND status=1", char_id)
-                if not proof:
+                progress = current["progress"]
+                if isinstance(progress, str):
+                    progress = json.loads(progress)
+                if isinstance(progress, dict):
+                    progress = progress.get("progressList", [])
+                if (not isinstance(progress, list) or len(progress) != len(objectives)
+                        or any(type(value) is not int or value < objective.amount
+                               for value, objective in zip(progress, objectives))):
                     return False, []
-
-                # Tutorial completion sends CommitQuest directly. Persist the
-                # count from independently verified server evidence.
-                progress = [amount]
 
                 new_children = []
                 for child_id in quest.child_ids:
@@ -306,7 +298,7 @@ class Database:
                     map_lock = map_lock if quest.unlock_map_id in unlocked else map_lock + "-" + quest.unlock_map_id
                 await conn.execute(
                     """UPDATE quests SET status=1,progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2""",
-                    char_id, quest.quest_id, json.dumps([amount]))
+                    char_id, quest.quest_id, json.dumps(progress))
                 await conn.execute(
                     """UPDATE characters SET gold=gold+$2,exp=exp+$3,
                        diamond=diamond+$4,game_values=game_values || jsonb_build_object('map_lock',$5)
@@ -327,8 +319,9 @@ class Database:
                 "inventory": [dict(r) for r in items], "quests": [dict(r) for r in quests]}
 
     async def character_values(self, char_id: int, keys: list[str]) -> dict[str, Any]:
+        from character_values import validate_character_values
         row = await self.pool.fetchrow(
-            "SELECT gold,diamond,vip_level,stamina,vip_points,currencies_json,game_values "
+            "SELECT gold,diamond,vip_level,stamina,vip_points,currencies_json,game_values,created_at,world_id "
             "FROM characters WHERE char_id=$1", char_id,
         )
         if row is None:
@@ -345,12 +338,21 @@ class Database:
             "vip_level": row["vip_level"], "actionvalue": row["stamina"],
             "stamina": row["stamina"], "vip_points": row["vip_points"],
             "map_lock": stored.get("map_lock", "0"),
+            "create_time": int(row["created_at"].timestamp()),
+            "world": row["world_id"],
         }
+        raw_values: dict[str, Any] = {}
         for key in keys:
             normalized = key.lower()
-            values[key] = stored.get(key, stored.get(normalized,
-                          currencies.get(normalized, aliases.get(normalized, 0))))
-        return values
+            if key in stored:
+                raw_values[key] = stored[key]
+            elif normalized in stored:
+                raw_values[key] = stored[normalized]
+            elif normalized in currencies:
+                raw_values[key] = currencies[normalized]
+            elif normalized in aliases:
+                raw_values[key] = aliases[normalized]
+        return validate_character_values(keys, raw_values)
 
     async def set_character_value(self, char_id: int, key: str, value: str) -> None:
         async with self.pool.acquire() as conn:

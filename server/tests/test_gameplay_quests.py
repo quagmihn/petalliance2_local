@@ -61,16 +61,12 @@ class QuestDB:
             return False, []
         if quest.parent_id and self.quests.get(quest.parent_id, {}).get("status") != 1:
             return False, []
-        if quest.quest_id == 1 and not self.has_pet:
-            return False, []
-        if quest.quest_id == 10001 and "won" not in self.battles.values():
-            return False, []
-        if quest.quest_id == 10002 and self.level < 2:
-            return False, []
-        if quest.quest_id == 10003 and self.quests.get(2, {}).get("status") != 1:
+        progress = row.get("progress", [])
+        if (len(progress) != len(quest.objectives)
+                or any(value < objective.amount for value, objective in zip(progress, quest.objectives))):
             return False, []
         row["status"] = 1
-        row["progress"] = [quest.objectives[0].amount]
+        row["progress"] = progress
         children = []
         for child in quest.child_ids:
             if child and child not in self.quests:
@@ -103,6 +99,9 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.config[10001].child_ids, (2, 10002))
         self.assertEqual(self.config[10002].child_ids, (10003,))
         self.assertEqual(self.config[10003].child_ids, (10005,))
+        self.assertEqual(self.config[10004].parent_id, 0)
+        self.assertNotIn(10004, self.config[10003].child_ids)
+        self.assertEqual(self.config[10005].child_ids, (10006,))
         self.assertEqual(self.config[10001].objectives[0].event_type, 2)
         self.assertEqual(self.config[2].objectives[0].event_type, 19)
         self.assertEqual(self.config[10001].gold_reward, "2000")
@@ -110,6 +109,7 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_first_pet_battle_and_level_two_guide_progression(self):
         self.assertEqual(CMD["quest_commit"], 400)
+        await self.session.db.ensure_first_quest_for_level_one(self.session.char_id)
         result = await dispatch(self.session, 400, Writer().u32(1).bytes())
         self.assertEqual([packet[0] for packet in result], [726, 404])
         ntf = Reader(result[1][1])
@@ -117,9 +117,9 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((ntf.u32(), ntf.u8()), (10001, 0))
         ntf.u64(); self.assertEqual((ntf.u8(), ntf.u32()), (1, 0)); ntf.finish()
 
-        # The client requests type 5 / trainer ID 1; server binds its response to group 99998.
-        ack_id, body = await dispatch(self.session, 136,
-                                      Writer().u32(5).u32(1).u32(0).bytes())
+        # BattleMapMgr replaces the initial ID 1 with configured GroupID 99998.
+        actual_client_payload = bytes.fromhex("050000009e86010000000000")
+        ack_id, body = await dispatch(self.session, 136, actual_client_payload)
         self.assertEqual(ack_id, 210)
         r = Reader(body); self.assertEqual(r.u16(), 0)
         self.assertEqual(r.u8(), 1)
@@ -144,11 +144,26 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([packet[0] for packet in duplicate], [726])
 
         self.session.db.level = 2
+        update = Writer().u32(10002).u8(0).u64(1).u8(1).u32(1).bytes()
+        ack_id, body = await dispatch(self.session, 3133, update)
+        self.assertEqual((ack_id, Reader(body).u16()), (3132, 0))
         result = await dispatch(self.session, 400, Writer().u32(10002).bytes())
         self.assertEqual([packet[0] for packet in result], [726, 404])
         ntf = Reader(result[1][1]); self.assertEqual(ntf.u8(), 1)
         self.assertEqual((ntf.u32(), ntf.u8()), (10003, 0)); ntf.u64()
         self.assertEqual((ntf.u8(), ntf.u32()), (1, 0)); ntf.finish()
+
+    async def test_configured_commit_requires_persisted_objective_evidence(self):
+        self.session.db.quests[10005] = {"status": 0, "progress": [0]}
+        denied = await dispatch(self.session, 400, Writer().u32(10005).bytes())
+        self.assertEqual((denied[0], Reader(denied[1]).u16()), (726, 1))
+        self.session.db.quests[10003] = {"status": 1, "progress": [1]}
+        self.session.db.quests[10005]["progress"] = [1]
+        accepted = await dispatch(self.session, 400, Writer().u32(10005).bytes())
+        self.assertEqual([packet[0] for packet in accepted], [726, 404])
+        ntf = Reader(accepted[1][1]); self.assertEqual(ntf.u8(), 1)
+        self.assertEqual((ntf.u32(), ntf.u8()), (10006, 0))
+        ntf.u64(); self.assertEqual((ntf.u8(), ntf.u32()), (1, 0)); ntf.finish()
 
     async def test_arbitrary_and_unproven_commits_are_rejected(self):
         ack_id, body = await dispatch(self.session, 400, Writer().u32(10001).bytes())
@@ -176,6 +191,11 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         ack_id, body = await dispatch(self.session, 263,
                                       Writer().u16(1).vector_strings(["1,0"]).bytes())
         self.assertEqual((ack_id, Reader(body).u16()), (186, 1))
+
+    async def test_old_assumed_group_id_is_rejected_with_error_ack(self):
+        self.session.db.quests[10001] = {"status": 0, "progress": [0]}
+        ack_id, body = await dispatch(self.session, 136, Writer().u32(5).u32(1).u32(0).bytes())
+        self.assertEqual((ack_id, Reader(body).u16()), (210, 1))
 
     async def test_failed_battle_does_not_complete_objective(self):
         self.session.db.quests[10001] = {"status": 0, "progress": [0]}

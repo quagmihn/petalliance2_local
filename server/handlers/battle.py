@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from protocol import Reader, Writer
 
+log = logging.getLogger("game_socket")
+
 FIRST_GUIDE_BATTLE = {
     "battle_type": 5,       # Proto.BTT_MONSTER_MAN_GROUP
-    "battle_type_id": 1,
+    # For BTT_MONSTER_MAN_GROUP, BattleMapMgr replaces the initial value 1
+    # with the configured GroupID before serializing the request.
+    "battle_type_id": 99998,
     "group_id": 99998,      # GameGuideMgr.firstBattle()
     "monster_id": 999996,  # MonsterGroupManInfo.dat group 99998
     "level": 1,
@@ -27,13 +32,24 @@ async def handle(message_id: int, payload: bytes, session):
         r = Reader(payload)
         battle_type, battle_type_id, sub_id = r.u32(), r.u32(), r.u32()
         r.finish()
-        valid = (session.char_id is not None
-                 and battle_type == FIRST_GUIDE_BATTLE["battle_type"]
-                 and battle_type_id == FIRST_GUIDE_BATTLE["battle_type_id"]
-                 and sub_id == 0
-                 and await session.db.start_tutorial_battle(
-                     session.char_id, session.session_id, FIRST_GUIDE_BATTLE["group_id"]))
-        if not valid:
+        reason = None
+        if session.char_id is None:
+            reason = "character_not_selected"
+        elif battle_type != FIRST_GUIDE_BATTLE["battle_type"]:
+            reason = "battle_type_mismatch"
+        elif battle_type_id != FIRST_GUIDE_BATTLE["battle_type_id"]:
+            reason = "group_id_mismatch"
+        elif sub_id != 0:
+            reason = "sub_id_unsupported"
+        else:
+            started = await session.db.start_tutorial_battle(
+                session.char_id, session.session_id, FIRST_GUIDE_BATTLE["group_id"])
+            if not started:
+                reason = "quest_not_active_or_encounter_already_invalid"
+        if reason:
+            log.warning("battle_rejected request_id=136 char_id=%s handler=create_pve_battle "
+                        "battle_type=%s battle_type_id=%s sub_id=%s rejection_reason=%s response_id=210 response_code=1",
+                        session.char_id, battle_type, battle_type_id, sub_id, reason)
             return 210, Writer().u16(1).bytes()
         monster = {key: value for key, value in FIRST_GUIDE_BATTLE.items()
                    if key in {"monster_id", "level", "skill1", "skill2", "skill3", "hp",
@@ -60,6 +76,10 @@ async def handle(message_id: int, payload: bytes, session):
                     and await session.db.finish_tutorial_battle(
                         session.char_id, session.session_id, won))
         if not accepted:
+            reason = "invalid_result_or_empty_trace" if not valid_result or not details else "no_active_encounter"
+            log.warning("battle_rejected request_id=263 char_id=%s handler=pve_battle_end "
+                        "result=%s details_count=%d rejection_reason=%s response_id=186 response_code=1",
+                        session.char_id, result, len(details), reason)
             return 186, Writer().u16(1).bytes()
         return 186, Writer().u16(0).u32(
             FIRST_GUIDE_BATTLE["exp"] if won else 0).bytes()
