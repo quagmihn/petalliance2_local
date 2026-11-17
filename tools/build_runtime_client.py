@@ -69,6 +69,8 @@ def main():
                 data = patch_activity_config(data)
             if info.filename == "assets/src/GameMgr/Support/LuaSqlite.lua":
                 data = b"XXTEA" + encrypt(Path("decoded_lua/assets/src/GameMgr/Support/LuaSqlite.lua").read_bytes(), b"kyopkm")
+            if info.filename == "assets/src/Net/Process/PVEProcess.lua":
+                data = b"XXTEA" + encrypt(Path("decoded_lua/assets/src/Net/Process/PVEProcess.lua").read_bytes(), b"kyopkm")
             if info.filename.startswith("assets/res/Config/db/") and info.filename.endswith(".db"):
                 sidecar = zipfile.ZipInfo(info.filename + ".b64")
                 sidecar.compress_type = zipfile.ZIP_DEFLATED

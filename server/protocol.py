@@ -57,6 +57,18 @@ def safe_request_fields(msg_id: int, payload: bytes) -> dict[str, object]:
             fields[name] = _mask(fields[name])
         fields["group_id"], fields["channel_id"] = group_id, channel_id
         return fields
+    if msg_id == 4 and payload:
+        adventure_id = r.u32(); count = r.u8()
+        if count > 64:
+            raise ProtocolDecodeError("adventure event vector too large")
+        return {"adventure_id": adventure_id,
+                "event_ids": [r.u32() for _ in range(count)]}
+    if msg_id == 391:
+        return {"seven_day_id": r.u32(), "select_index": r.u32()}
+    if msg_id == 1283:
+        return {"friend_id": r.string()}
+    if msg_id == 3082:
+        return {"star": r.u16()}
     return {}
 
 

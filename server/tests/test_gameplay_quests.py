@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 from game_socket import CMD, dispatch
 from handlers import battle
+from db.database import _merge_map_unlock
 from protocol import Reader, Writer
 from quest_config import load_quests
 
@@ -15,12 +16,36 @@ class QuestDB:
         self.level = 1
         self.has_pet = True
         self.battles = {}
+        self.adventure_claims = {}
+        self.current_adventures = {}
+
+    async def start_adventure(self, char_id, adventure_id):
+        self.current_adventures[char_id] = adventure_id
+
+    async def start_adventure_battle(self, char_id, session_id, adventure_id, scene_id, group_id):
+        if self.current_adventures.get(char_id) != adventure_id or scene_id != 15 or group_id != 1:
+            return False
+        self.battles[session_id] = ("started", group_id, 3)
+        return True
+
+    async def current_adventure_id(self, char_id):
+        return self.current_adventures.get(char_id)
+
+    async def claim_adventure_cell(self, char_id, adventure_id, floor, col, row, rewards):
+        key = (char_id, adventure_id, floor, col, row)
+        if key not in self.adventure_claims:
+            self.adventure_claims[key] = [json.dumps(reward, separators=(",", ":"))
+                                          for reward in rewards]
+        return self.adventure_claims[key]
 
     async def ensure_first_quest_for_level_one(self, char_id):
         self.ensure_called = char_id
         self.quests.setdefault(1, {"status": 0, "progress": [0]})
         if self.has_pet and self.quests[1]["status"] == 0:
             self.quests[1]["progress"] = [1]
+
+    async def repair_completed_quest_unlocks(self, char_id, all_quests):
+        self.unlock_repair_called = (char_id, all_quests)
 
     async def update_configured_tutorial_progress(self, char_id, quest_id, progress, amount):
         row = self.quests.get(quest_id)
@@ -40,15 +65,18 @@ class QuestDB:
     async def start_tutorial_battle(self, char_id, session_id, group_id):
         if group_id != 99998 or self.quests.get(10001, {}).get("status") != 0:
             return False
-        self.battles[session_id] = "started"
+        self.battles[session_id] = ("started", group_id, 5)
         return True
 
     async def finish_tutorial_battle(self, char_id, session_id, won):
-        if self.battles.get(session_id) != "started":
+        battle = self.battles.get(session_id)
+        if not battle or battle[0] != "started":
             return False
-        self.battles[session_id] = "won" if won else "lost"
-        if won:
+        self.battles[session_id] = ("won" if won else "lost", battle[1], battle[2])
+        if won and battle[1] == 99998:
             self.quests[10001]["progress"] = [1]
+        elif won and battle[2] == 3 and 10002 in self.quests:
+            self.quests[10002]["progress"] = [1]
         return True
 
     async def commit_configured_tutorial_quest(self, char_id, quest, all_quests):
@@ -106,6 +134,14 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.config[2].objectives[0].event_type, 19)
         self.assertEqual(self.config[10001].gold_reward, "2000")
         self.assertEqual(self.config[10001].unlock_map_id, "1")
+        self.assertEqual(self.config[10002].unlock_map_id, "2")
+        self.assertEqual(self.config[10007].unlock_map_id, "3")
+
+    def test_quest_map_unlocks_use_the_maplock_component(self):
+        self.assertEqual(_merge_map_unlock("0-1", "1"), "1-1")
+        self.assertEqual(_merge_map_unlock("1-4", "2"), "2-4")
+        self.assertEqual(_merge_map_unlock("2-4", "q7"), "2-7")
+        self.assertEqual(_merge_map_unlock("3-9", "2"), "3-9")
 
     async def test_first_pet_battle_and_level_two_guide_progression(self):
         self.assertEqual(CMD["quest_commit"], 400)
@@ -152,6 +188,52 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         ntf = Reader(result[1][1]); self.assertEqual(ntf.u8(), 1)
         self.assertEqual((ntf.u32(), ntf.u8()), (10003, 0)); ntf.u64()
         self.assertEqual((ntf.u8(), ntf.u32()), (1, 0)); ntf.finish()
+
+    async def test_configured_adventure_returns_real_sceneinfo_cells(self):
+        ack_id, body = await dispatch(self.session, 2996, Writer().u32(1).bytes())
+        self.assertEqual(ack_id, 3080)
+        r = Reader(body); self.assertEqual(r.u16(), 0); self.assertEqual(r.u32(), 1)
+        state = json.loads(r.string()); r.finish()
+        self.assertEqual(state["advID"], 1)
+        self.assertEqual(len(state["events"]), 30)
+        trainer = next(event for event in state["events"] if event["sceneID"] == 15)
+        self.assertEqual((trainer["flo"], trainer["type"], trainer["eventID"], trainer["x"], trainer["y"]),
+                         (1, 8, 1, 3, 5))
+        self.assertEqual(state["npcShop"], [])
+
+        ack_id, error = await dispatch(self.session, 2996, Writer().u32(999999).bytes())
+        self.assertEqual((ack_id, Reader(error).u16()), (3080, 1))
+
+    async def test_configured_adventure_trainer_battle_records_real_win_progress(self):
+        self.session.db.quests[10002] = {"status": 0, "progress": [0]}
+        await dispatch(self.session, 2996, Writer().u32(1).bytes())
+        ack_id, body = await dispatch(self.session, 136, Writer().u32(3).u32(15).u32(0).bytes())
+        self.assertEqual(ack_id, 210)
+        r = Reader(body); self.assertEqual(r.u16(), 0)
+        monsters = [json.loads(r.string()) for _ in range(r.u8())]
+        self.assertEqual(monsters, [{"mID": 1, "level": 1, "skill1": 371, "skill2": 1841,
+                                     "skill3": 0, "hp": 168, "petStage": 0,
+                                     "petStar": 0, "skin": 0}])
+        self.assertEqual(r.u32(), 16); self.assertEqual(r.u8(), 0); r.finish()
+        end = Writer().u16(1).u8(1).string("{\"turn\":1}").bytes()
+        end_id, end_body = await dispatch(self.session, 263, end)
+        self.assertEqual((end_id, Reader(end_body).u16()), (186, 0))
+        self.assertEqual(self.session.db.quests[10002]["progress"], [1])
+
+    async def test_adventure_pickup_uses_configured_reward_and_ack_schema(self):
+        await dispatch(self.session, 2996, Writer().u32(1).bytes())
+        request = Writer().u32(1).u32(5).u32(6).bytes()
+        ack_id, body = await dispatch(self.session, 2998, request)
+        self.assertEqual(ack_id, 3079)
+        r = Reader(body); self.assertEqual(r.u16(), 0)
+        awards = [r.string() for _ in range(r.u8())]; r.finish()
+        self.assertEqual([json.loads(award) for award in awards],
+                         [{"elementType": "g_cash", "elementID": 0, "num": 10}])
+        repeated_id, repeated_body = await dispatch(self.session, 2998, request)
+        repeated = Reader(repeated_body)
+        self.assertEqual((repeated_id, repeated.u16()), (3079, 0))
+        self.assertEqual([repeated.string() for _ in range(repeated.u8())], awards)
+        repeated.finish()
 
     async def test_configured_commit_requires_persisted_objective_evidence(self):
         self.session.db.quests[10005] = {"status": 0, "progress": [0]}

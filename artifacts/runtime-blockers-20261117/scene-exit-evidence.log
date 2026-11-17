@@ -1,4 +1,0 @@
-11-17 15:35:48.985  2797  2823 D cocos2d-x debug info: [15:35:48 LUA-print] [SCENE_DIAG] from=BattleScene to=TownScene stack=stack traceback:
-11-17 15:35:48.985  2797  2823 D cocos2d-x debug info: 	[string "src/GameMgr/Map/SceneMgr.lua"]:62: in function 'replaceScene'
-11-17 15:35:48.985  2797  2823 D cocos2d-x debug info: 	[string "src/GameMgr/Battle/BattleCCSB.lua"]:2188: in function 'callback'
-11-17 15:35:48.985  2797  2823 D cocos2d-x debug info: 	[string "src/GameMgr/CSResourceMgr.lua"]:1020: in function <[string "src/GameMgr/CSResourceMgr.lua"]:976>

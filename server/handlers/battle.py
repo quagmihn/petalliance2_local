@@ -6,6 +6,8 @@ import logging
 
 from protocol import Reader, Writer
 from pet_config import tutorial_monster
+from client_config import table as client_table
+from pet_config import untrained_hp
 
 log = logging.getLogger("game_socket")
 
@@ -34,6 +36,48 @@ async def handle(message_id: int, payload: bytes, session):
         battle_type, battle_type_id, sub_id = r.u32(), r.u32(), r.u32()
         r.finish()
         reason = None
+        if battle_type == 3:
+            if session.char_id is None:
+                return 210, Writer().u16(1).bytes()
+            adventure_id = await session.db.current_adventure_id(session.char_id)
+            adventure = client_table("AdventureInfo").get(adventure_id) if adventure_id else None
+            scene = client_table("SceneInfo").get(battle_type_id)
+            if (adventure is None or scene is None or scene["number"] not in adventure["scene"]
+                    or scene["eventType"] != 8 or sub_id != 0):
+                log.warning("battle_rejected request_id=136 char_id=%s handler=adventure_trainer_battle "
+                            "adventure_id=%s scene_id=%s sub_id=%s rejection_reason=unconfigured_trainer_scene",
+                            session.char_id, adventure_id, battle_type_id, sub_id)
+                return 210, Writer().u16(1).bytes()
+            group_id = int(scene["event"])
+            group = client_table("MonsterGroupManInfo").get(group_id)
+            if group is None or not group["pokemons"]:
+                return 210, Writer().u16(1).bytes()
+            started = await session.db.start_adventure_battle(
+                session.char_id, session.session_id, adventure_id, battle_type_id, group_id)
+            if not started:
+                return 210, Writer().u16(1).bytes()
+            monstrosities = client_table("MonstrosityInfo")
+            monsters = []
+            for monster_id in group["pokemons"]:
+                info = monstrosities.get(int(monster_id))
+                if info is None or not info["level"]:
+                    raise ValueError(f"trainer group {group_id} references invalid monster {monster_id}")
+                level = int(info["level"][0])
+                stage = int(info["petStage"])
+                star = int(info["petStar"])
+                hp = int(untrained_hp(int(info["petnumber"]), level, stage, star)
+                         * int(info["amendmentHP"]) / 1000)
+                skill1 = int(info["skill1"][0]) if info["skill1"] else 0
+                skill2 = int(info["skill2"][0]) if info["skill2"] else 0
+                skill3 = int(info["skill3"][0]) if info["skill3"] else 0
+                monsters.append({"mID": int(info["id"]), "level": level,
+                                 "skill1": skill1, "skill2": skill2, "skill3": skill3,
+                                 "hp": hp, "petStage": stage, "petStar": star, "skin": 0})
+            body = (Writer().u16(0).vector_strings([
+                json.dumps(monster, separators=(",", ":")) for monster in monsters
+            ]).u32(int(group["exp"])).vector_strings([]).bytes())
+            return 210, body
+
         if session.char_id is None:
             reason = "character_not_selected"
         elif battle_type != FIRST_GUIDE_BATTLE["battle_type"]:

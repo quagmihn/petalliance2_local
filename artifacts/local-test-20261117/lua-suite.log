@@ -1,9 +1,0 @@
-test_client_serializer_and_ack_decoders (server.tests.test_lua_battle_proto.LuaBattleProtocolContractTests.test_client_serializer_and_ack_decoders) ... ok
-test_loader_reads_named_rows_and_switches_language (server.tests.test_lua_localization_runtime.LuaLocalizationRuntimeTests.test_loader_reads_named_rows_and_switches_language) ... ok
-test_lua_source_parses (server.tests.test_lua_localization_runtime.LuaLocalizationRuntimeTests.test_lua_source_parses) ... ok
-test_signed_apk_language_asset_is_readable_sqlite_and_copyable (server.tests.test_lua_localization_runtime.LuaLocalizationRuntimeTests.test_signed_apk_language_asset_is_readable_sqlite_and_copyable) ... ok
-
-----------------------------------------------------------------------
-Ran 4 tests in 0.055s
-
-OK

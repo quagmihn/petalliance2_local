@@ -105,6 +105,19 @@ function PVEProcess.onGC_CreatePVEBattle_Ack(msg)
         end 
         SceneMgr.replaceScene(SceneMgr.getRunningScene, "BattleScene") 
     else
+        -- SearchingMgr locks movement before the server confirms the encounter.
+        -- Release that lock and restore the trainer cell when the server rejects
+        -- the request so a corrected/configured encounter can be retried.
+        if SceneMgr.currentScene == "SearchingScene" then
+            SearchingMgr.onbattle = false
+            SearchingMgr.canMove = true
+            local battlePos = SearchingMapMgr and SearchingMapMgr.battlePos
+            if battlePos and battlePos > 0
+            and SearchingMgr.eventStateInfoTable
+            and SearchingMgr.eventStateInfoTable[battlePos] == 2 then
+                SearchingMgr.eventStateInfoTable[battlePos] = 1
+            end
+        end
         StandardTipsMgr.show(1, "error code: "..res.code)
     end
     CallbackMgr.doCallFunc(res.code, Proto.Command.GC_CREATEPVEBATTLE_ACK)

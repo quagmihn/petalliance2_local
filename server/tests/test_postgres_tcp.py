@@ -60,6 +60,36 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(r.u16(), 0); self.assertEqual(r.u64(), char_id)
             r.u32(); r.u32(); self.assertEqual(r.u8(), 1)
             validate_pet(json.loads(r.string()))
+            await db.start_adventure(char_id, 1)
+            event_ack = await send(4, Writer().u32(1).u8(2).u32(5).u32(30).bytes(), 5)
+            self.assertEqual(event_ack.u16(), 0); event_ack.finish()
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count(*) FROM adventure_fired_events WHERE char_id=$1 AND adventure_id=1",
+                char_id), 2)
+            finish = await send(3082, Writer().u16(12).bytes(), 2995)
+            self.assertEqual(finish.u16(), 0)
+            awards = [finish.string() for _ in range(finish.u8())]; finish.finish()
+            self.assertEqual(awards, [
+                '{"elementType":"exp","elementID":0,"num":60}',
+                '{"elementType":"item","elementID":10002,"num":1}',
+            ])
+            self.assertIsNotNone(await db.pool.fetchval(
+                "SELECT completed_at FROM character_adventures WHERE char_id=$1", char_id))
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT exp FROM characters WHERE char_id=$1", char_id), 60)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=10002", char_id), 1)
+            # A retried clear returns the retained ACK payload without granting twice.
+            retry = await send(3082, Writer().u16(12).bytes(), 2995)
+            self.assertEqual(retry.u16(), 0); self.assertEqual([retry.string() for _ in range(retry.u8())], awards)
+            retry.finish()
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT exp FROM characters WHERE char_id=$1", char_id), 60)
+            # ID 4 with no payload is the native SYSPING_ACK; it is intentionally
+            # one-way. The following request proves the socket remains usable.
+            writer.write(frame(4, b"")); await writer.drain()
+            seven_day = await send(391, Writer().u32(1).u32(0).bytes(), 390)
+            self.assertEqual(seven_day.u16(), 1); seven_day.finish()
             r = await send(227, b"", 225)
             self.assertEqual((r.u16(), r.string()), (0, "[]")); r.finish()
             self.assertEqual((await send(128, b"", 181)).u16(), 0)

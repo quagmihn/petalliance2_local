@@ -164,6 +164,12 @@ class ChatChannelTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((r.u16(), r.u32(), r.string(), r.string(), r.u8(), r.string()),
                          (0, 0, "", "", 0, ""))
         r.finish()
+        self.assertEqual((CMD["territory_info"], CMD["territory_info_ack"]), (1819, 1901))
+        ack_id, payload = await dispatch(s, CMD["territory_info"], Writer().u8(1).u32(1).bytes())
+        r = Reader(payload)
+        code, count = r.u16(), r.u8()
+        self.assertEqual((ack_id, code, count), (1901, 0, 0))
+        r.finish()
 
 
 class PostgreSQLIntegrationTests(unittest.IsolatedAsyncioTestCase):

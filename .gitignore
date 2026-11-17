@@ -6,3 +6,17 @@
 
 # Ignore all files within the 'opencode' directory
 /opencode/
+# Local Python and runtime output
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+*logcat*.txt
+/server/.env.play
+*.dump
+*.keystore
+*.idsig
+/artifacts/clean-play-20261118/
+/artifacts/legacy-pet-compat-20261118/
+/artifacts/production-predeploy-20261118/
+/server.txt

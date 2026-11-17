@@ -45,9 +45,15 @@ CMD = {
     "get_vip_awards": 63, "get_vip_awards_ack": 62,
     "get_achievements": 72, "get_achievements_ack": 74,
     "get_potentials": 69, "get_potentials_ack": 70,
+    "get_seven_day_award": 391, "get_seven_day_award_ack": 390,
     "get_activities": 154, "get_activities_ack": 152,
     "get_friends": 347, "get_friends_ack": 253,
+    "get_friend_detail": 1283, "get_friend_detail_ack": 1261,
     "get_current_adventure": 2999, "get_current_adventure_ack": 2997,
+    "create_adventure": 2996, "create_adventure_ack": 3080,
+    "fire_adventure_event": 4, "fire_adventure_event_ack": 5,
+    "finish_adventure": 3082, "finish_adventure_ack": 2995,
+    "get_adventure_award": 2998, "get_adventure_award_ack": 3079,
     "load_month_card": 3104, "load_month_card_ack": 3106,
     "recharge_cd": 662, "recharge_cd_ack": 655,
     "get_world_open_time": 412, "get_world_open_time_ack": 410,
@@ -75,6 +81,7 @@ CMD = {
     "change_channel": 380, "change_channel_ack": 386,
     "chat": 45, "chat_ack": 35,
     "query_self_territory": 1644, "query_self_territory_ack": 1664,
+    "territory_info": 1819, "territory_info_ack": 1901,
     "get_week_champion": 501, "get_week_champion_ack": 498,
     "get_home": 118, "get_home_ack": 32,
     "create_pve_battle": 136, "create_pve_battle_ack": 210,
@@ -94,7 +101,12 @@ EXPECTED_ACKS = {
     227: (225,),
     118: (32,), 380: (386,), 154: (152,), 662: (655,), 785: (26, 404),
     3133: (3132,), 400: (726, 404), 632: (630,), 45: (35,),
-    1644: (1664,), 501: (498,),
+    1644: (1664,), 1819: (1901,), 501: (498,),
+    1283: (1261,),
+    2996: (3080,),
+    2998: (3079,),
+    4: (5,), 391: (390,),
+    3082: (2995,),
     136: (210,), 263: (186,),
 }
 
@@ -117,6 +129,17 @@ class Session:
 
 
 async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, bytes] | None:
+    # Native CommandL.SYSPING_ACK shares numeric ID 4 with the Lua command
+    # CG_FIREADVENTUREEVENT_REQ. The native packet has no body; the gameplay
+    # request has an adventure ID and byte-counted event vector.
+    if msg_id == 4:
+        if not payload:
+            return None
+        return await map_handler.fire_adventure_events(session, payload)
+    if msg_id == CMD["get_seven_day_award"]:
+        return await map_handler.get_seven_day_award(session, payload)
+    if msg_id == CMD["finish_adventure"]:
+        return await map_handler.finish_adventure(session, payload)
     if msg_id == CMD["read_info"]:
         return await character_state.read_info(session, payload)
     if msg_id == CMD["get_life_skill_data"]:
@@ -157,10 +180,14 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["pet_skill_level"]: return await economy.pet_skill_level(session, payload)
     if msg_id == CMD["pet_equip_strengthen"]: return await economy.pet_equip_strengthen(session, payload)
     if msg_id == CMD["get_finished_adventures"]: return await map_handler.get_finished_adventures(session, payload)
+    if msg_id == CMD["create_adventure"]: return await map_handler.create_adventure(session, payload)
+    if msg_id == CMD["get_adventure_award"]: return await map_handler.get_adventure_award(session, payload)
     if msg_id == CMD["get_server_time"]: return await player.get_server_time(session, payload)
     if msg_id == CMD["change_channel"]: return await chat.change_channel(session, payload)
+    if msg_id == CMD["get_friend_detail"]: return await chat.get_friend_detail(session, payload)
     if msg_id == CMD["chat"]: return await chat.send_chat(session, payload)
     if msg_id == CMD["query_self_territory"]: return await territory.query_self_territory(session, payload)
+    if msg_id == CMD["territory_info"]: return await territory.territory_info(session, payload)
     if msg_id == CMD["get_week_champion"]: return await world_boss.get_week_champion(session, payload)
     if msg_id == CMD["quest_list"]: return await map_handler.get_quests(session, payload)
     if msg_id == CMD["get_home"]: return await map_handler.get_home(session, payload)
@@ -196,10 +223,12 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             except (ValueError, IndexError, UnicodeError) as exc:
                 fields = {"decode_error": str(exc)}
             safe_hex = redact_payload(msg_id, body).hex()
+            request_name = ("SYSPING_ACK" if msg_id == 4 and not body else
+                            MSG_NAME.get(msg_id, "UNKNOWN"))
             log.info("request connection_id=%s session_id=%s peer=%s id=%d name=%s length=%d fields=%s payload_hex=%s",
                      session.connection_id, session.session_id, peer, msg_id,
-                     MSG_NAME.get(msg_id, "UNKNOWN"), length, fields, safe_hex[:512])
-            expected_acks = EXPECTED_ACKS.get(msg_id)
+                     request_name, length, fields, safe_hex[:512])
+            expected_acks = None if msg_id == 4 and not body else EXPECTED_ACKS.get(msg_id)
             if expected_acks is not None:
                 log.info("pending_ack connection_id=%s session_id=%s request_id=%d expected_response_ids=%s",
                          session.connection_id, session.session_id, msg_id, expected_acks)

@@ -1,3 +1,4 @@
+import base64
 import shutil
 import sqlite3
 import subprocess
@@ -48,6 +49,26 @@ class LuaLocalizationRuntimeTests(unittest.TestCase):
                         "SELECT lang FROM tbl_lang WHERE code='menu5'").fetchone()[0],
                     "EXPLORE",
                 )
+
+    def test_runtime_apk_language_sidecars_match_sqlite_assets(self):
+        expected = {
+            "en": ("EXPLORE", "ASSEMBLE STONE", "Shawn", "Shawn"),
+            "vn": ("Mạo Hiểm", "Đá Tập Kết", "Shawn", "Shawn"),
+        }
+        keys = ("menu5", "town8", "npcname2", "train99998")
+        with ZipFile(ROOT / "dist/monster2_runtime.apk") as archive:
+            for lang, translations in expected.items():
+                with self.subTest(lang=lang), closing(sqlite3.connect(":memory:")) as db:
+                    member = f"assets/res/Config/db/lang_{lang}.db"
+                    image = archive.read(member)
+                    self.assertEqual(base64.b64decode(archive.read(member + ".b64")), image)
+                    db.deserialize(image)
+                    self.assertEqual(db.execute("PRAGMA integrity_check").fetchone(), ("ok",))
+                    actual = tuple(
+                        db.execute("SELECT lang FROM tbl_lang WHERE code=?", (key,)).fetchone()[0]
+                        for key in keys
+                    )
+                    self.assertEqual(actual, translations)
 
     def test_lua_source_parses(self):
         subprocess.run(

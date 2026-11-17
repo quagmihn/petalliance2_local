@@ -13,6 +13,11 @@ class LuaBattleProtocolContractTests(unittest.TestCase):
                                 cwd=ROOT, text=True, capture_output=True, check=True)
         self.assertIn("LUA_BATTLE_PROTO_OK request_hex=8800050000009e86010000000000", result.stdout)
 
+    def test_rejected_searching_battle_releases_client_battle_lock(self):
+        result = subprocess.run(["lua", "server/tests/fixtures/lua_battle_recovery_harness.lua"],
+                                cwd=ROOT, text=True, capture_output=True, check=True)
+        self.assertIn("LUA_BATTLE_RECOVERY_OK", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

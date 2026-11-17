@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -13,9 +14,27 @@ class Database:
 
     @classmethod
     async def connect(cls, dsn: str | None = None) -> "Database":
-        pool = await asyncpg.create_pool(dsn or os.getenv(
-            "DATABASE_URL", "postgresql://monster2:monster2@127.0.0.1:5432/monster2_db"
-        ))
+        connection_url = dsn or os.getenv("DATABASE_URL")
+        if not connection_url:
+            raise RuntimeError("Explicit DATABASE_URL required")
+        expected = os.getenv("MONSTER2_EXPECTED_DB")
+        if not expected:
+            return cls(await asyncpg.create_pool(connection_url))
+
+        async def check_database(conn):
+            actual = await conn.fetchval("SELECT current_database()")
+            if actual != expected:
+                raise RuntimeError(f"Expected database {expected}, connected to {actual}")
+
+        pool = await asyncpg.create_pool(connection_url, init=check_database)
+        async with pool.acquire() as conn:
+            identity = await conn.fetchrow(
+                "SELECT current_database() AS database, current_user AS role"
+            )
+        logging.getLogger(__name__).warning(
+            "database pool verified pid=%s database=%s role=%s",
+            os.getpid(), identity["database"], identity["role"],
+        )
         return cls(pool)
 
     async def initialize(self, schema: Path | None = None) -> None:
@@ -225,12 +244,35 @@ class Database:
                     "VALUES($1,$2,$3,'started')", char_id, session_id, group_id)
                 return True
 
+    async def start_adventure_battle(self, char_id: int, session_id: str, adventure_id: int,
+                                     scene_id: int, group_id: int) -> bool:
+        from quest_config import load_quests
+        quests = load_quests()
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                active_adventure = await conn.fetchval(
+                    """SELECT adventure_id FROM character_adventures
+                       WHERE char_id=$1 AND completed_at IS NULL FOR UPDATE""", char_id)
+                if active_adventure != adventure_id:
+                    return False
+                active = await conn.fetch("SELECT quest_id FROM quests WHERE char_id=$1 AND status=0",
+                                          char_id)
+                if not any(any(o.event_type == 2 for o in quests[q["quest_id"]].objectives)
+                           for q in active if q["quest_id"] in quests):
+                    return False
+                await conn.execute(
+                    """INSERT INTO tutorial_battle_sessions
+                       (char_id,session_id,group_id,battle_type,battle_type_id,adventure_id,state)
+                       VALUES($1,$2,$3,3,$4,$5,'started')""",
+                    char_id, session_id, group_id, scene_id, adventure_id)
+                return True
+
     async def finish_tutorial_battle(self, char_id: int, session_id: str, won: bool) -> bool:
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 battle = await conn.fetchrow(
-                    """SELECT battle_id FROM tutorial_battle_sessions
-                       WHERE char_id=$1 AND session_id=$2 AND group_id=99998 AND state='started'
+                    """SELECT battle_id,group_id,battle_type FROM tutorial_battle_sessions
+                       WHERE char_id=$1 AND session_id=$2 AND state='started'
                        ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""", char_id, session_id)
                 if battle is None:
                     return False
@@ -238,10 +280,43 @@ class Database:
                     "UPDATE tutorial_battle_sessions SET state=$2,finished_at=now() WHERE battle_id=$1",
                     battle["battle_id"], "won" if won else "lost")
                 if won:
-                    await conn.execute(
-                        "UPDATE quests SET progress='[1]'::jsonb WHERE char_id=$1 AND quest_id=10001 AND status=0",
-                        char_id)
+                    if battle["group_id"] == 99998 and battle["battle_type"] == 5:
+                        await conn.execute(
+                            "UPDATE quests SET progress='[1]'::jsonb WHERE char_id=$1 AND quest_id=10001 AND status=0",
+                            char_id)
+                    elif battle["battle_type"] == 3:
+                        await self._advance_configured_battle_objectives(conn, char_id)
                 return True
+
+    @staticmethod
+    async def _advance_configured_battle_objectives(conn, char_id: int) -> None:
+        from quest_config import load_quests
+        config = load_quests()
+        active = await conn.fetch(
+            "SELECT quest_id,progress FROM quests WHERE char_id=$1 AND status=0 FOR UPDATE", char_id)
+        for row in active:
+            quest = config.get(row["quest_id"])
+            if quest is None or not quest.objectives or not any(
+                    objective.event_type == 2 for objective in quest.objectives):
+                continue
+            progress = row["progress"]
+            if isinstance(progress, str):
+                progress = json.loads(progress)
+            if isinstance(progress, dict):
+                progress = progress.get("progressList", [])
+            if not isinstance(progress, list):
+                progress = [0] * len(quest.objectives)
+            values = list(progress[:len(quest.objectives)])
+            values.extend([0] * (len(quest.objectives) - len(values)))
+            changed = False
+            for index, objective in enumerate(quest.objectives):
+                if objective.event_type == 2 and values[index] < objective.amount:
+                    values[index] = min(objective.amount, values[index] + 1)
+                    changed = True
+            if changed:
+                await conn.execute(
+                    "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
+                    char_id, quest.quest_id, json.dumps(values))
 
     async def commit_configured_tutorial_quest(self, char_id: int, quest,
                                                all_quests: dict[int, Any]) -> tuple[bool, list[int]]:
@@ -298,10 +373,8 @@ class Database:
                 exp = int(quest.exp_reward) if quest.exp_reward.isdigit() else 0
                 values = char["game_values"] or {}
                 if isinstance(values, str): values = json.loads(values)
-                map_lock = str(values.get("map_lock", "0"))
-                if quest.unlock_map_id.isdigit():
-                    unlocked = set(filter(None, map_lock.split("-")))
-                    map_lock = map_lock if quest.unlock_map_id in unlocked else map_lock + "-" + quest.unlock_map_id
+                map_lock = _merge_map_unlock(
+                    str(values.get("map_lock", "0")), quest.unlock_map_id)
                 await conn.execute(
                     """UPDATE quests SET status=1,progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2""",
                     char_id, quest.quest_id, json.dumps(progress))
@@ -311,6 +384,29 @@ class Database:
                        WHERE char_id=$1""",
                     char_id, gold, exp, quest.diamond_reward, map_lock)
                 return True, new_children
+
+    async def repair_completed_quest_unlocks(self, char_id: int, all_quests: dict[int, Any]) -> None:
+        """Reconcile only unlocks implied by already-completed configured quests."""
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                if row is None:
+                    return
+                values = row["game_values"] or {}
+                if isinstance(values, str):
+                    values = json.loads(values)
+                map_lock = str(values.get("map_lock", "0"))
+                completed = await conn.fetch(
+                    "SELECT quest_id FROM quests WHERE char_id=$1 AND status=1", char_id)
+                for completed_quest in completed:
+                    quest = all_quests.get(completed_quest["quest_id"])
+                    if quest is not None:
+                        map_lock = _merge_map_unlock(map_lock, quest.unlock_map_id)
+                if map_lock != str(values.get("map_lock", "0")):
+                    await conn.execute(
+                        "UPDATE characters SET game_values=game_values || jsonb_build_object('map_lock',$2::text) WHERE char_id=$1",
+                        char_id, map_lock)
 
     async def player_snapshot(self, char_id: int) -> dict[str, Any]:
         async with self.pool.acquire() as conn:
@@ -384,6 +480,133 @@ class Database:
             char_id, item_id, count,
         )
 
+    async def claim_adventure_cell(self, char_id: int, adventure_id: int, floor: int,
+                                  map_col: int, map_row: int, rewards: list[dict]) -> list[str]:
+        """Atomically grant a configured map-cell reward once and retain its ACK payload."""
+        encoded = [json.dumps(reward, separators=(",", ":")) for reward in rewards]
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                claim = await conn.fetchrow(
+                    """INSERT INTO adventure_cell_claims
+                       (char_id,adventure_id,floor,map_col,map_row,awards)
+                       VALUES($1,$2,$3,$4,$5,$6::jsonb)
+                       ON CONFLICT DO NOTHING RETURNING char_id""",
+                    char_id, adventure_id, floor, map_col, map_row, json.dumps(encoded),
+                )
+                if claim is None:
+                    previous = await conn.fetchval(
+                        """SELECT awards FROM adventure_cell_claims WHERE char_id=$1
+                           AND adventure_id=$2 AND floor=$3 AND map_col=$4 AND map_row=$5""",
+                        char_id, adventure_id, floor, map_col, map_row,
+                    )
+                    if isinstance(previous, str):
+                        previous = json.loads(previous)
+                    return list(previous or [])
+                for reward in rewards:
+                    kind, element_id, amount = reward["kind"], reward["id"], reward["num"]
+                    if kind == "g_cash":
+                        await conn.execute("UPDATE characters SET gold=gold+$2 WHERE char_id=$1",
+                                           char_id, amount)
+                    elif kind == "m_cash":
+                        await conn.execute("UPDATE characters SET diamond=diamond+$2 WHERE char_id=$1",
+                                           char_id, amount)
+                    elif kind == "exp":
+                        await conn.execute("UPDATE characters SET exp=exp+$2 WHERE char_id=$1",
+                                           char_id, amount)
+                    elif kind == "item":
+                        await conn.execute(
+                            """INSERT INTO inventory(char_id,item_id,count) VALUES($1,$2,$3)
+                               ON CONFLICT(char_id,item_id) DO UPDATE
+                               SET count=inventory.count+EXCLUDED.count""",
+                            char_id, element_id, amount,
+                        )
+                    else:
+                        raise ValueError(f"unsupported adventure reward kind: {kind}")
+        return encoded
+
+    async def start_adventure(self, char_id: int, adventure_id: int) -> None:
+        await self.pool.execute(
+            """INSERT INTO character_adventures(char_id,adventure_id)
+               VALUES($1,$2) ON CONFLICT(char_id) DO UPDATE
+               SET adventure_id=EXCLUDED.adventure_id,started_at=now(),completed_at=NULL,
+                   completion_star=0,completion_awards_json='[]'::jsonb""",
+            char_id, adventure_id,
+        )
+
+    async def current_adventure_id(self, char_id: int) -> int | None:
+        return await self.pool.fetchval(
+            "SELECT adventure_id FROM character_adventures WHERE char_id=$1 AND completed_at IS NULL",
+            char_id,
+        )
+
+    async def latest_adventure_id(self, char_id: int) -> int | None:
+        """Return the retained adventure ID, including a completed run for ACK retries."""
+        return await self.pool.fetchval(
+            "SELECT adventure_id FROM character_adventures WHERE char_id=$1", char_id)
+
+    async def record_adventure_events(self, char_id: int, adventure_id: int,
+                                     event_ids: list[int]) -> bool:
+        """Record configured event callbacks once for the active adventure."""
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                active = await conn.fetchval(
+                    "SELECT adventure_id FROM character_adventures "
+                    "WHERE char_id=$1 AND completed_at IS NULL FOR UPDATE", char_id)
+                if active != adventure_id:
+                    return False
+                for event_id in event_ids:
+                    await conn.execute(
+                        """INSERT INTO adventure_fired_events(char_id,adventure_id,event_id)
+                           VALUES($1,$2,$3) ON CONFLICT(char_id,adventure_id,event_id) DO NOTHING""",
+                        char_id, adventure_id, event_id)
+                return True
+
+    async def finish_adventure(self, char_id: int, star: int,
+                               rewards: list[dict]) -> list[str] | None:
+        """Complete an adventure once, grant its configured rewards, and retain ACK data."""
+        encoded = [json.dumps(reward, separators=(",", ":")) for reward in rewards]
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    """SELECT adventure_id,completed_at,completion_star,completion_awards_json
+                       FROM character_adventures WHERE char_id=$1 FOR UPDATE""", char_id)
+                if row is None:
+                    return None
+                if row["completed_at"] is not None:
+                    previous = row["completion_awards_json"] or []
+                    if isinstance(previous, str):
+                        previous = json.loads(previous)
+                    return list(previous)
+                if star == 0:
+                    encoded = []
+                for reward in rewards if star else []:
+                    kind, element_id, amount = reward["kind"], reward["id"], reward["num"]
+                    if type(amount) is not int or amount < 0:
+                        raise ValueError("invalid adventure reward amount")
+                    if kind == "g_cash":
+                        await conn.execute("UPDATE characters SET gold=gold+$2 WHERE char_id=$1",
+                                           char_id, amount)
+                    elif kind == "m_cash":
+                        await conn.execute("UPDATE characters SET diamond=diamond+$2 WHERE char_id=$1",
+                                           char_id, amount)
+                    elif kind == "exp":
+                        await conn.execute("UPDATE characters SET exp=exp+$2 WHERE char_id=$1",
+                                           char_id, amount)
+                    elif kind == "item":
+                        await conn.execute(
+                            """INSERT INTO inventory(char_id,item_id,count) VALUES($1,$2,$3)
+                               ON CONFLICT(char_id,item_id) DO UPDATE
+                               SET count=inventory.count+EXCLUDED.count""",
+                            char_id, element_id, amount,
+                        )
+                    else:
+                        raise ValueError(f"unsupported adventure reward kind: {kind}")
+                await conn.execute(
+                    """UPDATE character_adventures
+                       SET completed_at=now(),completion_star=$2,completion_awards_json=$3::jsonb
+                       WHERE char_id=$1""", char_id, star, json.dumps(encoded))
+        return encoded
+
     async def grant_pet(self, char_id: int, template_id: int) -> asyncpg.Record | None:
         if template_id <= 0:
             return None
@@ -391,4 +614,22 @@ class Database:
             """INSERT INTO pets(char_id,pet_template_id,level,star,evolution,slot_index)
                VALUES($1,$2,1,0,0,-1) RETURNING *""", char_id, template_id
         )
+
+
+def _merge_map_unlock(current: str, unlock: str) -> str:
+    """Merge NewQuestInfo unlockMapID into the client's maplock-missionlock pair."""
+    parts = current.split("-", 1)
+    try:
+        map_lock = max(0, int(parts[0] or 0))
+    except ValueError as exc:
+        raise ValueError(f"invalid map_lock map component: {current!r}") from exc
+    try:
+        mission_lock = max(0, int(parts[1] or 0)) if len(parts) > 1 else 0
+    except ValueError as exc:
+        raise ValueError(f"invalid map_lock mission component: {current!r}") from exc
+    if unlock.startswith("q") and unlock[1:].isdigit():
+        mission_lock = max(mission_lock, int(unlock[1:]))
+    elif unlock.isdigit():
+        map_lock = max(map_lock, int(unlock))
+    return f"{map_lock}-{mission_lock}"
 

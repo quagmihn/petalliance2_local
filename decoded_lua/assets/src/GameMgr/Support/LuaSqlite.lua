@@ -339,8 +339,6 @@ local function getLanguageDatabasePath()
         return nil
     end
 
-    local cryptoModule = require("src.framework.crypto")
-    local sourceChecksum = cryptoModule.md5(contents)
     local temporaryPath = cachePath..".tmp"
     os.remove(temporaryPath)
     local output, openError = io.open(temporaryPath, "wb")
@@ -367,13 +365,15 @@ local function getLanguageDatabasePath()
     end
     local cachedBytes = verifyFile:read("*a")
     verifyFile:close()
-    local cachedChecksum = type(cachedBytes) == "string" and cryptoModule.md5(cachedBytes) or ""
-    if type(cachedBytes) ~= "string" or #cachedBytes ~= #contents or cachedChecksum ~= sourceChecksum
+    -- The native crypto binding treats embedded NULs as C-string terminators
+    -- and returns false for SQLite images. Compare Lua's binary strings
+    -- directly; this also verifies every byte copied to the cache.
+    if type(cachedBytes) ~= "string" or #cachedBytes ~= #contents or cachedBytes ~= contents
         or string.sub(cachedBytes, 1, 16) ~= sqliteHeader then
         os.remove(temporaryPath)
-        print(string.format("[LANG_DIAG] language=%s database_path=%s database_open_status=cache_verify_failed translation_count=0 fallback_reason=length_checksum_or_header_mismatch source_length=%d cache_length=%d source_md5=%s cache_md5=%s",
+        print(string.format("[LANG_DIAG] language=%s database_path=%s database_open_status=cache_verify_failed translation_count=0 fallback_reason=length_byte_compare_or_header_mismatch source_length=%d cache_length=%d bytes_equal=%s",
             tostring(filename), temporaryPath, #contents, type(cachedBytes) == "string" and #cachedBytes or 0,
-            tostring(sourceChecksum), tostring(cachedChecksum)))
+            tostring(type(cachedBytes) == "string" and cachedBytes == contents)))
         return nil
     end
     local renameOk, renameError = os.rename(temporaryPath, cachePath)
@@ -385,8 +385,8 @@ local function getLanguageDatabasePath()
     end
 
     languageDatabasePath = cachePath
-    print(string.format("[LANG_DIAG] language=%s source_path=%s database_path=%s database_open_status=asset_copied translation_count=0 fallback_reason=none asset_byte_length=%d md5=%s",
-        tostring(filename), tostring(sourcePath), cachePath, #contents, tostring(sourceChecksum)))
+    print(string.format("[LANG_DIAG] language=%s source_path=%s database_path=%s database_open_status=asset_copied translation_count=0 fallback_reason=none asset_byte_length=%d byte_compare=exact",
+        tostring(filename), tostring(sourcePath), cachePath, #contents))
     return cachePath
 end
 

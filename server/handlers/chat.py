@@ -25,3 +25,16 @@ async def change_channel(session, payload: bytes):
     session.channel = channel
     session.channel_data = data
     return 386, Writer().u16(0).string(channel).bytes()
+
+
+async def get_friend_detail(session, payload: bytes):
+    """Return the protocol's explicit not-found error until profiles are persisted."""
+    r = Reader(payload)
+    friend_id = r.string()
+    r.finish()
+    if not friend_id:
+        raise ProtocolDecodeError("CG_GETFRIENDDETAIL_REQ has an empty friend ID")
+    # The client consumes a detail string only on code=0. Profile composition
+    # is not backed by a complete local data model, so fail cleanly instead of
+    # inventing a profile or leaving the blocking callback pending.
+    return 1261, Writer().u16(1).bytes()

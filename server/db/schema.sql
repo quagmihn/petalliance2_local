@@ -83,6 +83,36 @@ CREATE TABLE IF NOT EXISTS inventory (
     UNIQUE(char_id, item_id)
 );
 
+CREATE TABLE IF NOT EXISTS adventure_cell_claims (
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    adventure_id INTEGER NOT NULL,
+    floor INTEGER NOT NULL,
+    map_col INTEGER NOT NULL,
+    map_row INTEGER NOT NULL,
+    awards JSONB NOT NULL DEFAULT '[]'::jsonb,
+    claimed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY(char_id, adventure_id, floor, map_col, map_row)
+);
+
+CREATE TABLE IF NOT EXISTS adventure_fired_events (
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    adventure_id INTEGER NOT NULL,
+    event_id INTEGER NOT NULL,
+    fired_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (char_id, adventure_id, event_id)
+);
+
+CREATE TABLE IF NOT EXISTS character_adventures (
+    char_id BIGINT PRIMARY KEY REFERENCES characters(char_id) ON DELETE CASCADE,
+    adventure_id INTEGER NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at TIMESTAMPTZ,
+    completion_star INTEGER NOT NULL DEFAULT 0,
+    completion_awards_json JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+ALTER TABLE character_adventures ADD COLUMN IF NOT EXISTS completion_star INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE character_adventures ADD COLUMN IF NOT EXISTS completion_awards_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+
 CREATE TABLE IF NOT EXISTS quests (
     id BIGSERIAL PRIMARY KEY,
     char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
@@ -105,9 +135,15 @@ CREATE TABLE IF NOT EXISTS tutorial_battle_sessions (
     char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
     session_id TEXT NOT NULL,
     group_id INTEGER NOT NULL,
+    battle_type INTEGER NOT NULL DEFAULT 5,
+    battle_type_id INTEGER NOT NULL DEFAULT 99998,
+    adventure_id INTEGER,
     state TEXT NOT NULL CHECK (state IN ('started','won','lost')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     finished_at TIMESTAMPTZ
 );
+ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS battle_type INTEGER NOT NULL DEFAULT 5;
+ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS battle_type_id INTEGER NOT NULL DEFAULT 99998;
+ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS adventure_id INTEGER;
 CREATE INDEX IF NOT EXISTS tutorial_battle_sessions_char_session_idx
     ON tutorial_battle_sessions(char_id, session_id, battle_id DESC);
