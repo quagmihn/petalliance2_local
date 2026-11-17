@@ -1,0 +1,77 @@
+--------- beginning of crash
+11-17 15:18:16.323  1517  1556 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+11-17 15:18:16.323  1517  1556 F DEBUG   : LineageOS Version: '20.0-20260927-VANILLA-waydroid_x86_64'
+11-17 15:18:16.323  1517  1556 F DEBUG   : Build fingerprint: 'waydroid/lineage_waydroid_x86_64/waydroid_x86_64:13/TQ3A.230901.001/eng.aleast.20260927.215901:userdebug/test-keys'
+11-17 15:18:16.323  1517  1556 F DEBUG   : Revision: '0'
+11-17 15:18:16.323  1517  1556 F DEBUG   : ABI: 'x86_64'
+11-17 15:18:16.323  1517  1556 F DEBUG   : Timestamp: 2026-11-17 15:18:16.222207024+0000
+11-17 15:18:16.323  1517  1556 F DEBUG   : Process uptime: 1s
+11-17 15:18:16.324  1517  1556 F DEBUG   : Cmdline: com.petalliance2.sea
+11-17 15:18:16.324  1517  1556 F DEBUG   : pid: 1517, tid: 1556, name: GLThread 29  >>> com.petalliance2.sea <<<
+11-17 15:18:16.324  1517  1556 F DEBUG   : uid: 10127
+11-17 15:18:16.324  1517  1556 F DEBUG   : signal 0 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr --------
+11-17 15:18:16.324  1517  1556 F DEBUG   : Cause: null pointer dereference
+11-17 15:18:16.324  1517  1556 F DEBUG   :     rax 00007f154dfc1590  rbx 00007f186b1e6050  rcx 00007f1867fead1c  rdx 0000000000000002
+11-17 15:18:16.324  1517  1556 F DEBUG   :     r8  00007f15c2644801  r9  00007f0971400001  r10 0000000000000000  r11 0000000000002a01
+11-17 15:18:16.324  1517  1556 F DEBUG   :     r12 00007f15c2680380  r13 00007f154beb3f30  r14 0000000000000000  r15 0000000000000000
+11-17 15:18:16.324  1517  1556 F DEBUG   :     rdi 00007f186b1e6050  rsi 00007f1558ebf380
+11-17 15:18:16.324  1517  1556 F DEBUG   :     rbp 00007f186b1e6050  rsp 00007f154c9fb4c0  rip 00007f1558ebf419
+11-17 15:18:16.324  1517  1556 F DEBUG   : backtrace:
+11-17 15:18:16.324  1517  1556 F DEBUG   :       #00 pc 00000000002bf419  /memfd:exec (deleted)
+11-17 15:22:47.516  2237  2265 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+11-17 15:22:47.516  2237  2265 F DEBUG   : LineageOS Version: '20.0-20260927-VANILLA-waydroid_x86_64'
+11-17 15:22:47.516  2237  2265 F DEBUG   : Build fingerprint: 'waydroid/lineage_waydroid_x86_64/waydroid_x86_64:13/TQ3A.230901.001/eng.aleast.20260927.215901:userdebug/test-keys'
+11-17 15:22:47.516  2237  2265 F DEBUG   : Revision: '0'
+11-17 15:22:47.516  2237  2265 F DEBUG   : ABI: 'x86_64'
+11-17 15:22:47.516  2237  2265 F DEBUG   : Timestamp: 2026-11-17 15:22:47.437922582+0000
+11-17 15:22:47.516  2237  2265 F DEBUG   : Process uptime: 2s
+11-17 15:22:47.516  2237  2265 F DEBUG   : Cmdline: com.petalliance2.sea
+11-17 15:22:47.516  2237  2265 F DEBUG   : pid: 2237, tid: 2265, name: GLThread 29  >>> com.petalliance2.sea <<<
+11-17 15:22:47.516  2237  2265 F DEBUG   : uid: 10127
+11-17 15:22:47.516  2237  2265 F DEBUG   : signal 0 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr --------
+11-17 15:22:47.516  2237  2265 F DEBUG   : Cause: null pointer dereference
+11-17 15:22:47.516  2237  2265 F DEBUG   :     rax 00007f154935c590  rbx 00007f186b1e6050  rcx 00007f1867fa813c  rdx 0000000000000002
+11-17 15:22:47.516  2237  2265 F DEBUG   :     r8  00007f15c2644801  r9  00007f0971400001  r10 0000000000000000  r11 0000000000002a01
+11-17 15:22:47.516  2237  2265 F DEBUG   :     r12 00007f15c2680380  r13 00007f15478c5f30  r14 0000000000000000  r15 0000000000000000
+11-17 15:22:47.516  2237  2265 F DEBUG   :     rdi 00007f186b1e6050  rsi 00007f1558ebfa80
+11-17 15:22:47.516  2237  2265 F DEBUG   :     rbp 00007f186b1e6050  rsp 00007f154d7254c0  rip 00007f1558ebfb19
+11-17 15:22:47.516  2237  2265 F DEBUG   : backtrace:
+11-17 15:22:47.516  2237  2265 F DEBUG   :       #00 pc 00000000002bfb19  /memfd:exec (deleted)
+11-17 15:26:02.323  2436  2461 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+11-17 15:26:02.324  2436  2461 F DEBUG   : LineageOS Version: '20.0-20260927-VANILLA-waydroid_x86_64'
+11-17 15:26:02.324  2436  2461 F DEBUG   : Build fingerprint: 'waydroid/lineage_waydroid_x86_64/waydroid_x86_64:13/TQ3A.230901.001/eng.aleast.20260927.215901:userdebug/test-keys'
+11-17 15:26:02.324  2436  2461 F DEBUG   : Revision: '0'
+11-17 15:26:02.324  2436  2461 F DEBUG   : ABI: 'x86_64'
+11-17 15:26:02.324  2436  2461 F DEBUG   : Timestamp: 2026-11-17 15:26:02.242793863+0000
+11-17 15:26:02.324  2436  2461 F DEBUG   : Process uptime: 1s
+11-17 15:26:02.324  2436  2461 F DEBUG   : Cmdline: com.petalliance2.sea
+11-17 15:26:02.324  2436  2461 F DEBUG   : pid: 2436, tid: 2461, name: GLThread 29  >>> com.petalliance2.sea <<<
+11-17 15:26:02.324  2436  2461 F DEBUG   : uid: 10127
+11-17 15:26:02.324  2436  2461 F DEBUG   : signal 0 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr --------
+11-17 15:26:02.324  2436  2461 F DEBUG   : Cause: null pointer dereference
+11-17 15:26:02.324  2436  2461 F DEBUG   :     rax 00007f1549f9e590  rbx 00007f186b3f2050  rcx 00007f1867febcbc  rdx 0000000000000002
+11-17 15:26:02.324  2436  2461 F DEBUG   :     r8  00007f15c2644801  r9  00007f0971400001  r10 0000000000000000  r11 0000000000002a01
+11-17 15:26:02.324  2436  2461 F DEBUG   :     r12 00007f15c2680380  r13 00007f15482c5f30  r14 0000000000000000  r15 0000000000000000
+11-17 15:26:02.324  2436  2461 F DEBUG   :     rdi 00007f186b3f2050  rsi 00007f1558ebf380
+11-17 15:26:02.324  2436  2461 F DEBUG   :     rbp 00007f186b3f2050  rsp 00007f154c3124c0  rip 00007f1558ebf419
+11-17 15:26:02.324  2436  2461 F DEBUG   : backtrace:
+11-17 15:26:02.324  2436  2461 F DEBUG   :       #00 pc 00000000002bf419  /memfd:exec (deleted)
+11-17 15:26:43.171  2504  2528 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+11-17 15:26:43.171  2504  2528 F DEBUG   : LineageOS Version: '20.0-20260927-VANILLA-waydroid_x86_64'
+11-17 15:26:43.171  2504  2528 F DEBUG   : Build fingerprint: 'waydroid/lineage_waydroid_x86_64/waydroid_x86_64:13/TQ3A.230901.001/eng.aleast.20260927.215901:userdebug/test-keys'
+11-17 15:26:43.171  2504  2528 F DEBUG   : Revision: '0'
+11-17 15:26:43.171  2504  2528 F DEBUG   : ABI: 'x86_64'
+11-17 15:26:43.171  2504  2528 F DEBUG   : Timestamp: 2026-11-17 15:26:43.093441569+0000
+11-17 15:26:43.171  2504  2528 F DEBUG   : Process uptime: 1s
+11-17 15:26:43.171  2504  2528 F DEBUG   : Cmdline: com.petalliance2.sea
+11-17 15:26:43.171  2504  2528 F DEBUG   : pid: 2504, tid: 2528, name: GLThread 29  >>> com.petalliance2.sea <<<
+11-17 15:26:43.171  2504  2528 F DEBUG   : uid: 10127
+11-17 15:26:43.171  2504  2528 F DEBUG   : signal 0 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr --------
+11-17 15:26:43.171  2504  2528 F DEBUG   : Cause: null pointer dereference
+11-17 15:26:43.171  2504  2528 F DEBUG   :     rax 00007f1548199590  rbx 00007f186b3f2050  rcx 00007f1867fa9cbc  rdx 0000000000000002
+11-17 15:26:43.171  2504  2528 F DEBUG   :     r8  00007f15c2644801  r9  00007f0971400001  r10 0000000000000000  r11 0000000000002a01
+11-17 15:26:43.171  2504  2528 F DEBUG   :     r12 00007f15c2680380  r13 00007f1542ac5f30  r14 0000000000000000  r15 0000000000000000
+11-17 15:26:43.171  2504  2528 F DEBUG   :     rdi 00007f186b3f2050  rsi 00007f1558ebf380
+11-17 15:26:43.171  2504  2528 F DEBUG   :     rbp 00007f186b3f2050  rsp 00007f154c0584c0  rip 00007f1558ebf419
+11-17 15:26:43.171  2504  2528 F DEBUG   : backtrace:
+11-17 15:26:43.171  2504  2528 F DEBUG   :       #00 pc 00000000002bf419  /memfd:exec (deleted)

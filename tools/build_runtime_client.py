@@ -2,6 +2,7 @@
 import argparse
 import zipfile
 import struct
+import base64
 from pathlib import Path
 from decode_lua import decrypt, encrypt
 
@@ -66,6 +67,15 @@ def main():
             data = source.read(info)
             if info.filename == "AndroidManifest.xml":
                 data = patch_activity_config(data)
+            if info.filename == "assets/src/GameMgr/Support/LuaSqlite.lua":
+                data = b"XXTEA" + encrypt(Path("decoded_lua/assets/src/GameMgr/Support/LuaSqlite.lua").read_bytes(), b"kyopkm")
+            if info.filename.startswith("assets/res/Config/db/") and info.filename.endswith(".db"):
+                sidecar = zipfile.ZipInfo(info.filename + ".b64")
+                sidecar.compress_type = zipfile.ZIP_DEFLATED
+                output.writestr(sidecar, base64.b64encode(data))
+            if info.filename.lower().endswith((".mp4", ".m4a", ".mp3", ".ogg")):
+                # Android MediaPlayer opens packaged media through AssetFileDescriptor.
+                info.compress_type = zipfile.ZIP_STORED
             if info.filename == target:
                 text = decrypt(data[5:], b"kyopkm").decode()
                 old = '    print("开始加载新场景"..sceneName)'

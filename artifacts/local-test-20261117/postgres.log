@@ -1,0 +1,58 @@
+test_account_binding_character_pet_and_quest_seed (server.tests.test_auth_pet.PostgreSQLIntegrationTests.test_account_binding_character_pet_and_quest_seed) ... ERROR
+
+======================================================================
+ERROR: test_account_binding_character_pet_and_quest_seed (server.tests.test_auth_pet.PostgreSQLIntegrationTests.test_account_binding_character_pet_and_quest_seed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/usr/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/home/quagmihn/Project/monster2_rebuild/server/tests/test_auth_pet.py", line 180, in test_account_binding_character_pet_and_quest_seed
+    db = await Database.connect(dsn)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/quagmihn/Project/monster2_rebuild/server/db/database.py", line 16, in connect
+    pool = await asyncpg.create_pool(dsn or os.getenv(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "DATABASE_URL", "postgresql://monster2:monster2@127.0.0.1:5432/monster2_db"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ))
+    ^^
+  File "/usr/lib/python3.14/site-packages/asyncpg/pool.py", line 439, in _async__init__
+    await self._initialize()
+  File "/usr/lib/python3.14/site-packages/asyncpg/pool.py", line 466, in _initialize
+    await first_ch.connect()
+  File "/usr/lib/python3.14/site-packages/asyncpg/pool.py", line 153, in connect
+    self._con = await self._pool._get_new_connection()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/site-packages/asyncpg/pool.py", line 538, in _get_new_connection
+    con = await self._connect(
+          ^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/usr/lib/python3.14/site-packages/asyncpg/connection.py", line 2443, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<22 lines>...
+    )
+    ^
+  File "/usr/lib/python3.14/site-packages/asyncpg/connect_utils.py", line 1218, in _connect
+    conn = await _connect_addr(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/usr/lib/python3.14/site-packages/asyncpg/connect_utils.py", line 1050, in _connect_addr
+    return await __connect_addr(params, False, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/site-packages/asyncpg/connect_utils.py", line 1102, in __connect_addr
+    await connected
+asyncpg.exceptions.InvalidAuthorizationSpecificationError: role "quagminh" does not exist
+
+----------------------------------------------------------------------
+Ran 1 test in 0.035s
+
+FAILED (errors=1)

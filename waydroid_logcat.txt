@@ -448,3 +448,33 @@
 11-17 11:33:08.443  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [TOUCH_DIAG] loading_overlay mask_removed scene=TownScene
 11-17 11:33:08.444  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [TOUCH_DIAG] loading_overlay mask_removed scene=TownScene
 11-17 11:33:08.566  4537  4558 D cocos2d-x debug info: [11:33:08 LUA-print] [TOUCH_DIAG] loading_overlay mask_removed scene=TownScene
+11-17 14:07:29.735  5265  5288 D cocos2d-x debug info: Get data from file(/data/user/0/com.petalliance2.sea/files/settings/SystemSettings.plist) failed!
+11-17 14:07:29.735  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] callback_pending resolve ack_id=152 code=0
+11-17 14:07:29.735  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetActivitiesData_Ack expected_id=152 code=0
+11-17 14:07:29.736  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetMyFriends_Ack expected_id=253 scene=MainScene
+11-17 14:07:29.736  5265  5288 D CCFileUtils-android.cpp: relative path = src/Net/Send/ChatUserSend.lua
+11-17 14:07:29.737  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [INFO] SendMsg id 347
+11-17 14:07:29.738  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [INFO] SendMsg id 4	347
+11-17 14:07:29.738  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] callback_pending register ack_id=253 replaced=false
+11-17 14:07:29.854  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] onMsgRcv msgID:253
+11-17 14:07:29.854  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [INFO] RcvMsg GC_GetMyFriends_Ack 253
+11-17 14:07:29.854  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] callback_pending resolve ack_id=253 code=0
+11-17 14:07:29.854  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetMyFriends_Ack expected_id=253 code=0
+11-17 14:07:29.855  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] request mode=async expected_ack=GC_GetCurrentAdventrue_Ack expected_id=2997 scene=MainScene
+11-17 14:07:29.856  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [INFO] SendMsg id 2999
+11-17 14:07:29.856  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [INFO] SendMsg id 4	2999
+11-17 14:07:29.856  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] callback_pending register ack_id=2997 replaced=false
+11-17 14:07:29.977  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] onMsgRcv msgID:2997
+11-17 14:07:29.978  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [INFO] RcvMsg GC_GetCurrentAdventrue_Ack 2997
+11-17 14:07:29.978  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] callback_pending resolve ack_id=2997 code=0
+11-17 14:07:29.978  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=GC_GetCurrentAdventrue_Ack expected_id=2997 code=0
+11-17 14:07:29.979  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] request mode=async expected_ack=ZC_LoadMonthCard_Ack expected_id=3106 scene=MainScene
+11-17 14:07:29.979  5265  5288 D CCFileUtils-android.cpp: relative path = src/Net/Send/MonthCardSend.lua
+11-17 14:07:29.980  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [INFO] SendMsg id 3104
+11-17 14:07:29.980  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [INFO] SendMsg id 4	3104
+11-17 14:07:29.980  5265  5288 D cocos2d-x debug info: [14:07:29 LUA-print] [NET_DIAG] callback_pending register ack_id=3106 replaced=false
+11-17 14:07:30.101  5265  5288 D cocos2d-x debug info: [14:07:30 LUA-print] onMsgRcv msgID:3106
+11-17 14:07:30.101  5265  5288 D cocos2d-x debug info: [14:07:30 LUA-print] [INFO] RcvMsg ZC_LoadMonthCard_Ack 3106
+11-17 14:07:30.101  5265  5288 D cocos2d-x debug info: [14:07:30 LUA-print] [NET_DIAG] callback_pending resolve ack_id=3106 code=1
+11-17 14:07:30.101  5265  5288 D cocos2d-x debug info: [14:07:30 LUA-print] [NET_DIAG] ack_complete mode=async expected_ack=ZC_LoadMonthCard_Ack expected_id=3106 code=1
+11-17 14:08:13.900   252   286 W BatteryExternalStatsWorker: error reading Bluetooth stats: 9

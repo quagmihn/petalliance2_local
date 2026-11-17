@@ -18,7 +18,7 @@ local languageInitAttempted = false
 local languageInitialized = false
 local loggedEarlyLookup = false
 local diagnosticKeys = {
-    menu5=true, town8=true, npcname2=true, npcnick4=true, train99998=true,
+    menu5=true, town8=true, login26=true, npcname2=true, npcnick4=true, train99998=true,
     activity51=true, login21=true, login22=true,
 }
 
@@ -303,6 +303,32 @@ local function getLanguageDatabasePath()
                     sourcePath = probe.path
                     break
                 end
+            end
+        end
+    end
+    -- Older FileUtils Lua bindings use lua_pushstring and truncate SQLite at
+    -- its first NUL (15 bytes). An ASCII transport of the unchanged asset
+    -- avoids crossing that binary-unsafe boundary; decode entirely in Lua.
+    if not contents then
+        local encoded = fileUtils:getStringFromFile(relativePath..".b64")
+        if encoded and #encoded > 0 then
+            local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+            local values = {}
+            for i=1,#alphabet do values[string.sub(alphabet,i,i)] = i-1 end
+            local chunks = {}
+            encoded = string.gsub(encoded, "%s", "")
+            for pos=1,#encoded,4 do
+                local a,b,c,d = string.sub(encoded,pos,pos),string.sub(encoded,pos+1,pos+1),string.sub(encoded,pos+2,pos+2),string.sub(encoded,pos+3,pos+3)
+                assert(values[a] and values[b], "invalid base64 language asset")
+                local n = values[a]*262144 + values[b]*4096 + (values[c] or 0)*64 + (values[d] or 0)
+                chunks[#chunks+1] = string.char(math.floor(n/65536)%256)
+                    ..(c~="=" and string.char(math.floor(n/256)%256) or "")
+                    ..(d~="=" and string.char(n%256) or "")
+            end
+            local bytes = table.concat(chunks)
+            if string.sub(bytes,1,16) == sqliteHeader then
+                contents, sourcePath = bytes, relativePath..".b64"
+                print("[LANG_DIAG] binary_safe_transport=base64 bytes="..#bytes)
             end
         end
     end
