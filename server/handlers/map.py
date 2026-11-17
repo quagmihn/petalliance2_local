@@ -4,6 +4,16 @@ import json
 import time
 
 from protocol import Reader, Writer
+from quest_config import load_quests
+
+_QUEST_CONFIG = None
+
+
+def _quests():
+    global _QUEST_CONFIG
+    if _QUEST_CONFIG is None:
+        _QUEST_CONFIG = load_quests()
+    return _QUEST_CONFIG
 
 # request_id -> (ack_id, body factory). These are the serialized empty states
 # expected by LoginMsgMgr's initial, strictly sequential request chain.
@@ -70,7 +80,7 @@ async def get_home(session, payload: bytes):
 
 
 async def update_quest(session, payload: bytes):
-    """Persist the only fully source-validated client-controlled tutorial step."""
+    """Persist configured quest progress only when supported server evidence exists."""
     r = Reader(payload)
     quest_id, _status, _updated_at = r.u32(), r.u8(), r.u64()
     count = r.u8()
@@ -78,28 +88,38 @@ async def update_quest(session, payload: bytes):
         raise ValueError("quest progress vector too large")
     progress = [r.u32() for _ in range(count)]
     r.finish()
-    ok = (session.char_id is not None and quest_id == 1
-          and await session.db.set_first_tutorial_progress(session.char_id, progress))
+    config = _quests().get(quest_id)
+    amount = config.objectives[0].amount if config and len(config.objectives) == 1 else 0
+    ok = (session.char_id is not None and amount > 0
+          and await session.db.update_configured_tutorial_progress(
+              session.char_id, quest_id, progress, amount))
     return 3132, Writer().u16(0 if ok else 1).bytes()
 
 
 async def commit_quest(session, payload: bytes):
-    """Commit tutorial quest 1 and notify its configured child 10001.
-
-    Quest 1 has no award, and NewQuestInfo.dat lists 10001 as its child.
-    Other quests remain rejected until their configured reward and objective
-    checks are implemented.
-    """
     r = Reader(payload)
     quest_id = r.u32()
     r.finish()
-    ok = (session.char_id is not None and quest_id == 1
-          and await session.db.commit_first_tutorial_quest(session.char_id))
+    config = _quests()
+    quest = config.get(quest_id)
+    ok, children = False, []
+    if session.char_id is not None and quest is not None:
+        ok, children = await session.db.commit_configured_tutorial_quest(
+            session.char_id, quest, config)
     if not ok:
         return 726, Writer().u16(1).bytes()
     ack = Writer().u16(0).u32(quest_id).vector_strings([]).bytes()
-    ntf = Writer().u8(1).u32(10001).u8(0).u64(int(time.time())).u8(1).u32(0).bytes()
-    return [(726, ack), (404, ntf)]
+    responses = [(726, ack)]
+    if children:
+        ntf = Writer().u8(len(children))
+        for child_id in children:
+            child = config[child_id]
+            ntf.u32(child_id).u8(0).u64(int(time.time()))
+            ntf.u8(len(child.objectives))
+            for _ in child.objectives:
+                ntf.u32(0)
+        responses.append((404, ntf.bytes()))
+    return responses
 
 
 async def startup_empty_ack(session, msg_id: int, payload: bytes):

@@ -8,7 +8,7 @@ import time
 import uuid
 
 from db.database import Database
-from handlers import auth, chat, economy, inventory, map as map_handler, pet, player
+from handlers import auth, battle, chat, economy, inventory, map as map_handler, pet, player
 from protocol import (Reader, frame, read_frame, redact_payload,
                       ProtocolDecodeError, redact_response_payload,
                       safe_request_fields)
@@ -68,6 +68,8 @@ CMD = {
     "pet_skill_level": 1302, "pet_equip_strengthen": 561,
     "change_channel": 380, "change_channel_ack": 386,
     "get_home": 118, "get_home_ack": 32,
+    "create_pve_battle": 136, "create_pve_battle_ack": 210,
+    "pve_battle_end": 263, "pve_battle_end_ack": 186,
 }
 MSG_NAME = {value: key for key, value in CMD.items() if not key.endswith("_ack") and not key.endswith("_ntf")}
 MSG_NAME.update({131: "CG_CLIENTINFO_REQ", 1626: "CM_APPOINTNICKNAME_REQ",
@@ -81,6 +83,7 @@ ACK_NAME.update({value: key.upper() for key, value in CMD.items() if key.endswit
 EXPECTED_ACKS = {
     118: (32,), 380: (386,), 154: (152,), 662: (655,), 785: (26, 404),
     3133: (3132,), 400: (726, 404), 632: (630,), 45: (35,),
+    136: (210,), 263: (186,),
 }
 
 
@@ -140,6 +143,8 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["change_channel"]: return await chat.change_channel(session, payload)
     if msg_id == CMD["quest_list"]: return await map_handler.get_quests(session, payload)
     if msg_id == CMD["get_home"]: return await map_handler.get_home(session, payload)
+    if msg_id in (CMD["create_pve_battle"], CMD["pve_battle_end"]):
+        return await battle.handle(msg_id, payload, session)
     if msg_id == CMD["quest_update"]: return await map_handler.update_quest(session, payload)
     if msg_id == CMD["quest_commit"]: return await map_handler.commit_quest(session, payload)
     if msg_id == CMD["change_character_info"]:

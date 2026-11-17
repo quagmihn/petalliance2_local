@@ -138,6 +138,16 @@ class Database:
                ON CONFLICT(char_id,quest_id) DO NOTHING""",
             char_id,
         )
+        # The configured objective for quest 1 is to obtain the starter Pet.
+        # Pet presence is the server-side fact, so repair its progress when a
+        # legacy account already owns one instead of trusting a client update.
+        await self.pool.execute(
+            """UPDATE quests q SET progress='[1]'::jsonb
+               WHERE q.char_id=$1 AND q.quest_id=1 AND q.status=0
+                 AND EXISTS (SELECT 1 FROM pets p WHERE p.char_id=q.char_id)
+                 AND COALESCE((q.progress->>0)::integer,0)<1""",
+            char_id,
+        )
 
     async def home_state(self, char_id: int) -> dict[str, Any] | None:
         async with self.pool.acquire() as conn:
@@ -162,48 +172,147 @@ class Database:
             raise ValueError(f"invalid home_data fields for character {char_id}")
         return data
 
-    async def commit_first_tutorial_quest(self, char_id: int) -> bool:
-        """Complete configured quest 1 and activate its configured child 10001.
-
-        Other quest commits require configuration-backed validation and reward
-        delivery, so they are not accepted by this narrow transition.
-        """
+    async def update_configured_tutorial_progress(self, char_id: int, quest_id: int,
+                                                 progress: list[int], amount: int) -> bool:
+        """Accept client progress only when an independent server fact proves it."""
+        if progress != [amount] or amount <= 0:
+            return False
         async with self.pool.acquire() as conn:
             async with conn.transaction():
-                current = await conn.fetchrow(
-                    "SELECT status FROM quests WHERE char_id=$1 AND quest_id=1 FOR UPDATE",
-                    char_id,
-                )
-                if current is None:
+                character = await conn.fetchrow(
+                    "SELECT level FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                quest = await conn.fetchrow(
+                    "SELECT status FROM quests WHERE char_id=$1 AND quest_id=$2 FOR UPDATE",
+                    char_id, quest_id)
+                if character is None or quest is None or quest["status"] != 0:
                     return False
-                if current["status"] == 1:
-                    child = await conn.fetchval(
-                        "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=10001",
-                        char_id,
-                    )
-                    return child is not None
-                if current["status"] != 0:
+                if quest_id == 1:
+                    valid = await conn.fetchval("SELECT 1 FROM pets WHERE char_id=$1 LIMIT 1", char_id)
+                elif quest_id == 10002:
+                    # This is the exact alternate branch in GameGuideMgr.firstAdventure().
+                    valid = character["level"] >= 2
+                elif quest_id == 10003:
+                    valid = await conn.fetchval(
+                        "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=2 AND status=1", char_id)
+                else:
+                    # The battle objective is set only by finish_tutorial_battle().
+                    return False
+                if not valid:
                     return False
                 await conn.execute(
-                    "UPDATE quests SET status=1 WHERE char_id=$1 AND quest_id=1",
-                    char_id,
-                )
-                await conn.execute(
-                    """INSERT INTO quests(char_id,quest_id,status,progress)
-                       VALUES($1,10001,0,'[0]'::jsonb)
-                       ON CONFLICT(char_id,quest_id) DO NOTHING""",
-                    char_id,
-                )
+                    "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
+                    char_id, quest_id, json.dumps(progress))
                 return True
 
-    async def set_first_tutorial_progress(self, char_id: int, progress: list[int]) -> bool:
-        if len(progress) != 1 or not 0 <= progress[0] <= 1:
+    async def start_tutorial_battle(self, char_id: int, session_id: str, group_id: int) -> bool:
+        if group_id != 99998:
             return False
-        result = await self.pool.execute(
-            "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=1 AND status=0",
-            char_id, 1, json.dumps(progress),
-        )
-        return not result.endswith(" 0")
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                active = await conn.fetchval(
+                    "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=10001 AND status=0",
+                    char_id)
+                if not active:
+                    return False
+                await conn.execute(
+                    "INSERT INTO tutorial_battle_sessions(char_id,session_id,group_id,state) "
+                    "VALUES($1,$2,$3,'started')", char_id, session_id, group_id)
+                return True
+
+    async def finish_tutorial_battle(self, char_id: int, session_id: str, won: bool) -> bool:
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                battle = await conn.fetchrow(
+                    """SELECT battle_id FROM tutorial_battle_sessions
+                       WHERE char_id=$1 AND session_id=$2 AND group_id=99998 AND state='started'
+                       ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""", char_id, session_id)
+                if battle is None:
+                    return False
+                await conn.execute(
+                    "UPDATE tutorial_battle_sessions SET state=$2,finished_at=now() WHERE battle_id=$1",
+                    battle["battle_id"], "won" if won else "lost")
+                if won:
+                    await conn.execute(
+                        "UPDATE quests SET progress='[1]'::jsonb WHERE char_id=$1 AND quest_id=10001 AND status=0",
+                        char_id)
+                return True
+
+    async def commit_configured_tutorial_quest(self, char_id: int, quest,
+                                               all_quests: dict[int, Any]) -> tuple[bool, list[int]]:
+        """Atomically validate, complete, reward, unlock, and activate configured children."""
+        amount = quest.objectives[0].amount if quest.objectives else 0
+        if quest.quest_id not in (1, 10001, 10002, 10003) or amount <= 0:
+            return False, []
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                char = await conn.fetchrow(
+                    "SELECT level,gold,exp,diamond,game_values FROM characters WHERE char_id=$1 FOR UPDATE",
+                    char_id)
+                current = await conn.fetchrow(
+                    "SELECT status,progress FROM quests WHERE char_id=$1 AND quest_id=$2 FOR UPDATE",
+                    char_id, quest.quest_id)
+                if char is None or current is None:
+                    return False, []
+                if current["status"] == 1:
+                    return True, []
+                if current["status"] != 0:
+                    return False, []
+                if quest.parent_id:
+                    parent = await conn.fetchval(
+                        "SELECT status FROM quests WHERE char_id=$1 AND quest_id=$2",
+                        char_id, quest.parent_id)
+                    if parent != 1:
+                        return False, []
+                if quest.quest_id == 1:
+                    proof = await conn.fetchval("SELECT 1 FROM pets WHERE char_id=$1 LIMIT 1", char_id)
+                elif quest.quest_id == 10001:
+                    proof = await conn.fetchval(
+                        """SELECT 1 FROM tutorial_battle_sessions
+                           WHERE char_id=$1 AND state='won' AND group_id=99998 LIMIT 1""", char_id)
+                elif quest.quest_id == 10002:
+                    proof = char["level"] >= 2
+                else:  # 10003 follows the configured first main-mission claim (quest 2).
+                    proof = await conn.fetchval(
+                        "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=2 AND status=1", char_id)
+                if not proof:
+                    return False, []
+
+                # Tutorial completion sends CommitQuest directly. Persist the
+                # count from independently verified server evidence.
+                progress = [amount]
+
+                new_children = []
+                for child_id in quest.child_ids:
+                    if not child_id:
+                        continue
+                    child = all_quests.get(child_id)
+                    if child is None:
+                        continue
+                    inserted = await conn.fetchval(
+                        """INSERT INTO quests(char_id,quest_id,status,progress)
+                           VALUES($1,$2,0,$3::jsonb) ON CONFLICT(char_id,quest_id) DO NOTHING
+                           RETURNING quest_id""",
+                        char_id, child_id, json.dumps([0] * max(1, len(child.objectives))))
+                    if inserted is not None:
+                        new_children.append(child_id)
+
+                gold = int(quest.gold_reward) if quest.gold_reward.isdigit() else 0
+                exp = int(quest.exp_reward) if quest.exp_reward.isdigit() else 0
+                values = char["game_values"] or {}
+                if isinstance(values, str): values = json.loads(values)
+                map_lock = str(values.get("map_lock", "0"))
+                if quest.unlock_map_id.isdigit():
+                    unlocked = set(filter(None, map_lock.split("-")))
+                    map_lock = map_lock if quest.unlock_map_id in unlocked else map_lock + "-" + quest.unlock_map_id
+                await conn.execute(
+                    """UPDATE quests SET status=1,progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2""",
+                    char_id, quest.quest_id, json.dumps([amount]))
+                await conn.execute(
+                    """UPDATE characters SET gold=gold+$2,exp=exp+$3,
+                       diamond=diamond+$4,game_values=game_values || jsonb_build_object('map_lock',$5)
+                       WHERE char_id=$1""",
+                    char_id, gold, exp, quest.diamond_reward, map_lock)
+                return True, new_children
 
     async def player_snapshot(self, char_id: int) -> dict[str, Any]:
         async with self.pool.acquire() as conn:

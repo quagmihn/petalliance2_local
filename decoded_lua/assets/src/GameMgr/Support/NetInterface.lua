@@ -142,8 +142,8 @@ end
 --@param errorCallback function 失败回调
 --@param waitTime 
 --@param canResend default is true,set false means not resendable
-function NetInterface.sendWithBlock(ackName, func, successCallback, errorCallback, waitTime, canResend)
-    DebugInfoMgr.SENDMSG = {ackName, func, successCallback, errorCallback, waitTime, canResend}
+function NetInterface.sendWithBlock(ackName, func, successCallback, errorCallback, waitTime, canResend, timeoutCallback)
+    DebugInfoMgr.SENDMSG = {ackName, func, successCallback, errorCallback, waitTime, canResend, timeoutCallback}
     local ackID = Proto.Command[string.upper(ackName)]
     if not ackID then
         ackID = Proto.CommandL[string.upper(ackName)]
@@ -155,9 +155,13 @@ function NetInterface.sendWithBlock(ackName, func, successCallback, errorCallbac
     end
     if canResend == nil then canResend = true end
     if canResend == true then
-        sendMsgCaches[ackName] = {type=1, sendFunc=func, sCallback=successCallback, eCallback=errorCallback}
+        sendMsgCaches[ackName] = {type=1, sendFunc=func, sCallback=successCallback,
+            eCallback=errorCallback, waitTime=waitTime, canResend=canResend,
+            timeoutCallback=timeoutCallback}
     else
-        noResendMsgCaches[ackName] = {type=0, sendFunc=func, sCallback=successCallback, eCallback=errorCallback}
+        noResendMsgCaches[ackName] = {type=0, sendFunc=func, sCallback=successCallback,
+            eCallback=errorCallback, waitTime=waitTime, canResend=canResend,
+            timeoutCallback=timeoutCallback}
     end
     
     if not func then
@@ -196,6 +200,12 @@ function NetInterface.sendWithBlock(ackName, func, successCallback, errorCallbac
         end
         print("NetInterface.sendWithBlock overtime,reset connection ackName:",ackName)
         OvertimeListener.cancel(ackName, true)
+        sendMsgCaches[ackName] = nil
+        noResendMsgCaches[ackName] = nil
+        LoadingView.hide()
+        if timeoutCallback then
+            timeoutCallback()
+        end
         NetInterface.isConnect = false
         NetInterface.isWaiting = false
         local NetMgr = require("src.Net.NetMgr")
@@ -219,7 +229,8 @@ function NetInterface.resend()
         if var.type==0 then
             NetInterface.send(key, var.sendFunc, var.sCallback, var.eCallback)
         elseif var.type==1 then
-            NetInterface.sendWithBlock(key, var.sendFunc, var.sCallback, var.eCallback)
+            NetInterface.sendWithBlock(key, var.sendFunc, var.sCallback, var.eCallback,
+                var.waitTime, var.canResend, var.timeoutCallback)
         end
     end
 

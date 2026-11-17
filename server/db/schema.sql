@@ -92,3 +92,17 @@ CREATE TABLE IF NOT EXISTS homes (
     home_data JSONB NOT NULL DEFAULT '{"level":1,"furnitures":{}}'::jsonb,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- A tutorial encounter is server-issued and bound to the live TCP session.
+-- This prevents a quest commit alone from claiming the first-battle objective.
+CREATE TABLE IF NOT EXISTS tutorial_battle_sessions (
+    battle_id BIGSERIAL PRIMARY KEY,
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    session_id TEXT NOT NULL,
+    group_id INTEGER NOT NULL,
+    state TEXT NOT NULL CHECK (state IN ('started','won','lost')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS tutorial_battle_sessions_char_session_idx
+    ON tutorial_battle_sessions(char_id, session_id, battle_id DESC);

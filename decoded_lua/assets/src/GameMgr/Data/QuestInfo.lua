@@ -354,6 +354,12 @@ function QuestInfo.sendQuestFinished(questID, checkNext, callback)
     
     local function sendMission()
         local NewQuestSend = require("src.Net.Send.NewQuestSend")
+        local function releasePendingFinish()
+            isContinuousFinishing = false
+            if curQuestDatas[questID] then
+                curQuestDatas[questID].status = Proto.QUEST_STATUS_NORMAL
+            end
+        end
         NetInterface.sendWithBlock("ZC_CommitQuest_Ack", function()
             curQuestDatas[questID] = questData
             NewQuestSend.sendCZ_CommitQuest_Req(questData.questID)
@@ -371,9 +377,9 @@ function QuestInfo.sendQuestFinished(questID, checkNext, callback)
                 QuestInfo.checkAllQuestAndFinish()
             end
         end, function(code)
-            curQuestDatas[questID].status = Proto.QUEST_STATUS_NORMAL
+            releasePendingFinish()
             TipsMgr.showError(nil, code)
-        end)
+        end, nil, nil, releasePendingFinish)
     end
     
     if checkNext then
