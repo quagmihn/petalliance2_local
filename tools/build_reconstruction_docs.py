@@ -127,7 +127,7 @@ Pet-related config tables discovered by filename: **{len(pet_names)}**. Full rec
 | Flow | Source evidence | Backend/runtime status |
 |---|---|---|
 | Pet query/serialization | QueryPets Lua decoder, PokemonInfo/MonstrosityInfo | Existing handler; tested legacy validation paths |
-| Wild capture | GameGuideMgr + BattleCCSB; PokemonBallInfo; ItemInfo | Transactional implementation and PostgreSQL contract; Waydroid has not captured |
+| Wild capture | GameGuideMgr + BattleCCSB; PokemonBallInfo; ItemInfo | Waydroid captured configured Catepii template 26; ball 1 consumed, Pet UID 3 persisted, quest 10008 progress committed |
 | Pet EXP feed | Item UI, request 516/ACK 526, ExperienceInfo | PostgreSQL/TCP tested; actual Waydroid feed pending |
 | Training Stage | PetAdvanceInfo and request 1038 flow | Separate persisted operation; runtime acceptance pending |
 | Enhance/evolve/star/skills/equipment | Pet*Info tables and 374-request registry | Discoverable but per-flow backend coverage incomplete |
@@ -156,7 +156,7 @@ Catalogs are distinct systems with different currencies, stock, refresh, limits,
 
 {md(shoprows)}
 
-MarketInfo entry 201 used by the target capture UI maps to Master Ball item 1 for 600 diamonds and has no configured buy limit. Handler transaction tests pass. Waydroid purchase was stopped client-side by `BAG IS FULL`; no purchase request/reward was observed. Recharge receipt/package tables have parser gaps and no local simulated checkout implementation. Real payment providers are not contacted.''')
+MarketInfo entry 201 used by the target capture UI maps to Master Ball item 1 for 600 diamonds and has no configured buy limit. Waydroid displayed the configured price and completed request 577/ACK 563 twice. Total observed DB delta: diamond 999,999,999→999,998,799 and item 1 0→1 before capture consumed it back to zero. The first wallet notification exposed stale mirrored currency fields; the handler now makes committed character columns authoritative and the second purchase notification/UI showed the updated balance. Recharge receipt/package tables have parser gaps and no local simulated checkout implementation. Real payment providers are not contacted.''')
 
 extrows=[['File type','Count']]+[[k,v] for k,v in asset_types.most_common()]
 write('ASSET_COMPATIBILITY.md',f'''# Asset compatibility inventory
@@ -176,9 +176,9 @@ Snapshot generated from the current local reconstruction source; statuses are sc
 
 | Inventory | Discovered | Parsed/source indexed | Current backend route | Protocol tests | Waydroid evidence |
 |---|---:|---:|---:|---|---|
-| Protocol command constants | {len(allcmd)} | {len(allcmd)} | {routes}/{len(req)} client requests statically routed | 82-test suite, targeted paths only | Login/Town; wild 136/210 then 263/186 |
+| Protocol command constants | {len(allcmd)} | {len(allcmd)} | {routes}/{len(req)} client requests statically routed | 87-test suite, targeted paths only | Login/Town; wild 136/210, 263/186, capture 15/198; MarketInfo 577/563 |
 | Client request definitions | {len(req)} | serializers {serial}; ACK decoders {decoders}; GameMgr callers {callers} | {routes} | Partial; see registry | No per-request complete acceptance |
-| Quests | {len(quests)} | all quest rows parsed | Selected tutorial/commit path | Selected integration tests | Quest 10008 capture blocked |
+| Quests | {len(quests)} | all quest rows parsed | Selected tutorial/commit path | Selected integration tests | Quest 10008 capture objective and commit verified on Waydroid; broader graph incomplete |
 | AdventureInfo | {len(adv)} | all rows parsed | Selected requests only | Partial | No full map clear/unlock acceptance |
 | SceneInfo | {len(scenes)} | all rows parsed | event/battle subsets | Partial | One wild encounter |
 | Battle groups | {len(groups)} | all rows parsed | small configured subset | selected trainer/wild/adventure contracts | one type-1 wild group start/end |
@@ -203,9 +203,9 @@ Checkpoint baseline tag: `baseline-partial-verified-2026-11-18` at commit `947a0
 
 ## P0 — runtime state correctness
 
-1. Verify inventory capacity values now come from GlobalConfigAddInfo (items 6601 and Pet slots 6701); preserve larger character upgrades and test actual ACK JSON.
-2. Capacity defaults now use client config: itemPacketNum=70, petPacketNum=40, explorePacketNum=10; PostgreSQL typed contract tests pass. Cold relogin Waydroid and repeat capture UI purchase click. If capacity is still full, instrument `BagViewMgr.refreshItemInfo`, `CharInfo.itempacketnum`, and inventory notifications.
-3. Complete purchase 201 and capture at actual configured odds; verify balance, inventory, Pet UID, quest progress, and relogin persistence.
+1. Inventory capacity defaults now use client config: itemPacketNum=70, petPacketNum=40, explorePacketNum=10; Waydroid reached the add flow.
+2. Capture client must retain the configured Pet template ID across victory cleanup; server maps that ID to the owned configured encounter. PostgreSQL contract is passing; repeat on Waydroid after the rebuilt APK.
+3. Verify wallet update after server restart; current handler now makes committed wallet columns authoritative over legacy JSON mirrors.
 4. Exercise Pet EXP potion on Waydroid; compare request, committed DB state, immediate UI, and cold login.
 
 ## P1 — shared domain engines
@@ -238,20 +238,22 @@ Date: 2026-11-18. This records a partial verified checkpoint; it is not a releas
 | Check | Result | Evidence |
 |---|---|---|
 | Baseline source | PASS | tag `baseline-partial-verified-2026-11-18`, commit `947a052d59663a70b28821b28d3983e1ed83951e` |
-| Baseline APK | PASS | Installed APK SHA256 equals `b24ea2d5239d61e15c47574df37a74c12dccac5440e14cd549c7939f0f0f6fcf` |
+| Installed patched APK | PASS | Package v7/signature compatible; SHA256 `362d724207e8b1da7fe55f8f86e0672f195e9f6b6388d2c7119e56fa1d677448` |
 | Official server | PASS | `server/run_all.sh production`, source tree, HTTP 8080 and TCP 5568, database `monster2_db`, role `monster2` |
-| PostgreSQL/TCP suite | PASS | 79 tests after capacity-default fix, separate `monster2_test_db`; no skips |
+| PostgreSQL/TCP suite | PASS | 87 tests, separate `monster2_test_db`; no skips |
 | Login/Town | PASS | Existing Waydroid account 6 / char 2 relogin screenshot/log in `artifacts/pet-exp-feed-20261118/` |
 | Wild battle | PASS | Request 136/ACK 210 code 0; battle end 263/ACK 186 code 0, 8 EXP; capture UI reached |
 | Inventory capacity | CODE/TEST PASS, WAYDROID RETEST PENDING | Missing `itemPacketNum` previously defaulted to 0 and overrode client config 70; response now derives configured 70/40/10. Contract tests verify defaults and preserve purchased capacity |
-| Capture | BLOCKED | All ball stacks were zero; Master Ball button reported BAG IS FULL before request 577. Capacity default fix now awaits Waydroid relogin/runtime confirmation |
-| Quest/map completion | BLOCKED | No capture request, so quest objective/map transition not completed |
+| MarketInfo purchase | PASS | Waydroid request 577; ACK 563 code 0; 600 diamonds deducted, item 1 granted; wallet notification reflects committed balance |
+| Capture | PASS | Waydroid request 15 sent `pokemonID=26,itemID=1`; ACK 198 success/caught; item consumed; Pet UID 3/template 26 persisted; screenshot `waydroid-capture-success.png` |
+| Quest 10008 | PASS | Capture set progress `[1]`; CommitQuest 400→726 code 0 plus 404 notification; PostgreSQL status 1/progress `[1]` |
+| Quest/map continuation | PARTIAL | Capture objective/commit verified; broader next quest/map flow not yet validated |
 | Pet EXP live UI | BLOCKED | TCP/DB tests pass; no Waydroid feed performed |
-| Events/shop/recharge | BLOCKED/INCOMPLETE | no live reward/purchase/recharge completion |
+| Events/recharge | BLOCKED/INCOMPLETE | no live event reward or local simulated recharge completion |
 | Production backup | PARTIAL | PostgreSQL archives and SHA256/TOC validation pass; isolated restore could not be run because current role lacks CREATEDB and `sudo -n -u postgres` requires password |
 | Push | BLOCKED | `git push origin main` failed because GitHub HTTPS credential helper has no interactive username source |
 
 Screenshots and synchronized server logs are local evidence under `artifacts/pet-exp-feed-20261118/` and are deliberately not tracked in Git. Production data was not manually edited to create a test pass. Runtime encounter rows from normal Waydroid gameplay are present in `monster2_db`.
 
-Next check after capacity default commit: restart only the official launcher, cold relogin, inspect `GET_CHARACTER_VALUES_ACK` for itemPacketNum=70/petPacketNum=40, then repeat the real UI add/capture path.''')
+Cold relogin was completed after capture; Town and the quest continuation dialogue loaded. PostgreSQL retains Pet UID 3/template 26 and quest 10008 status 1/progress `[1]`. Continue the discovered quest/map graph; broader content remains incomplete.''')
 print(f'generated reconstruction docs; protocol requests={len(req)}, commands={len(allcmd)}, assets={len(asset_rows)}')

@@ -60,12 +60,29 @@ def main():
     p.add_argument("--output", type=Path, default=Path("dist/monster2_runtime-unsigned.apk"))
     args = p.parse_args()
     target = "assets/src/GameMgr/Map/SceneMgr.lua"
+    capture_language_files = {
+        "assets/res/Config/db/lang.db",
+        "assets/res/Config/db/lang_en.db",
+        "assets/res/Config/db/lang_id.db",
+        "assets/res/Config/db/lang_th.db",
+        "assets/res/Config/db/lang_tw.db",
+        "assets/res/Config/db/lang_vn.db",
+    }
     with zipfile.ZipFile(args.input) as source, zipfile.ZipFile(args.output, "w") as output:
         source_names = set(source.namelist())
+        db_overrides = {
+            name: (Path("apk_extracted/assets") / name.removeprefix("assets/")).read_bytes()
+            for name in capture_language_files
+            if name in source_names
+        }
         for info in source.infolist():
             if info.filename.upper().startswith("META-INF/"):
                 continue
             data = source.read(info)
+            if info.filename in db_overrides:
+                data = db_overrides[info.filename]
+            elif info.filename.endswith(".db.b64") and info.filename[:-4] in db_overrides:
+                data = base64.b64encode(db_overrides[info.filename[:-4]])
             if info.filename == "AndroidManifest.xml":
                 data = patch_activity_config(data)
             if info.filename == "assets/src/GameMgr/Support/LuaSqlite.lua":
@@ -77,6 +94,7 @@ def main():
             if info.filename in {
                 "assets/src/GameMgr/Data/PokemonInfo.lua",
                 "assets/src/GameMgr/Common/GameGuideMgr1.lua",
+                "assets/src/GameMgr/Map/BattleMapMgr.lua",
                 "assets/src/Net/Process/ChatProcess.lua",
             }:
                 source_path = Path("decoded_lua") / info.filename

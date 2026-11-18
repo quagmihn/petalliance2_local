@@ -4,9 +4,9 @@ Snapshot generated from the current local reconstruction source; statuses are sc
 
 | Inventory | Discovered | Parsed/source indexed | Current backend route | Protocol tests | Waydroid evidence |
 |---|---:|---:|---:|---|---|
-| Protocol command constants | 1024 | 1024 | 54/374 client requests statically routed | 82-test suite, targeted paths only | Login/Town; wild 136/210 then 263/186 |
+| Protocol command constants | 1024 | 1024 | 54/374 client requests statically routed | 87-test suite, targeted paths only | Login/Town; wild 136/210, 263/186, capture 15/198; MarketInfo 577/563 |
 | Client request definitions | 374 | serializers 374; ACK decoders 373; GameMgr callers 306 | 54 | Partial; see registry | No per-request complete acceptance |
-| Quests | 747 | all quest rows parsed | Selected tutorial/commit path | Selected integration tests | Quest 10008 capture blocked |
+| Quests | 747 | all quest rows parsed | Selected tutorial/commit path | Selected integration tests | Quest 10008 capture objective and commit verified on Waydroid; broader graph incomplete |
 | AdventureInfo | 290 | all rows parsed | Selected requests only | Partial | No full map clear/unlock acceptance |
 | SceneInfo | 22486 | all rows parsed | event/battle subsets | Partial | One wild encounter |
 | Battle groups | 907 | all rows parsed | small configured subset | selected trainer/wild/adventure contracts | one type-1 wild group start/end |

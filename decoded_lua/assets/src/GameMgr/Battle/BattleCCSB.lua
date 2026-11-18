@@ -2457,7 +2457,14 @@ function BattleCCSB.createCatchUI(parent,petInfo)
             if i == 3 then
                 if BattleUIMgr.ballNum[i] <= 0 then
                     if not BattleCCSB.checkIsFullBag() then
-                        DialogBoxMgr.showSmallDialogBox(SceneMgr.getRunningScene,2,"advtips9",function()             
+                            local marketInfo = ItemInfo.getMarketInfoById(201)
+                            local price = marketInfo and tonumber(marketInfo.num)
+                            if not price or price <= 0 then
+                                print("[CAPTURE_SHOP] missing or invalid MarketInfo 201 price")
+                                return
+                            end
+                            local confirmText = CocosModuleMgr.createStringWithFormat({"advtips9", tostring(price)})
+                            DialogBoxMgr.showSmallDialogBox(SceneMgr.getRunningScene,2,confirmText,function()
                                 NetInterface.sendWithBlock("GC_BUYMARKETITEM_ACK", function()
                                     local MarketSend = require("src.Net.Send.MarketSend")
                                     MarketSend.sendCG_BuyMarketItem_Req({marketInfoID = 201,num = 1})

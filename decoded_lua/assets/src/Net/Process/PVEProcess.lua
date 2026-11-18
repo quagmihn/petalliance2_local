@@ -157,28 +157,18 @@ function PVEProcess.onGC_PVEPokemonCatch_Ack(msg)
 
     if (Proto.Error.ERROR_OK == res.code) then 
         LoadingView.hide() 
-        if BattleUIMgr.firstBattle == 2 then
+        if BattleUIMgr.firstBattle == 2 and res.isCatched == 1 then
             GameGuideMgr.finishProcess()
         end
         catchPetState(res.isCatched,res.pb)
     else
         
         StandardTipsMgr.show(1, "error code: "..res.code)
-        if res.code == 1 then
-            if BattleUIMgr.firstBattle == 2 then
-                GameGuideMgr.finishProcess()
-            end 
-            
-            if BattleCCSB.CATCH.captureNum > 0 then
-                catchPetState(1,0)
-            else
-                CocosModuleMgr.setScreenTouch(true)
-                BattleCCSB.setCatchButtonEnabled(true)
-                local catchStr   = LuaSqlite.getLanguageByKey("battleword30")
-                BattleCCSB.UPBLOOD.catchTimes:setString(catchStr)
-                BattleCCSB.CATCH.captureNum = 0
-                StandardTipsMgr.show(1, "battleword31")
-            end
+        -- A server-side rejection does not consume a ball or an attempt.
+        -- Release the request's global touch lock so the player can retry.
+        CocosModuleMgr.setScreenTouch(true)
+        if BattleCCSB and BattleCCSB.setCatchButtonEnabled then
+            BattleCCSB.setCatchButtonEnabled(true)
         end
     end
     CallbackMgr.doCallFunc(res.code, Proto.Command.GC_PVEPOKEMONCATCH_ACK)

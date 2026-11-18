@@ -15,6 +15,19 @@ class NoWriteDB:
 
 
 class EconomySafetyTests(unittest.IsolatedAsyncioTestCase):
+    def test_wallet_notification_uses_committed_character_columns(self):
+        row = {"currencies_json": {"diamond": 999999999, "m_cash": 999999999,
+                                    "g_cash": 999999999, "goldCoin": 7},
+               "gold": 30, "diamond": 1200, "stamina": 9,
+               "vip_level": 2, "vip_points": 50}
+        ack_id, payload = economy.wallet_update(row)
+        from json import loads
+        values = loads(Reader(payload).string())
+        self.assertEqual(ack_id, 473)
+        self.assertEqual((values["diamond"], values["m_cash"]), (1200, 1200))
+        self.assertEqual((values["gold"], values["g_cash"]), (30, 30))
+        self.assertEqual(values["goldCoin"], 7)
+
     async def test_unknown_market_catalog_does_not_grant_or_return_success(self):
         session = SimpleNamespace(db=NoWriteDB(), char_id=2)
         ack_id, payload = await economy.buy_market(

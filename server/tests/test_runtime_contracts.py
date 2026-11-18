@@ -9,6 +9,32 @@ from pet_config import starting_skills, validate_pet, pokemon
 
 
 class PetRuntimeContracts(unittest.TestCase):
+    def test_wild_capture_template_id_survives_battle_cleanup(self):
+        root = Path(__file__).resolve().parents[2]
+        source = (root / "decoded_lua/assets/src/GameMgr/Map/BattleMapMgr.lua").read_text()
+        callback = source.split("function BattleMapMgr.sendGameOver", 1)[1].split(
+            "function BattleMapMgr.battleSchedulerStart", 1)[0]
+        keep = callback.index("local catchPetID = catchPet")
+        clean = callback.index("BattleMapMgr.cleanPVPInfo()")
+        restore = callback.index("BattleMapMgr.setCanCatchPet(catchPetID)")
+        self.assertLess(keep, clean)
+        self.assertLess(clean, restore)
+
+    def test_capture_serializer_sends_wild_pet_template_and_unlocks_on_rejection(self):
+        root = Path(__file__).resolve().parents[2]
+        send = (root / "decoded_lua/assets/src/GameMgr/Battle/BattleCCSB.lua").read_text()
+        process = (root / "decoded_lua/assets/src/Net/Process/PVEProcess.lua").read_text()
+        self.assertIn("pokemonID = BattleMapMgr.getCanCatchPet()", send)
+        rejection = process.split("function PVEProcess.onGC_PVEPokemonCatch_Ack", 1)[1]
+        self.assertIn("CocosModuleMgr.setScreenTouch(true)", rejection)
+        self.assertIn("BattleCCSB.setCatchButtonEnabled(true)", rejection)
+        success_path = rejection.split("if (Proto.Error.ERROR_OK == res.code) then", 1)[1].split(
+            "else", 1)[0]
+        self.assertIn("res.isCatched == 1", success_path)
+        error_path = rejection.split("else", 1)[1].split("CallbackMgr.doCallFunc", 1)[0]
+        self.assertNotIn("finishProcess", error_path)
+        self.assertNotIn("catchPetState(1", error_path)
+
     def test_strengthening_stage_is_independent_of_evolution(self):
         skills, passive = starting_skills(7)
         row = dict(pet_uid=123, pet_template_id=7, level=10, exp=0,

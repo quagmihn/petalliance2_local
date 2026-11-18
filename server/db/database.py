@@ -490,19 +490,26 @@ class Database:
 
     async def capture_wild_pet(self, char_id: int, session_id: str, monster_id: int,
                                ball_item_id: int, roll: int | None = None):
-        """Consume one configured ball and resolve one live wild encounter attempt."""
+        """Consume a configured ball for the live encounter's Pet template ID.
+
+        The client serializer calls this field pokemonID and BattleMapMgr
+        supplies MonstrosityInfo.petnumber, not the encounter's mID.
+        """
         from client_config import table
         from pet_config import starting_skills
         import secrets
 
-        requirement = __import__("battle_group_config").tutorial_wild_requirements().get(monster_id)
-        monster = table("MonstrosityInfo").get(monster_id)
+        requirements = __import__("battle_group_config").tutorial_wild_requirements()
+        monsters = table("MonstrosityInfo")
+        candidates = {encounter_id: monsters[encounter_id]
+                      for encounter_id in requirements
+                      if encounter_id in monsters
+                      and int(monsters[encounter_id]["petnumber"]) == monster_id}
         item = table("ItemInfo").get(ball_item_id)
         ball = table("PokemonBallInfo").get(ball_item_id)
-        if (requirement is None or monster is None or item is None or ball is None
-                or int(item["itemType"]) != 9 or int(monster["capture"]) <= 0):
+        if not candidates or item is None or ball is None or int(item["itemType"]) != 9:
             return None
-        template_id = int(monster["petnumber"])
+        template_id = monster_id
         template = table("PokemonInfo").get(template_id)
         if template is None:
             return None
@@ -521,9 +528,15 @@ class Database:
                 # encounter from its authenticated owner and lock it once.
                 battle = await conn.fetchrow(
                     """SELECT * FROM tutorial_battle_sessions WHERE char_id=$1
-                       AND battle_type=1 AND battle_type_id=$2 AND state IN ('started','won')
-                       ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""", char_id, monster_id)
+                       AND battle_type=1 AND battle_type_id=ANY($2::integer[])
+                       AND state IN ('started','won')
+                       ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""",
+                    char_id, list(candidates))
                 if battle is None:
+                    return None
+                requirement = requirements[int(battle["battle_type_id"])]
+                monster = candidates[int(battle["battle_type_id"])]
+                if int(monster["capture"]) <= 0:
                     return None
                 if battle["captured_pet_uid"] is not None:
                     existing = await conn.fetchrow(

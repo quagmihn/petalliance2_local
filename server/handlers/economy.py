@@ -24,11 +24,14 @@ def wallet_update(row) -> tuple[int, bytes]:
     currencies = row["currencies_json"] or {}
     if isinstance(currencies, str):
         currencies = json.loads(currencies)
-    values = {"g_cash": row["gold"], "m_cash": row["diamond"],
-              "gold": row["gold"], "diamond": row["diamond"],
-              "actionvalue": row["stamina"], "viplevel": row["vip_level"],
-              "vip_points": row["vip_points"]}
-    values.update(currencies)
+    # Legacy currencies_json can contain stale mirrors of these canonical
+    # character columns. Merge extension currencies first, then let the
+    # committed row win for every authoritative wallet field.
+    values = dict(currencies)
+    values.update({"g_cash": row["gold"], "m_cash": row["diamond"],
+                   "gold": row["gold"], "diamond": row["diamond"],
+                   "actionvalue": row["stamina"], "viplevel": row["vip_level"],
+                   "vip_points": row["vip_points"]})
     return 473, Writer().string(json.dumps(values, separators=(",", ":"))).bytes()
 
 

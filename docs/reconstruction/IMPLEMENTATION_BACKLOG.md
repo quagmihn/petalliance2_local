@@ -4,9 +4,9 @@ Checkpoint baseline tag: `baseline-partial-verified-2026-11-18` at commit `947a0
 
 ## P0 — runtime state correctness
 
-1. Verify inventory capacity values now come from GlobalConfigAddInfo (items 6601 and Pet slots 6701); preserve larger character upgrades and test actual ACK JSON.
-2. Capacity defaults now use client config: itemPacketNum=70, petPacketNum=40, explorePacketNum=10; PostgreSQL typed contract tests pass. Cold relogin Waydroid and repeat capture UI purchase click. If capacity is still full, instrument `BagViewMgr.refreshItemInfo`, `CharInfo.itempacketnum`, and inventory notifications.
-3. Complete purchase 201 and capture at actual configured odds; verify balance, inventory, Pet UID, quest progress, and relogin persistence.
+1. Inventory capacity defaults now use client config: itemPacketNum=70, petPacketNum=40, explorePacketNum=10; Waydroid reached the add flow.
+2. Capture client must retain the configured Pet template ID across victory cleanup; server maps that ID to the owned configured encounter. PostgreSQL contract is passing; repeat on Waydroid after the rebuilt APK.
+3. Verify wallet update after server restart; current handler now makes committed wallet columns authoritative over legacy JSON mirrors.
 4. Exercise Pet EXP potion on Waydroid; compare request, committed DB state, immediate UI, and cold login.
 
 ## P1 — shared domain engines

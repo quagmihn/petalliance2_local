@@ -554,9 +554,14 @@ function BattleMapMgr.sendGameOver(state,sendPets)
             PVESend.sendCG_PVEBattleEnd_Req({isWin = state,battleDetails = pets})
         end, function()
             if catchPet ~= 0 then 
+                -- cleanPVPInfo resets catchPet. Keep the configured pet ID
+                -- alive across the victory transition: the capture request
+                -- is sent from the next UI and uses this template ID.
+                local catchPetID = catchPet
                 BattleUIMgr.catchPet() 
                 BattleMapMgr.cleanPVPInfo()
                 BattlePVPMgr.cleanPVPInfo()
+                BattleMapMgr.setCanCatchPet(catchPetID)
             end
         end, function(code)
             

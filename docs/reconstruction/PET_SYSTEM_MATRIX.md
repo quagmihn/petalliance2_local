@@ -5,7 +5,7 @@ Pet-related config tables discovered by filename: **36**. Full record-level IDs 
 | Flow | Source evidence | Backend/runtime status |
 |---|---|---|
 | Pet query/serialization | QueryPets Lua decoder, PokemonInfo/MonstrosityInfo | Existing handler; tested legacy validation paths |
-| Wild capture | GameGuideMgr + BattleCCSB; PokemonBallInfo; ItemInfo | Transactional implementation and PostgreSQL contract; Waydroid has not captured |
+| Wild capture | GameGuideMgr + BattleCCSB; PokemonBallInfo; ItemInfo | Waydroid captured configured Catepii template 26; ball 1 consumed, Pet UID 3 persisted, quest 10008 progress committed |
 | Pet EXP feed | Item UI, request 516/ACK 526, ExperienceInfo | PostgreSQL/TCP tested; actual Waydroid feed pending |
 | Training Stage | PetAdvanceInfo and request 1038 flow | Separate persisted operation; runtime acceptance pending |
 | Enhance/evolve/star/skills/equipment | Pet*Info tables and 374-request registry | Discoverable but per-flow backend coverage incomplete |

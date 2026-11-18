@@ -107,7 +107,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             # Deterministic configured-rate boundary: roll 0 is below the
             # Para Ball's positive configured catch chance for this species.
             with patch("secrets.randbelow", return_value=0):
-                writer.write(frame(15, xor_payload(Writer().u32(999999).u32(2).bytes())))
+                writer.write(frame(15, xor_payload(Writer().u32(26).u32(2).bytes())))
                 await writer.drain()
                 msg, body, _ = await receive()
                 self.assertEqual(msg, 112)
@@ -138,7 +138,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             # A duplicate delivery of the successful request returns the
             # already-created Pet without consuming a second ball or creating
             # another Pet. The client is also patched to disable auto-resend.
-            duplicate = await send(15, Writer().u32(999999).u32(2).bytes(), 112)
+            duplicate = await send(15, Writer().u32(26).u32(2).bytes(), 112)
             self.assertEqual(duplicate.u8(), 1)
             self.assertEqual(json.loads(duplicate.string()), {"itemID": 2, "num": 0})
             duplicate.finish()
@@ -188,7 +188,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 "ON CONFLICT(char_id,item_id) DO UPDATE SET count=EXCLUDED.count", char_id)
             with patch("secrets.randbelow", return_value=0):
                 post_win_capture = await db.capture_wild_pet(
-                    char_id, "capture-after-win", 999997, 2)
+                    char_id, "capture-after-win", 26, 2)
             self.assertIsNotNone(post_win_capture)
             self.assertTrue(post_win_capture["caught"])
             self.assertGreater(post_win_capture["pet_uid"], 0)
