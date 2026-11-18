@@ -56,6 +56,7 @@ PostgreSQL integration and TCP suite: **77 PASS, 0 FAIL, 0 skipped** using `TEST
 - Official launcher log confirms both HTTP and TCP pools on `monster2_db` / `monster2`, source directory `/home/quagmihn/Project/monster2_rebuild/server`, commit base `395f4c7e874b57732cbc25da1d0381dc44467227` with local changes.
 - Waydroid cold relogin on account 6 / character 2 succeeded and Town loaded. Current screenshot: `artifacts/pet-exp-feed-20261118/current.png`; configured encounter screenshots from the preceding run are `waydroid-capture.png` and `waydroid-result.png` in that directory.
 - Installed/rebuilt APK SHA256: `b24ea2d5239d61e15c47574df37a74c12dccac5440e14cd549c7939f0f0f6fcf`. Signing certificate SHA256 matches the already installed app signer. App data was preserved; `pm clear` was not used.
+- Verified source changes are in commit `6c21560` (`Restore configured wild capture and Pet economy flows`).
 - Pre-change custom-format production backup: `artifacts/pet-exp-feed-20261118/monster2_db_before_runtime.dump`, SHA256 `9a76b45359542acef1849d2a454a193ef7f2df1a6e355b208c591a1316962844`; archive TOC parsed. A second PostgreSQL custom archive `monster2_db_pre_restoration-20261118-135929.dump` has SHA256 `db83a441108b7eba5d5eb9fe1c1cdb6d3a74e04201aba6af8a0d8e40d1edd89b` and `pg_restore --list` succeeds. Full isolated restore verification was blocked because the current role lacks CREATEDB and local postgres sudo requires a password. No production restore or manual gameplay-state rewrite was performed.
 
 ## Remaining status
@@ -74,4 +75,6 @@ PostgreSQL integration and TCP suite: **77 PASS, 0 FAIL, 0 skipped** using `TEST
 | Local recharge | Not implemented. Only the configured `recharge.totalMoney` response shape was corrected |
 | Latency profiling | Request handler durations are logged; end-to-end database/TCP/UI interval profile is not yet produced |
 
-The primary next acceptance path is to use the configured MarketInfo 201 purchase in the live capture UI, verify inventory/wallet notifications, complete one real capture at configured odds, and then verify quest progress and Pet persistence after relogin. Do not force success or inject items into the production character to manufacture a pass.
+The live purchase dialog reports “BAG IS FULL”, but a read-only production query found one inventory stack containing two units; client config `GlobalConfigAddInfo` 6601 defines 70 initial item slots. No request 577 followed the dialog. The mismatch is likely in client bag state/capacity initialization and needs tracing before the catalog purchase can be accepted in Waydroid.
+
+The primary next acceptance path is to repair and verify that bag-capacity state, use the configured MarketInfo 201 purchase in the live capture UI, verify inventory/wallet notifications, complete one real capture at configured odds, and then verify quest progress and Pet persistence after relogin. Do not force success or inject items into the production character to manufacture a pass.
