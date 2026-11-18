@@ -1,5 +1,11 @@
 # Implementation backlog
 
+The independent fixture now accepts a level 2+ account with selected active
+quests and Adventure prerequisites. The local draw trial has verified
+server-side costs, rewards and relogin. Next run the draw result screen,
+shop and Adventure entry in the Android QA profile. Use separate fresh
+fixtures to verify subsequent battle, Pet, recharge and reward cases.
+
 ## Draw rejection and QA checkpoint
 
 The existing client now releases guide state when its draw request fails, times out or closes. PostgreSQL and Lua checks passed. Waydroid QA reached the app agreement in an isolated Android profile, so in-app rejection, purchase and map scenarios are pending. See [EXECUTION_CHECKPOINT.md](EXECUTION_CHECKPOINT.md) for verification, hashes and prerequisites.

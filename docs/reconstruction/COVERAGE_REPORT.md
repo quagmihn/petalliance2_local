@@ -1,5 +1,13 @@
 # Coverage report
 
+The opt-in draw adapter decodes three machine configurations and audits 17
+original pool references. A separate local catalog passed free, x1 and x10
+trials through the official test launcher with a disposable fixture. Committed
+inventory was verified after a cold TCP relogin. Shared absolute inventory
+updates are used by draws, market purchases, quest rewards and inventory
+reads. This increases protocol and database coverage. Android gameplay
+acceptance and the original server's sequence rules remain open.
+
 ## Draw rejection and isolated QA
 
 The full suite passed 103 tests with real PostgreSQL. Coverage gained a targeted Lua guide recovery check, a framed TCP draw rejection with a database state comparison, and three fixture tests. The draw reward engine and Android acceptance coverage did not increase. See [GAMEPLAY_ACCEPTANCE.md](GAMEPLAY_ACCEPTANCE.md).

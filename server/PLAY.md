@@ -43,6 +43,26 @@ This fixture supplies starting resources. Quest and tutorial progression still
 follow the normal client and server paths. Record fixture based interactions
 separately from a sequential tutorial playthrough.
 
+For independent checks, add `--independent` and choose level 2 or above. This
+creates an isolated account without the starter guide. Use `--active-quest ID`
+to seed an active non-tutorial quest and `--cleared-adventure ID MASK` to seed a
+clear prerequisite. Both flags are repeatable. These seeds establish a test
+starting point. They do not exercise the preceding quest or Adventure.
+
+### Local draw trials
+
+Configure `MONSTER2_TEST_DRAW_CATALOG` with the path to your JSON prize pool
+when running the test launcher. Use a machine index as the key and a list of
+`item_id`, `count`, and positive integer `weight` records as the value. The
+server validates the item IDs and reads the prices and cooldowns from the
+metadata already used by the client. Use only the independent QA account.
+Launch with the QA APK pointing at the same test ports.
+
+The JSON prizes define local test behavior. This does not use the original
+reward pools or apply first-draw bonuses, guarantees, wish, dream, or VIP
+rules. The local draw route requires `GAME_ENV=test`, the actual database
+`monster2_test_db`, and a character created with `--independent`.
+
 The verified gameplay APK is `dist/monster2_gameplay.apk`, SHA256
 `2957196b52dc2d86e87e1df8a5ab878aa0bf8f66c91407e17f2bff00af70f90f`.
 Keep signed APKs and database backups outside Git.

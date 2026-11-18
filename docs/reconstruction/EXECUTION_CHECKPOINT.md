@@ -1,5 +1,30 @@
 # Execution checkpoint
 
+## Opt-in draw and independent fixture follow-up
+
+- Code commit `f7da34d673f3a0b1cc3ec17649d166de7b72e0bc` passed 105 tests with
+  real PostgreSQL. The official test launcher used that clean commit on
+  `monster2_test_db` at HTTP 18080 and TCP 15568.
+- Smoke verification from a disposable independent fixture read its seeded
+  quest and Adventure state, drew free, x1 and x10, and read 24 items after a cold
+  TCP relogin. PostgreSQL held 124 diamonds from an initial 3,000 and ledger
+  costs 0, 288 and 2,588. The fixture and its ledger rows were then removed
+  through the fixture rollback.
+- The local QA APK is `dist/local-draw-qa.apk`, SHA256
+  `26de18810b4e95c5c4619597a66eb3e194354abbf054bc8d36742cc100bf13b0`.
+  This APK uses only the alternate ports configured for the test launcher.
+- The first streamed Android installation stalled in dexopt and Android's
+  Package Manager became unavailable. A Waydroid session restart and a staged
+  APK install restored Package Manager. Waydroid launched the signed QA APK in
+  profile 10 and reached the agreement screen. Evidence is
+  `artifacts/local-draw-qa/waydroid.png`. No Android draw was performed.
+- The test service was stopped and Android returned to the owner profile on
+  its original APK SHA256
+  `364d275f98101e548758bc7b46ce775b7c9d0f13f830a574d24d2a2df5134e76`.
+- For the next independent scenario, seed its active quest and Adventure
+  prerequisites using [PLAY.md](../../server/PLAY.md). Verify the distinct UI
+  paths by tapping their actual controls in the authorized QA profile.
+
 ## Source and runtime
 
 - Official launcher from clean commit `58c07a01b389d5fde0c8e1c2c021e8733595dd37`. Verified HTTP PID 120794 and TCP PID 120795 on `monster2_db` as `monster2`, with `LOCAL_PAYMENT_SANDBOX=1` and `PAYMENT_PROVIDER=local`.
