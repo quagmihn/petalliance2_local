@@ -72,6 +72,8 @@ def main():
                 data = b"XXTEA" + encrypt(Path("decoded_lua/assets/src/GameMgr/Support/LuaSqlite.lua").read_bytes(), b"kyopkm")
             if info.filename == "assets/src/Net/Process/PVEProcess.lua":
                 data = b"XXTEA" + encrypt(Path("decoded_lua/assets/src/Net/Process/PVEProcess.lua").read_bytes(), b"kyopkm")
+            if info.filename == "assets/src/GameMgr/Battle/BattleCCSB.lua":
+                data = b"XXTEA" + encrypt(Path("decoded_lua/assets/src/GameMgr/Battle/BattleCCSB.lua").read_bytes(), b"kyopkm")
             if info.filename in {
                 "assets/src/GameMgr/Data/PokemonInfo.lua",
                 "assets/src/GameMgr/Common/GameGuideMgr1.lua",

@@ -158,5 +158,20 @@ CREATE TABLE IF NOT EXISTS tutorial_battle_sessions (
 ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS battle_type INTEGER NOT NULL DEFAULT 5;
 ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS battle_type_id INTEGER NOT NULL DEFAULT 99998;
 ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS adventure_id INTEGER;
+ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS capture_attempts_remaining INTEGER NOT NULL DEFAULT 0
+    CHECK (capture_attempts_remaining >= 0);
+ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS captured_pet_uid BIGINT REFERENCES pets(pet_uid);
 CREATE INDEX IF NOT EXISTS tutorial_battle_sessions_char_session_idx
     ON tutorial_battle_sessions(char_id, session_id, battle_id DESC);
+
+CREATE TABLE IF NOT EXISTS wild_battle_capture_attempts (
+    battle_id BIGINT NOT NULL REFERENCES tutorial_battle_sessions(battle_id) ON DELETE CASCADE,
+    attempt_no INTEGER NOT NULL CHECK (attempt_no > 0),
+    ball_item_id INTEGER NOT NULL,
+    catch_rate INTEGER NOT NULL CHECK (catch_rate BETWEEN 0 AND 100),
+    roll INTEGER NOT NULL CHECK (roll BETWEEN 0 AND 99),
+    caught BOOLEAN NOT NULL,
+    rate_bonus INTEGER NOT NULL DEFAULT 0 CHECK (rate_bonus >= 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (battle_id, attempt_no)
+);

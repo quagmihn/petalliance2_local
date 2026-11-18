@@ -18,7 +18,11 @@ from decode_lua import decrypt
 @functools.cache
 def decoders():
     result = {}
-    for path in (ROOT / "decoded_lua/assets/src/Net/Proto").glob("*Types.lua"):
+    # Config row parsers are defined in both ``*_Types.lua`` and feature files
+    # such as Proto_Market.lua. Parse the shipped declarations themselves so
+    # tables do not silently become unsupported just because the type parser
+    # lives outside the historical *_Types convention.
+    for path in (ROOT / "decoded_lua/assets/src/Net/Proto").glob("Proto_*.lua"):
         text = path.read_text()
         for name, body in re.findall(r"function Proto\.parse(\w+)\(entry\)(.*?)\nend", text, re.S):
             if re.search(r"\n\s*if\s", body):

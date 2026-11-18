@@ -8,7 +8,7 @@ from protocol import Reader, Writer
 from pet_config import tutorial_monster
 from client_config import table as client_table
 from pet_config import untrained_hp
-from battle_group_config import resolve_tutorial_group
+from battle_group_config import resolve_tutorial_group, resolve_tutorial_wild
 
 log = logging.getLogger("game_socket")
 
@@ -37,6 +37,33 @@ async def handle(message_id: int, payload: bytes, session):
         battle_type, battle_type_id, sub_id = r.u32(), r.u32(), r.u32()
         r.finish()
         reason = None
+        if battle_type == 1:
+            resolved = resolve_tutorial_wild(battle_type_id)
+            if session.char_id is None:
+                return 210, Writer().u16(1).bytes()
+            if resolved is None:
+                reason = "unconfigured_wild_encounter"
+                started = False
+            else:
+                quest_id, enemy, exp = resolved
+                started = await session.db.start_tutorial_wild_battle(
+                    session.char_id, session.session_id, battle_type_id, quest_id,
+                    int(client_table("MonstrosityInfo")[battle_type_id]["capture"]))
+                if started:
+                    session.tutorial_battle_exp = exp
+            if not started:
+                reason = reason or "quest_not_active_or_encounter_already_invalid"
+            if reason:
+                log.warning("battle_rejected request_id=136 char_id=%s handler=tutorial_wild_battle "
+                            "battle_type=%s battle_type_id=%s sub_id=%s rejection_reason=%s "
+                            "response_id=210 response_code=1",
+                            session.char_id, battle_type, battle_type_id, sub_id, reason)
+                return 210, Writer().u16(1).bytes()
+            body = (Writer().u16(0).vector_strings([
+                json.dumps(enemy, separators=(",", ":"))
+            ]).u32(exp).vector_strings([]).bytes())
+            return 210, body
+
         if battle_type == 3:
             if session.char_id is None:
                 return 210, Writer().u16(1).bytes()
@@ -57,6 +84,7 @@ async def handle(message_id: int, payload: bytes, session):
                 session.char_id, session.session_id, adventure_id, battle_type_id, group_id)
             if not started:
                 return 210, Writer().u16(1).bytes()
+            session.tutorial_battle_exp = int(group["exp"])
             monstrosities = client_table("MonstrosityInfo")
             monsters = []
             for monster_id in group["pokemons"]:
@@ -129,7 +157,43 @@ async def handle(message_id: int, payload: bytes, session):
                         "result=%s details_count=%d rejection_reason=%s response_id=186 response_code=1",
                         session.char_id, result, len(details), reason)
             return 186, Writer().u16(1).bytes()
-        return 186, Writer().u16(0).u32(
-            int(getattr(session, "tutorial_battle_exp", 0)) if won else 0).bytes()
+        battle_exp = int(getattr(session, "tutorial_battle_exp", 0))
+        if won and not battle_exp:
+            battle_exp = await session.db.last_tutorial_battle_exp(session.char_id)
+        return 186, Writer().u16(0).u32(battle_exp if won else 0).bytes()
 
     return None
+
+
+async def capture_pokemon(session, payload: bytes):
+    """Resolve the client's configured type-1 wild capture attempt."""
+    r = Reader(payload)
+    monster_id, ball_item_id = r.u32(), r.u32()
+    r.finish()
+    error = (198, Writer().u16(303).bytes())
+    if session.char_id is None:
+        return error
+    try:
+        result = await session.db.capture_wild_pet(
+            session.char_id, session.session_id, monster_id, ball_item_id)
+    except (KeyError, TypeError, ValueError, IndexError) as exc:
+        log.warning("wild_capture_rejected account_id=%s char_id=%s monster_id=%s ball_item_id=%s reason=%s",
+                    getattr(session, "account_id", None), session.char_id,
+                    monster_id, ball_item_id, exc)
+        return error
+    if result is None:
+        return error
+    inventory = await session.db.pool.fetchval(
+        "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2",
+        session.char_id, ball_item_id)
+    notifications = [(112, Writer().vector_strings([
+        json.dumps({"itemID": ball_item_id, "num": int(inventory or 0)},
+                   separators=(",", ":"))]).bytes())]
+    if result["caught"] and not result["duplicate"]:
+        notifications.append((3141, Writer().u64(result["pet_uid"]).string(result["pet_json"]).bytes()))
+    notifications.append((198, Writer().u16(0).u16(1 if result["caught"] else 0)
+                          .string(result["pet_json"]).u32(result["rate_bonus"]).bytes()))
+    log.info("wild_capture char_id=%s session_id=%s monster_id=%s ball_item_id=%s caught=%s remaining=%s duplicate=%s",
+             session.char_id, session.session_id, monster_id, ball_item_id,
+             result["caught"], result["remaining"], result["duplicate"])
+    return notifications

@@ -11,6 +11,7 @@ ARRAY_KEYS = {"petequips", "wishingtree", "survivalbattlepets"}
 OBJECT_DEFAULTS = {
     "activity": {"login": {"yday": 0}, "spokesmanguess": {}},
     "passwordproduct": {"list": []},
+    "recharge": {"totalMoney": 0},
 }
 BOOLEAN_KEYS = {"ismarenaon"}
 
@@ -24,7 +25,7 @@ furnituredailyeventtimes friendpoints furniturelosttowermaxstepnumber
 furnituresuitcasevaluerate lifeskilllevel lifeskillcareer
 familyquestfailedtime familyquestok familyquestawardindex todayfamilyquestnum
 todayfamilyquesttime getfamilydevotebuffertime familydevotebuffer goldcoin
-familydungeonstepnumber familydungeonstepnumberupdatetime recharge todayarenafighttimes
+familydungeonstepnumber familydungeonstepnumberupdatetime todayarenafighttimes
 arenaupdatetime todayarenafightrefreshtimes arenascore toprank todaymarenafighttimes
 marenaupdatetime todaymarenafightrefreshtimes pvparenagrade pvparenapoint pvparenacoin
 fixpvparenapoint achievementpoint arenarank losttowerfloor losttowerpoint familyquestid

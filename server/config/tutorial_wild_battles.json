@@ -1,0 +1,6 @@
+{
+  "source": "GameGuideMgr.firstPetCatch() calls GetRandom.random(999997, 999999)",
+  "quest_id": 10008,
+  "battle_type": 1,
+  "monster_ids": [999997, 999998, 999999]
+}

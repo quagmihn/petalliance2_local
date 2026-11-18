@@ -69,9 +69,34 @@ async def buy_product(session, payload: bytes):
 
 async def buy_market(session, payload: bytes):
     r = Reader(payload); product_id, count = r.u32(), r.u32(); r.finish()
-    return reject_unmapped_purchase(session, 577, "CG_BUYMARKETITEM_REQ", 563,
-                                    "GC_BUYMARKETITEM_ACK", product_id=product_id,
-                                    count=count)
+    ack = (563, Writer().u16(1).bytes())
+    if session.char_id is None or not 1 <= count <= 99:
+        return ack
+    from client_config import table
+    market = table("MarketInfo").get(product_id)
+    if market is None:
+        return ack
+    # MarketInfo coinType follows BuyInfoMgr: 1 gold, 2 diamonds, 3 silver
+    # (the latter is stored in characters.currencies_json.goldCoin).
+    try:
+        purchase = await session.db.buy_market_item(session.char_id, market, count)
+    except (ValueError, KeyError, TypeError, IndexError) as exc:
+        log.info("market_purchase_rejected char_id=%s market_id=%s reason=%s",
+                 session.char_id, product_id, exc)
+        return ack
+    if purchase is None:
+        return ack
+    notifications = []
+    notifications.append((112, Writer().vector_strings([
+        json.dumps({"itemID": purchase["item_id"], "num": purchase["item_count"]},
+                   separators=(",", ":"))]).bytes()))
+    notifications.append(wallet_update(purchase["character"]))
+    notifications.append((563, Writer().u16(0).bytes()))
+    log.info("market_purchase char_id=%s market_id=%s item_id=%s count=%s cost=%s currency=%s",
+             session.char_id, product_id, market["itemID"], count,
+             int(market["num"]) * count,
+             market["coinType"])
+    return notifications
 
 
 async def buy_activity(session, payload: bytes):

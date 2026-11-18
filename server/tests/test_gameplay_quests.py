@@ -70,6 +70,16 @@ class QuestDB:
         self.battles[session_id] = ("started", group_id, 5)
         return True
 
+    async def start_tutorial_wild_battle(self, char_id, session_id, monster_id, quest_id,
+                                         capture_attempts):
+        from battle_group_config import tutorial_wild_requirements
+        requirement = tutorial_wild_requirements().get(monster_id)
+        if (requirement is None or requirement["quest_id"] != quest_id
+                or self.quests.get(quest_id, {}).get("status") != 0):
+            return False
+        self.battles[session_id] = ("started", monster_id, 1)
+        return True
+
     async def finish_tutorial_battle(self, char_id, session_id, won):
         battle = self.battles.get(session_id)
         if not battle or battle[0] != "started":
@@ -82,6 +92,16 @@ class QuestDB:
         elif won and battle[2] == 3 and 10002 in self.quests:
             self.quests[10002]["progress"] = [1]
         return True
+
+    async def last_tutorial_battle_exp(self, char_id):
+        if not self.battles:
+            return 0
+        _, group_id, battle_type = next(reversed(self.battles.values()))
+        if battle_type == 1:
+            from client_config import table
+            return int(table("MonstrosityInfo")[group_id]["exp"])
+        from client_config import table
+        return int(table("MonsterGroupManInfo")[group_id]["exp"])
 
     async def commit_configured_tutorial_quest(self, char_id, quest, all_quests):
         row = self.quests.get(quest.quest_id)
@@ -320,6 +340,25 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.session.db.quests[10007]["status"] = 1
         ack_id, body = await dispatch(
             self.session, 136, Writer().u32(5).u32(99999).u32(0).bytes())
+        self.assertEqual((ack_id, Reader(body).u16()), (210, 1))
+
+    async def test_configured_first_pet_catch_is_type_one_and_quest_gated(self):
+        self.session.db.quests[10008] = {"status": 0, "progress": [0]}
+        ack_id, body = await dispatch(
+            self.session, 136, Writer().u32(1).u32(999999).u32(0).bytes())
+        self.assertEqual(ack_id, 210)
+        r = Reader(body); self.assertEqual(r.u16(), 0); self.assertEqual(r.u8(), 1)
+        enemy = json.loads(r.string())
+        self.assertEqual((enemy["mID"], enemy["level"], enemy["canCatch"]), (999999, 1, True))
+        self.assertEqual((enemy["skill1"], enemy["skill2"], enemy["hp"]), (401, 1841, 134))
+        self.assertEqual(r.u32(), 8); self.assertEqual(r.u8(), 0); r.finish()
+        result = Writer().u16(1).vector_strings([json.dumps({"turn": 1})]).bytes()
+        ack_id, body = await dispatch(self.session, 263, result)
+        self.assertEqual((ack_id, Reader(body).u16()), (186, 0))
+        self.assertEqual(self.session.db.quests[10008]["progress"], [0])
+        self.session.db.quests[10008]["status"] = 1
+        ack_id, body = await dispatch(
+            self.session, 136, Writer().u32(1).u32(999999).u32(0).bytes())
         self.assertEqual((ack_id, Reader(body).u16()), (210, 1))
 
     async def test_old_assumed_group_id_is_rejected_with_error_ack(self):

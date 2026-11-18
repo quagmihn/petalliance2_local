@@ -7,6 +7,7 @@ import os
 import secrets
 import struct
 import unittest
+from unittest.mock import patch
 from db.database import Database
 from game_socket import handle_client
 from pet_config import validate_pet
@@ -90,13 +91,175 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(army.u16(), 0)
             self.assertEqual(json.loads(army.string()), {"1": [pet_uid], "1h": []})
 
-            # Exercise the real Stage-up protocol against configured costs in the test DB.
+            # The client's quest 10008 capture guide uses a type-1 wild monster
+            # ID (999997..999999), distinct from trainer group 99999/type 5.
+            await db.pool.execute(
+                "INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,10008,0,'[0]'::jsonb)",
+                char_id)
+            wild = await send(136, Writer().u32(1).u32(999999).u32(0).bytes(), 210)
+            self.assertEqual(wild.u16(), 0); self.assertEqual(wild.u8(), 1)
+            wild_enemy = json.loads(wild.string())
+            self.assertEqual((wild_enemy["mID"], wild_enemy["canCatch"]), (999999, True))
+            self.assertEqual((wild.u32(), wild.u8()), (8, 0)); wild.finish()
+            await db.pool.execute(
+                "INSERT INTO inventory(char_id,item_id,count) VALUES($1,2,1) "
+                "ON CONFLICT(char_id,item_id) DO UPDATE SET count=EXCLUDED.count", char_id)
+            # Deterministic configured-rate boundary: roll 0 is below the
+            # Para Ball's positive configured catch chance for this species.
+            with patch("secrets.randbelow", return_value=0):
+                writer.write(frame(15, xor_payload(Writer().u32(999999).u32(2).bytes())))
+                await writer.drain()
+                msg, body, _ = await receive()
+                self.assertEqual(msg, 112)
+                item_state = Reader(body); self.assertEqual(item_state.u8(), 1)
+                self.assertEqual(json.loads(item_state.string()), {"itemID": 2, "num": 0})
+                item_state.finish()
+                msg, body, _ = await receive()
+                self.assertEqual(msg, 3141)
+                captured_uid = Reader(body).u64()
+                self.assertGreater(captured_uid, 0)
+                pet_body = Reader(body); pet_body.u64(); captured_pet = json.loads(pet_body.string()); pet_body.finish()
+                self.assertEqual(captured_pet["pokeID"], 26)
+                msg, body, _ = await receive()
+                capture_ack = Reader(body)
+                self.assertEqual((msg, capture_ack.u16(), capture_ack.u16()), (198, 0, 1))
+                captured_payload = json.loads(capture_ack.string())
+                self.assertEqual(captured_payload["objID"], captured_uid)
+                self.assertEqual(capture_ack.u32(), 0); capture_ack.finish()
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count(*) FROM pets WHERE char_id=$1 AND pet_uid=$2 AND pet_template_id=26",
+                char_id, captured_uid), 1)
+            self.assertIsNone(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=2", char_id))
+            capture_progress = await db.pool.fetchval(
+                "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10008", char_id)
+            self.assertEqual(json.loads(capture_progress) if isinstance(capture_progress, str)
+                             else capture_progress, [1])
+            # A duplicate delivery of the successful request returns the
+            # already-created Pet without consuming a second ball or creating
+            # another Pet. The client is also patched to disable auto-resend.
+            duplicate = await send(15, Writer().u32(999999).u32(2).bytes(), 112)
+            self.assertEqual(duplicate.u8(), 1)
+            self.assertEqual(json.loads(duplicate.string()), {"itemID": 2, "num": 0})
+            duplicate.finish()
+            msg, body, _ = await receive()
+            self.assertEqual(msg, 198)
+            duplicate_ack = Reader(body)
+            self.assertEqual((duplicate_ack.u16(), duplicate_ack.u16()), (0, 1))
+            self.assertEqual(json.loads(duplicate_ack.string())["objID"], captured_uid)
+            duplicate_ack.u32(); duplicate_ack.finish()
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count(*) FROM pets WHERE char_id=$1 AND pet_template_id=26", char_id), 1)
+            # BattleScene transitions can reconnect the TCP socket between the
+            # create request and end request. The authenticated character's
+            # active encounter must survive that fresh transport session.
+            writer.close()
+            await writer.wait_closed()
+            reader, writer = await asyncio.open_connection("127.0.0.1", port)
+            login_after_reconnect = await send(2156, binding, 2183)
+            self.assertEqual(login_after_reconnect.i32(), 0)
+            wild_end = await send(263, Writer().u16(1).vector_strings(["{\"turn\":1}"]).bytes(), 186)
+            self.assertEqual((wild_end.u16(), wild_end.u32()), (0, 8)); wild_end.finish()
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT state FROM tutorial_battle_sessions WHERE char_id=$1 AND battle_type=1 "
+                "ORDER BY battle_id DESC LIMIT 1", char_id), "won")
+            self.assertTrue(await db.start_tutorial_wild_battle(
+                char_id, "abandoned-session", 999997, 10008, 3))
+            self.assertTrue(await db.start_tutorial_wild_battle(
+                char_id, "new-session", 999998, 10008, 3))
+            states = await db.pool.fetch(
+                "SELECT battle_type_id,state FROM tutorial_battle_sessions "
+                "WHERE char_id=$1 AND battle_type=1 ORDER BY battle_id DESC LIMIT 2", char_id)
+            self.assertEqual([(row["battle_type_id"], row["state"]) for row in states],
+                             [(999998, "started"), (999997, "lost")])
+            self.assertTrue(await db.finish_tutorial_battle(char_id, "other-session", False))
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT state FROM tutorial_battle_sessions WHERE char_id=$1 AND battle_type_id=999998",
+                char_id), "lost")
+            self.assertTrue(await db.start_tutorial_wild_battle(
+                char_id, "capture-after-win", 999997, 10008, 3))
+            self.assertTrue(await db.finish_tutorial_battle(char_id, "capture-after-win", True))
+            post_win_session = await db.pool.fetchrow(
+                "SELECT battle_type,battle_type_id,state,capture_attempts_remaining,captured_pet_uid "
+                "FROM tutorial_battle_sessions WHERE char_id=$1 ORDER BY battle_id DESC LIMIT 1", char_id)
+            self.assertEqual(tuple(post_win_session), (1, 999997, "won", 3, None))
+            await db.pool.execute(
+                "INSERT INTO inventory(char_id,item_id,count) VALUES($1,2,1) "
+                "ON CONFLICT(char_id,item_id) DO UPDATE SET count=EXCLUDED.count", char_id)
+            with patch("secrets.randbelow", return_value=0):
+                post_win_capture = await db.capture_wild_pet(
+                    char_id, "capture-after-win", 999997, 2)
+            self.assertIsNotNone(post_win_capture)
+            self.assertTrue(post_win_capture["caught"])
+            self.assertGreater(post_win_capture["pet_uid"], 0)
+            wild_progress = await db.pool.fetchval(
+                "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10008", char_id)
+            self.assertEqual(json.loads(wild_progress) if isinstance(wild_progress, str)
+                             else wild_progress, [1])
+            await db.pool.execute(
+                "DELETE FROM quests WHERE char_id=$1 AND quest_id=10008", char_id)
+            await db.pool.execute(
+                "UPDATE characters SET recharge_total=4321 WHERE char_id=$1", char_id)
+            recharge_values = await send(770, Writer().u8(1).string("recharge").bytes(), 747)
+            self.assertEqual(recharge_values.u16(), 0)
+            self.assertEqual(json.loads(recharge_values.string()),
+                             {"recharge": {"totalMoney": 4321}})
+            recharge_values.finish()
+
+            # Feed a configured EXP potion through the actual TCP protocol. Pet EXP
+            # is cumulative and distinct from character EXP and training Stage.
             from client_config import table
             pokemon = table("PokemonInfo")[starter["pokeID"]]
             costs = table("PetAdvanceInfo")[1]["stageCons"][int(pokemon["elementAtt1"]) - 1]["costs"]
             consume_table = table("ConsumeElementInfo")
-            await db.pool.execute("UPDATE pets SET level=2 WHERE pet_uid=$1", pet_uid)
-            await db.pool.execute("UPDATE characters SET gold=10000,diamond=10000 WHERE char_id=$1", char_id)
+            await db.pool.execute("UPDATE characters SET level=2,gold=10000,diamond=10000 WHERE char_id=$1", char_id)
+            await db.pool.execute(
+                "INSERT INTO inventory(char_id,item_id,count) VALUES($1,10002,1) "
+                "ON CONFLICT(char_id,item_id) DO UPDATE SET count=EXCLUDED.count", char_id)
+            writer.write(frame(516, xor_payload(
+                Writer().u32(10002).u32(pet_uid).string("").u32(1).bytes())))
+            await writer.drain()
+            msg, body, _ = await receive()
+            self.assertEqual(msg, 112)
+            item_updates = Reader(body)
+            self.assertEqual(item_updates.u8(), 1)
+            self.assertEqual(json.loads(item_updates.string()), {"itemID": 10002, "num": 0})
+            item_updates.finish()
+            msg, body, _ = await receive()
+            update = Reader(body)
+            self.assertEqual((msg, update.u64()), (3141, pet_uid))
+            fed_pet = json.loads(update.string()); update.finish()
+            self.assertEqual((fed_pet["level"], fed_pet["exp"]), (2, 100))
+            msg, body, _ = await receive()
+            feed = Reader(body)
+            self.assertEqual((msg, feed.u16(), feed.u32(), feed.u32()), (526, 0, 10002, 0))
+            self.assertEqual(feed.u8(), 0); feed.finish()
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT (SELECT count FROM inventory WHERE char_id=$1 AND item_id=10002)", char_id), None)
+            pet_state = await db.pool.fetchrow(
+                "SELECT level,exp FROM pets WHERE char_id=$1 AND pet_uid=$2", char_id, pet_uid)
+            self.assertEqual((pet_state["level"], pet_state["exp"]), (2, 100))
+
+            # Product 201 is configured as one Master Ball for 600 MCash.
+            await db.pool.execute("UPDATE characters SET diamond=10000 WHERE char_id=$1", char_id)
+            writer.write(frame(577, xor_payload(Writer().u32(201).u32(1).bytes())))
+            await writer.drain()
+            msg, body, _ = await receive()
+            self.assertEqual(msg, 112)
+            market_item = Reader(body)
+            self.assertEqual(market_item.u8(), 1)
+            self.assertEqual(json.loads(market_item.string()), {"itemID": 1, "num": 1})
+            market_item.finish()
+            msg, body, _ = await receive()
+            self.assertEqual(msg, 473)
+            market_wallet = json.loads(Reader(body).string())
+            self.assertEqual(market_wallet["m_cash"], 9400)
+            msg, body, _ = await receive()
+            self.assertEqual((msg, Reader(body).u16()), (563, 0))
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=1", char_id), 1)
+
+            # Exercise the real Stage-up protocol against configured costs in the test DB.
             for cost_id in costs:
                 cost = consume_table[cost_id]
                 if cost["elementType"] == 3:
@@ -121,8 +284,16 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((r.u16(), r.u64()), (0, char_id)); r.u32(); r.u32()
             self.assertEqual(r.u8(), 1)
             upgraded_pet = json.loads(r.string())
-            self.assertEqual((upgraded_pet["objID"], upgraded_pet["Stage"]), (pet_uid, 1))
-            r.u8(); r.u32(); r.u8(); r.finish()
+            self.assertEqual((upgraded_pet["objID"], upgraded_pet["Stage"],
+                              upgraded_pet["level"], upgraded_pet["exp"]), (pet_uid, 1, 2, 100))
+            inactive_count = r.u8()
+            for _ in range(inactive_count):
+                r.string()
+            self.assertEqual(r.u32(), inactive_count)
+            helper_count = r.u8()
+            for _ in range(helper_count):
+                r.string()
+            r.finish()
             after_costs = await db.pool.fetchrow(
                 "SELECT gold,diamond FROM characters WHERE char_id=$1", char_id)
             for cost_id in costs:

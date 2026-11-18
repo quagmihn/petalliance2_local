@@ -35,6 +35,7 @@ CMD = {
     "set_fashions": 2121, "set_fashions_ack": 2109,
     "restore_fashions": 2098, "restore_fashions_ack": 2066,
     "get_items": 59, "get_items_ack": 37, "get_items_ntf": 112,
+    "use_item": 516, "use_item_ack": 526, "update_pokemon_ntf": 3141,
     "update_army": 1755, "update_army_ack": 1756,
     "get_army": 1760, "get_army_ack": 1774,
     "get_finished_adventures": 3078, "get_finished_adventures_ack": 3081,
@@ -91,6 +92,7 @@ CMD = {
     "get_week_champion": 501, "get_week_champion_ack": 498,
     "get_home": 118, "get_home_ack": 32,
     "create_pve_battle": 136, "create_pve_battle_ack": 210,
+    "pve_capture": 15, "pve_capture_ack": 198,
     "pve_battle_end": 263, "pve_battle_end_ack": 186,
 }
 MSG_NAME = {value: key for key, value in CMD.items() if not key.endswith("_ack") and not key.endswith("_ntf")}
@@ -102,6 +104,7 @@ ACK_NAME = {2126: "GC_PLATFORMLOGIN_ACK", 2179: "GC_DEVICEBIND_ACK",
             32: "GC_GETHOME_ACK",
             1526: "GC_CAPSULEEGGCDS_ACK", 386: "GC_CHANGECHANNEL_ACK"}
 ACK_NAME.update({value: key.upper() for key, value in CMD.items() if key.endswith("_ack")})
+ACK_NAME.update({112: "GC_UPDATEITEMS_NTF", 3141: "GC_UPDATEPOKEMON_NTF"})
 EXPECTED_ACKS = {
     690: (721,), 128: (181,),
     227: (225,),
@@ -114,7 +117,8 @@ EXPECTED_ACKS = {
     2998: (3079,),
     4: (5,), 391: (390,),
     3082: (2995, 473, 1749),
-    136: (210,), 263: (186,),
+    15: (112, 3141, 198), 136: (210,), 263: (186,),
+    516: (526, 112, 3141), 577: (563, 112, 473),
 }
 
 
@@ -160,11 +164,13 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == 1684: return await auth.device_relogin(session, payload)
     if msg_id == 1626: return await player.appoint_nickname(session, payload)
     if msg_id == CMD["create_character"]: return await player.create_character(session, payload)
+    if msg_id == CMD["pve_capture"]: return await battle.capture_pokemon(session, payload)
     if msg_id == CMD["query_pets"]: return await pet.query_pets(session, payload)
     if msg_id == CMD["get_fashions"]: return await player.get_fashions(session, payload)
     if msg_id == CMD["set_fashions"]: return await player.set_fashions(session, payload)
     if msg_id == CMD["restore_fashions"]: return await player.restore_fashions(session, payload)
     if msg_id == CMD["get_items"]: return await inventory.get_items(session, payload)
+    if msg_id == CMD["use_item"]: return await inventory.use_item(session, payload)
     if msg_id == CMD["update_army"]: return await pet.update_army(session, payload)
     if msg_id == CMD["get_army"]: return await pet.get_army(session, payload)
     if msg_id == CMD["get_capsule_cds"]: return await pet.get_capsule_egg_cds(session, payload)

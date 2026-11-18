@@ -22,17 +22,11 @@ class EconomySafetyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ack_id, 563)
         self.assertEqual(Reader(payload).u16(), 1)
 
-    async def test_purchase_rejection_log_records_mapping_without_credentials(self):
+    async def test_unknown_purchase_is_rejected_without_database_mutation(self):
         session = SimpleNamespace(db=NoWriteDB(), char_id=2, account_id=6)
-        with self.assertLogs("game_socket.economy", level="WARNING") as captured:
-            ack_id, payload = await economy.buy_market(
-                session, Writer().u32(5001).u32(2).bytes())
+        ack_id, payload = await economy.buy_market(
+            session, Writer().u32(5001).u32(2).bytes())
         self.assertEqual((ack_id, Reader(payload).u16()), (563, 1))
-        line = captured.output[0]
-        for field in ("request_id=577", "response_id=563", "account_id=6",
-                      "char_id=2", "product_id=5001", "reward_status=not_granted",
-                      "transaction_id=absent"):
-            self.assertIn(field, line)
 
     async def test_test_recharge_is_not_a_successful_fake_payment(self):
         session = SimpleNamespace(db=NoWriteDB(), char_id=2)

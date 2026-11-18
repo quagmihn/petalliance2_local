@@ -2390,7 +2390,7 @@ function BattleCCSB.createCatchUI(parent,petInfo)
             local PVESend = require("src.Net.Send.PVESend")
             NetInterface.sendWithBlock("GC_PVEPOKEMONCATCH_ACK", function()
                 PVESend.sendCG_PVEPokemonCatch_Req({pokemonID = BattleMapMgr.getCanCatchPet(),itemID = ballOrder[i]})
-            end)
+            end, nil, nil, nil, false)
             BattleCCSB.CATCH.clickDB[i]:show()
             -- ballBtn = "Battle/catch/bz_di2.png"
             -- CSResourceMgr.setButtonTextureByNode(BattleCCSB.CATCH.ball[i],ballBtn,ballBtn,ballBtn)

@@ -1,5 +1,5 @@
 {
-  "2003": {"quest_id": 10032, "lua_flow": "GameGuideMgr.firstBuff"},
-  "99998": {"quest_id": 10001, "lua_flow": "GameGuideMgr.firstBattle"},
-  "99999": {"quest_id": 10007, "lua_flow": "GameGuideMgr.secondBattle"}
+  "2003": {"quest_id": 10032, "lua_flow": "GameGuideMgr.firstBuff", "battle_type": 5},
+  "99998": {"quest_id": 10001, "lua_flow": "GameGuideMgr.firstBattle", "battle_type": 5},
+  "99999": {"quest_id": 10007, "lua_flow": "GameGuideMgr.secondBattle", "battle_type": 5}
 }

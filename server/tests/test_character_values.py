@@ -40,6 +40,7 @@ class CharacterValueContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(values["isMArenaOn"], bool)
         self.assertIsInstance(values["sciencePoint"], int)
         self.assertIsInstance(values["activity"], dict)
+        self.assertEqual(values["recharge"], {"totalMoney": 0})
         self.assertIsInstance(values["treasureBoxSelect"], str)
         self.assertEqual(values["treasureBoxSelect"], "")
         self.assertIsInstance(values["world"], int)
