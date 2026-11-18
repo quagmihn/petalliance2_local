@@ -2,7 +2,9 @@ import asyncio
 import json
 import os
 import secrets
+import socket
 import struct
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,11 +12,44 @@ from unittest.mock import patch
 
 from db.database import Database
 from game_socket import handle_client
-from local_draw import catalog_audit, load_catalog, test_catalog
+from local_draw import catalog_audit, catalog_report, execute, load_catalog, startup_catalog, test_catalog
 from protocol import Reader, Writer, frame, xor_payload
 
 
 class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
+    def test_official_catalog_is_identical_in_test_and_play(self):
+        reports = []
+        for mode, database in (("test", "monster2_test_db"), ("production", "monster2_db")):
+            with patch.dict(os.environ, {"GAME_ENV": mode, "MONSTER2_EXPECTED_DB": database}):
+                reports.append(catalog_report("config/local_draw.json"))
+        for key in ("source", "sha256", "machine_ids", "modes", "rewards", "prize_kinds"):
+            self.assertEqual(reports[0][key], reports[1][key])
+        self.assertEqual(reports[0]["modes"], {
+            1: ["free", "x1", "x10"], 2: ["free", "x1", "x10"], 3: ["x1", "x10"]
+        })
+
+    def test_incomplete_catalog_rejected_at_startup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "incomplete.json"
+            config.write_text('{"2":[{"item_id":1,"count":1,"weight":10000}]}')
+            with self.assertRaisesRegex(ValueError, "missing enabled machine pools: 1, 3"):
+                catalog_report(str(config))
+            with socket.socket() as http, socket.socket() as game:
+                http.bind(("127.0.0.1", 0))
+                game.bind(("127.0.0.1", 0))
+                env = dict(os.environ, HTTP_PORT=str(http.getsockname()[1]),
+                           GAME_PORT=str(game.getsockname()[1]),
+                           DATABASE_URL="postgresql:///monster2_test_db",
+                           MONSTER2_DRAW_CATALOG=str(config))
+            launcher = Path(__file__).resolve().parents[1] / "run_all.sh"
+            rejected = subprocess.run(
+                [str(launcher), "test"], env=env, capture_output=True, text=True, timeout=10,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("Invalid Gacha catalog", rejected.stderr)
+            self.assertIn("missing enabled machine pools: 1, 3", rejected.stderr)
+            self.assertNotIn("http_pid=", rejected.stdout)
+
     def test_catalog_reference_audit_and_opt_in(self):
         self.assertEqual(catalog_audit(), {
             "machines": 3, "pools": 17, "entries": 27,
@@ -83,6 +118,11 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
                                         "elementType": "item", "elementID": 1, "num": 2,
                                     })
                                 ack.finish()
+                                if choice == 1 and not free:
+                                    # Enough funds to pay twice. A fast retry
+                                    # still produces only one paid draw.
+                                    await send(writer, 1392, Writer().u16(2).u16(1).u16(0).u16(0))
+                                    self.assertEqual((await receive(reader, 1561)).u16(), 1)
 
                             for free, code in ((1, 390), (0, 1)):
                                 await send(writer, 1392, Writer().u16(2).u16(1).u16(free).u16(0))
@@ -117,6 +157,28 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual([tuple(row) for row in history], [(0, 1, True), (288, 1, False), (2588, 10, False)])
             self.assertEqual(await db.pool.fetchval(
                 "SELECT diamond FROM characters WHERE char_id=$1", char_id), 124)
+            machine = startup_catalog("config/local_draw.json")[2][3]
+            await db.pool.execute("UPDATE characters SET diamond=100 WHERE char_id=$1", char_id)
+            with patch.dict(os.environ, {"GAME_ENV": "production"}):
+                code, result = await execute(db, char_id, 3, machine, 1, False)
+                self.assertEqual((code, result), (1, None))
+            # Choose the last bucket to exercise a configured Pet reference.
+            with patch.dict(os.environ, {"GAME_ENV": "test"}), patch("local_draw.randbelow", return_value=9999):
+                key = "0" * 20
+                code, result = await execute(db, char_id, 3, machine, 1, False, key)
+                await db.pool.execute("UPDATE characters SET diamond=100 WHERE char_id=$1", char_id)
+                await db.pool.execute(
+                    "UPDATE local_draw_history SET created_at=now()-interval '1 hour' WHERE char_id=$1 AND request_key=$2",
+                    char_id, key)
+                self.assertEqual(await execute(db, char_id, 3, machine, 1, False, key), (1, None))
+            self.assertEqual(code, 0)
+            awards, wallet, items, pets = result
+            self.assertEqual((wallet["diamond"], items, len(pets)), (2, {}, 1))
+            pet = json.loads(pets[0])
+            self.assertEqual(awards, [{"elementType": "pet", "elementID": 26, "num": 1, "detail": pets[0]}])
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT pet_template_id FROM pets WHERE char_id=$1 AND pet_uid=$2", char_id, pet["objID"]), 26)
+            self.assertEqual(await db.pool.fetchval("SELECT count(*) FROM pets WHERE char_id=$1", char_id), 1)
         finally:
             if account_id is not None:
                 await db.pool.execute("DELETE FROM accounts WHERE user_id=$1", account_id)

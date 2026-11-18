@@ -11,7 +11,7 @@ import logging
 import os
 import re
 
-from protocol import Reader, Writer, success_code
+from protocol import ProtocolDecodeError, Reader, Writer, success_code
 
 log = logging.getLogger("game_socket.economy")
 
@@ -195,16 +195,22 @@ async def recharge_test(session, payload: bytes):
 
 async def capsule_egg(session, payload: bytes):
     from handlers.inventory import item_counts_update
-    from local_draw import execute, test_catalog
+    from local_draw import configured_catalog, execute
 
-    r = Reader(payload)
-    opt_type, choice, free, selection = r.u16(), r.u16(), r.u16(), r.u16()
-    r.finish()
     failure = 1561, Writer().u16(1).bytes()
+    r = Reader(payload)
+    try:
+        opt_type, choice, free, selection = r.u16(), r.u16(), r.u16(), r.u16()
+        request_key = r.string(limit=48) if r.pos < len(payload) else None
+        r.finish()
+    except ProtocolDecodeError:
+        return failure
+    if request_key is not None and not re.fullmatch(r"[0-9a-f]{16,48}", request_key):
+        return failure
     if session.char_id is None or selection or free not in (0, 1) or choice not in (1, 2):
         return failure
     try:
-        machine = test_catalog().get(opt_type)
+        machine = configured_catalog().get(opt_type)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         log.error("local_draw_catalog_invalid error=%s", exc)
         return failure
@@ -212,15 +218,19 @@ async def capsule_egg(session, payload: bytes):
         log.info("gacha_rejected reason=no_local_catalog char_id=%s", session.char_id)
         return failure
     code, result = await execute(session.db, session.char_id, opt_type, machine,
-                                 1 if choice == 1 else 10, bool(free))
+                                 1 if choice == 1 else 10, bool(free), request_key)
     if result is None:
         return 1561, Writer().u16(code).bytes()
-    awards, wallet, item_counts = result
-    return [
-        item_counts_update(item_counts.items()),
-        wallet_update(wallet),
-        (1561, Writer().u16(0).vector_strings([json.dumps(award) for award in awards]).bytes()),
-    ]
+    awards, wallet, item_counts, pets = result
+    notifications = [item_counts_update(item_counts.items())] if item_counts else []
+    # Pet state precedes the result. The result carries the same serialized
+    # detail with the committed ID for the result card and Pet animation.
+    notifications.extend(
+        (3141, Writer().u64(json.loads(pet)["objID"]).string(pet).bytes()) for pet in pets
+    )
+    notifications.append(wallet_update(wallet))
+    notifications.append((1561, Writer().u16(0).vector_strings([json.dumps(award) for award in awards]).bytes()))
+    return notifications
 
 
 async def load_month_card(session, payload: bytes):

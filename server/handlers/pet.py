@@ -122,7 +122,8 @@ async def get_capsule_egg_cds(session, payload: bytes):
     body = Writer().u16(0).u8(2)
     history = {}
     if (session is not None and session.char_id is not None
-            and os.getenv("GAME_ENV") == "test" and os.getenv("MONSTER2_TEST_DRAW_CATALOG")):
+            and (os.getenv("MONSTER2_DRAW_CATALOG") or
+                 (os.getenv("GAME_ENV") == "test" and os.getenv("MONSTER2_TEST_DRAW_CATALOG")))):
         history = await cooldowns(session.db, session.char_id)
     for machine_id in (1, 2):
         times, last = history.get(machine_id, (0, 0))

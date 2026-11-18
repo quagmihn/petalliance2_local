@@ -36,6 +36,7 @@ if [[ -z "${DATABASE_URL:+set}" ]]; then
     exit 2
 fi
 export DATABASE_URL MONSTER2_EXPECTED_DB GAME_ENV="$mode"
+export MONSTER2_DRAW_CATALOG="${MONSTER2_DRAW_CATALOG:-config/local_draw.json}"
 export GAME_HOST="${GAME_HOST:-192.168.240.1}"
 default_bind=0.0.0.0
 if [[ "$mode" == production && ( -z "${GAME_BIND:-}" || -z "${HTTP_BIND:-}" ) ]]; then
@@ -71,11 +72,20 @@ fi
 
 "$python_bin" -B - <<'PY'
 import asyncio
+import json
+import os
 from db.database import Database
+from local_draw import catalog_report
 
 async def main():
     db = await Database.connect()
     await db.close()
+
+try:
+    path = os.environ["MONSTER2_DRAW_CATALOG"]
+    print("gacha_catalog=" + json.dumps(catalog_report(path), sort_keys=True), flush=True)
+except (OSError, ValueError, KeyError, TypeError) as exc:
+    raise SystemExit(f"Invalid Gacha catalog {path!r}: {exc}. Correct MONSTER2_DRAW_CATALOG before starting.") from None
 
 try:
     asyncio.run(main())

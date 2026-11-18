@@ -76,6 +76,8 @@ function PetSend.sendCG_CapsuleEgg_Req(params)
         choice = params.choice,
         bFree = params.bFree,
         choiceEx = params.choiceEx,
+        localRequestKey = string.format("%x%04x%04x%04x", os.time(),
+            math.random(0, 65535), math.random(0, 65535), math.random(0, 65535)),
     }
     NetMgr.send(Proto.writeP_CG_CapsuleEgg_Req, data)
 

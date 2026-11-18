@@ -69,6 +69,8 @@ def safe_request_fields(msg_id: int, payload: bytes) -> dict[str, object]:
         return {"friend_id": r.string()}
     if msg_id == 3082:
         return {"star": r.u16()}
+    if msg_id == 1392:
+        return dict(zip(("optType", "choice", "bFree", "choiceEx"), (r.u16() for _ in range(4))))
     return {}
 
 

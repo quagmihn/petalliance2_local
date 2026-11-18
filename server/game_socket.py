@@ -118,7 +118,7 @@ EXPECTED_ACKS = {
     4: (5,), 391: (390,),
     90: (473, 89),
     3082: (2995, 473, 1749),
-    15: (112, 3141, 198), 136: (210,), 263: (186,), 1392: (112, 473, 1561),
+    15: (112, 3141, 198), 136: (210,), 263: (186,), 1392: (112, 3141, 473, 1561),
     516: (526, 112, 3141), 577: (563, 112, 473),
 }
 
@@ -324,6 +324,9 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
 
 async def main() -> None:
+    from local_draw import catalog_report
+    if path := os.getenv("MONSTER2_DRAW_CATALOG"):
+        log.info("gacha_catalog_active=%s", json.dumps(catalog_report(path), sort_keys=True))
     db = await Database.connect()
     await db.initialize()
     host, port = os.getenv("GAME_BIND", "0.0.0.0"), int(os.getenv("GAME_PORT", "5568"))

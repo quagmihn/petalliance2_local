@@ -203,6 +203,9 @@ function NetInterface.sendWithBlock(ackName, func, successCallback, errorCallbac
         sendMsgCaches[ackName] = nil
         noResendMsgCaches[ackName] = nil
         LoadingView.hide()
+        if ackName == "GC_CapsuleEgg_Ack" then
+            CallbackMgr.cancelCallFunc(ackID)
+        end
         if timeoutCallback then
             timeoutCallback()
         end
@@ -228,6 +231,18 @@ end
 
 function NetInterface.resend()
     print("断线重连后，检查补发未发送成功的消息")
+    local drawAck = "GC_CapsuleEgg_Ack"
+    local draw = noResendMsgCaches[drawAck]
+    if draw then
+        noResendMsgCaches[drawAck] = nil
+        CallbackMgr.cancelCallFunc(Proto.Command.GC_CAPSULEEGG_ACK)
+        OvertimeListener.cancel(drawAck, true)
+        LoadingView.hide()
+        if draw.eCallback then
+            draw.eCallback(-1)
+        end
+    end
+
     local resendEntries = {}
     for key, var in pairs(sendMsgCaches) do
         resendEntries[#resendEntries + 1] = {key, var}

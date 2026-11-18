@@ -234,6 +234,9 @@ function PetProcess.onGC_CapsuleEgg_Ack(msg)
 
     local res = Proto.parseP_GC_CapsuleEgg_Ack(msg)
     MsgPrinter.rcvMsg(res, "GC_CapsuleEgg_Ack")
+    if not NetInterface.hasPending("GC_CapsuleEgg_Ack") then
+        return res.code
+    end
     print(res.code)
     if (Proto.Error.ERROR_OK == res.code) then
         for k,v in pairs(res.awardVecStr) do

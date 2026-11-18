@@ -86,8 +86,13 @@ CREATE TABLE IF NOT EXISTS local_draw_history (
     awards JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL
 );
+ALTER TABLE local_draw_history ADD COLUMN IF NOT EXISTS request_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS local_draw_request_key
+    ON local_draw_history(char_id, request_key) WHERE request_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS local_draw_history_by_machine
     ON local_draw_history(char_id, machine_id, draw_day) WHERE is_free;
+CREATE INDEX IF NOT EXISTS local_paid_draw_recent
+    ON local_draw_history(char_id, machine_id, draw_count, created_at) WHERE NOT is_free;
 
 -- Remove the legacy always-on GM wallet enforcement. Balances are now changed
 -- only by validated transactional gameplay operations. Local payment sandbox

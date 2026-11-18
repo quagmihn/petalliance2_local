@@ -1,0 +1,16 @@
+{
+  "1": [
+    {"item_id": 1, "count": 1, "weight": 7500},
+    {"item_id": 2, "count": 1, "weight": 2500}
+  ],
+  "2": [
+    {"item_id": 2, "count": 3, "weight": 6000},
+    {"item_id": 1, "count": 2, "weight": 3000},
+    {"pet_id": 26, "count": 1, "weight": 1000}
+  ],
+  "3": [
+    {"item_id": 1, "count": 2, "weight": 7000},
+    {"item_id": 2, "count": 1, "weight": 2500},
+    {"pet_id": 26, "count": 1, "weight": 500}
+  ]
+}

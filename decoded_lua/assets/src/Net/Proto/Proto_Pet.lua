@@ -854,6 +854,9 @@ function Proto.writeP_CG_CapsuleEgg_Req(msg,data)
 	Proto.writeWORD(msg,data.choice); -- 选择1: 1次、2: 10次或者3: 附加值方式（心愿之力）
 	Proto.writeWORD(msg,data.bFree); -- 是否免费抽取
 	Proto.writeWORD(msg,data.choiceEx); -- 附加值方式（心愿之力）时选择的宠物索引
+	if data.localRequestKey then
+		Proto.writeString(msg,data.localRequestKey);
+	end
 end
 
 function Proto.parseP_GC_CapsuleEgg_Ack(entry)

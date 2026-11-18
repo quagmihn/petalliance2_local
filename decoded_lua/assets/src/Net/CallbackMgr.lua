@@ -15,6 +15,10 @@ function CallbackMgr.registCallFunc(key, callback)
     end
 end
 
+function CallbackMgr.cancelCallFunc(key)
+    FuncTable[key] = nil
+end
+
 function CallbackMgr.doCallFunc(code, key)
     if key and FuncTable[key] then
         if TOUCH_PIPELINE_DIAGNOSTICS then
