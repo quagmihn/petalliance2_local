@@ -1,5 +1,15 @@
 # Full gameplay implementation checkpoint
 
+## 2026-11-18 follow-up: map identity and deployment gate
+
+The target data audit establishes the precise Lost Forest / Secret Path mapping in `reconstruction/MAP_IDENTITY_MATRIX.md`. World map node 2 (`map2`, LOST FOREST) selects Adventure 1. Node 10 (`map5`, SECRET PATH) selects Adventure 2. Both target AdventureInfo records reference `scene=[1]`, yielding the exact same 30 SceneInfo rows, 5×6 grid, and environment code 1. Their goals (1–3 vs 4–6), prepose (0 vs 1), levels (1 vs 2), EXP (60 vs 62), and clear rewards (1 vs 4) remain distinct. The shared inner layout is in the target config itself; no alternate Secret Path SceneInfo reference was found. Server request 2996 preserves `advID`, and new tests cover ID and state separation. This is source/configuration evidence; no claim is made that this layout was Waydroid visually accepted as Secret Path.
+
+The newly installed APK was pulled back from Waydroid and its SHA256 matches `364d275f98101e548758bc7b46ce775b7c9d0f13f830a574d24d2a2df5134e76`. Official processes 99835/99836 use `monster2_db`/`monster2`, but started before local recharge commit `29ebf1b`. In both processes `LOCAL_PAYMENT_SANDBOX` is unset; the default is off. Production does not have `local_recharge_transactions`.
+
+A fresh backup is `artifacts/secret-path-runtime-20261118/monster2_db-precheck.dump` (SHA256 `1217ccbe66d808ad03ae6be075720d39b36be4cd178856acfe8714631b2bfbfd`; `pg_restore -l` succeeds). Restore verification into an isolated DB is blocked because role `monster2` has `CREATEDB=false`; create returned permission denied. Production was not migrated or restarted. Consequently the Waydroid PURCHASE click, M-PASS entitlement/daily claim, and visual Secret Path comparison remain unverified.
+
+Added `server/tests/test_map_identity_contract.py`. The full suite with `TEST_DATABASE_URL=postgresql:///monster2_test_db` is 99 PASS, 0 FAIL, 0 skipped. Detailed deployment status is in `reconstruction/FULL_RUNTIME_ACCEPTANCE.md`; the remaining sequence is in `reconstruction/IMPLEMENTATION_BACKLOG.md`.
+
 Date: 2026-11-18. This is a partial implementation checkpoint, not a claim that the target APK has been fully restored.
 
 ## Implemented in this checkpoint

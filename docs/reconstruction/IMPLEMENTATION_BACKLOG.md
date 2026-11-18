@@ -1,5 +1,14 @@
 # Implementation backlog
 
+## 2026-11-18 checkpoint: Secret Path and local purchase deployment
+
+- Audited the shipped `map_node.txt`, localized names, `AdventureInfo.dat`, `SceneInfo.dat`, and client `SearchingMapMgr`/`WorldMapInfo` code. LOST FOREST is world 1 point 2 → Adventure 1; SECRET PATH is point 10 → Adventure 2. Both target configs explicitly reference scene number 1 and the same 30 SceneInfo rows. The server does not remap the requested Adventure ID. Added contract tests and detailed identity matrices; do not substitute another map layout without new target-version evidence.
+- Live runtime remains old: PIDs 99835/99836 began before commit `29ebf1b`; both connect to `monster2_db` as `monster2`. `LOCAL_PAYMENT_SANDBOX` is unset/off, and `local_recharge_transactions` is absent.
+- Fresh custom-format production dump created and archive-index validated, but restore validation is blocked because role `monster2` has `CREATEDB=false`; isolated database creation was denied. No production migration or restart was performed.
+- Exact Waydroid PURCHASE click and M-PASS acceptance remain blocked until the official process/schema can safely be updated. Month-card daily claim is not implemented.
+- Full suite rerun with `TEST_DATABASE_URL=postgresql:///monster2_test_db`: 99 PASS, 0 FAIL, 0 skipped. New map identity tests are included.
+- Next executable action: use an authorized DB operator path to restore the saved dump into a new isolated database and verify it; then add the recharge schema, restart only the recorded official launcher with explicit local-only gate, and perform Waydroid PURCHASE/M-PASS. Separately investigate whether another lawful target-version asset/config set contains a distinct Secret Path floor; the target APK config currently shows shared geometry.
+
 Checkpoint baseline tag: `baseline-partial-verified-2026-11-18` at commit `947a052d59663a70b28821b28d3983e1ed83951e`. See `FINAL_RUNTIME_ACCEPTANCE.md` for the exact tested state.
 
 ## P0 — runtime state correctness
