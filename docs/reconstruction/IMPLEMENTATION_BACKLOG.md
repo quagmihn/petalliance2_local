@@ -1,5 +1,9 @@
 # Implementation backlog
 
+## Current deployment status
+
+The specified dump passed full isolated restore verification. The official server now runs the local payment implementation on monster2_db with the two additive ledger/entitlement tables. First priority is resolving the Senior Gacha guide gate evidenced by request 1392 and rejected ACK 1561, then retesting PURCHASE, M-PASS and both Adventure entries in Waydroid. Avoid enabling unrelated gacha rewards without proving the catalog and eligibility contract. M-PASS daily claim already passes PostgreSQL integration. The locally available APK generations preserve the same Secret Path scene. Remaining phase priorities are listed below.
+
 ## 2026-11-18 checkpoint: Secret Path and local purchase deployment
 
 - Audited the shipped `map_node.txt`, localized names, `AdventureInfo.dat`, `SceneInfo.dat`, and client `SearchingMapMgr`/`WorldMapInfo` code. LOST FOREST is world 1 point 2 → Adventure 1; SECRET PATH is point 10 → Adventure 2. Both target configs explicitly reference scene number 1 and the same 30 SceneInfo rows. The server does not remap the requested Adventure ID. Added contract tests and detailed identity matrices; do not substitute another map layout without new target-version evidence.

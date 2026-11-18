@@ -139,12 +139,16 @@ async def buy_gcash(session, payload: bytes):
                                     "GC_BUYGCASH_ACK")
 
 
+def local_payment_enabled():
+    return (os.getenv("LOCAL_PAYMENT_SANDBOX", "0") == "1"
+            and os.getenv("GAME_ENV", "").lower() in ("test", "play", "production")
+            and os.getenv("PAYMENT_PROVIDER", "local").lower() in ("", "local", "none"))
+
+
 async def recharge_test(session, payload: bytes):
     r = Reader(payload); pay_id, app_id = r.u32(), r.string(); r.finish()
     failure = (89, Writer().u16(1).bytes())
-    if (os.getenv("LOCAL_PAYMENT_SANDBOX", "0") != "1"
-            or os.getenv("GAME_ENV", "").lower() not in ("test", "play", "production")
-            or os.getenv("PAYMENT_PROVIDER", "local").lower() not in ("", "local", "none")):
+    if not local_payment_enabled():
         log.warning("local_recharge_rejected char_id=%s reason=sandbox_disabled", session.char_id)
         return failure
     match = re.fullmatch(r"local:([NM])(\d{1,10}):(.{1,160})", app_id)
@@ -198,17 +202,30 @@ async def capsule_egg(session, payload: bytes):
 
 async def load_month_card(session, payload: bytes):
     Reader(payload).finish()
-    row = await session.db.pool.fetchrow(
-        "SELECT month_card_until FROM characters WHERE char_id=$1", session.char_id)
-    # No entitlement exists for a new character. The login chain requires a
-    # successful read with an empty vector and the isNeverBuy DWORD.
-    if row is not None and row["month_card_until"] is None:
-        return 3106, success_code().u8(0).u32(1).bytes()
-    return 3106, Writer().i32(1).string("").i32(0).bytes()
+    rows = await session.db.local_month_cards(session.char_id) if session.char_id is not None else []
+    body = success_code().u8(len(rows))
+    for row in rows:
+        body.i32(row["package_id"]).u32(row["expires"]).u32(row["last_claim"])
+    return 3106, body.u32(0 if rows else 1).bytes()
 
 
 async def take_month_card(session, payload: bytes):
-    return 3103, Writer().i32(1).string("").i32(0).bytes()
+    from client_config import table
+
+    r = Reader(payload)
+    package_id = r.i32()
+    r.finish()
+    error = 3103, Writer().i32(1).string("").i32(0).bytes()
+    if not local_payment_enabled() or session.char_id is None:
+        return error
+    package = table("MonthCardRechargeInfo").get(package_id)
+    if package is None or int(package["mCashPerDay"]) <= 0:
+        return error
+    wallet = await session.db.claim_local_month_card(
+        session.char_id, package_id, int(package["mCashPerDay"]))
+    if wallet is None:
+        return error
+    return [wallet_update(wallet), (3103, success_code().bytes())]
 
 
 async def buy_npc(session, payload: bytes):

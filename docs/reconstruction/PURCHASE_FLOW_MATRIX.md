@@ -1,5 +1,15 @@
 # Purchase flow matrix
 
+## Deployment update
+
+| Flow | Verified state |
+|---|---|
+| Normal local PURCHASE | Deployed 90/89 with 473 and the existing simulated ledger. **TCP_TESTED** including duplicate delivery. **BLOCKED** in Waydroid by the Senior Gacha guide before STORE could open. |
+| M-PASS purchase and renewal | Local ledger creates or extends a per-package entitlement and grants the configured initial diamonds. PostgreSQL integration passed. **BLOCKED** in Waydroid at the same gate. |
+| M-PASS daily | 3104/3106 loads package ID, expiry and last claim. 3102 carries the package ID and 3103 uses parseCode. Eligible cases update the wallet and return 473. Claim day resets at 06:00 in the advertised UTC+07 zone. Same-day retries and renewal cannot grant daily diamonds twice. Wrong-package and expired claims return an error. PostgreSQL integration passed. **BLOCKED** in Waydroid. |
+
+Live configuration is sandbox enabled with provider local. Production start added both tables, but the UI sent no 90/3102 and balances remained unchanged. The matrix below is the original pre-deployment checkpoint.
+
 | Flow | Client action/protocol | Workspace implementation | Production database/process | Waydroid acceptance |
 |---|---|---|---|---|
 | Normal recharge package | PurchaseViewMgr → local `PayConfig.payLocal` → request 90 / ACK 89; wallet notification 473 | Valid NormalRechargeInfo package, idempotency key, configured diamond grant, `simulated=true` transaction, atomic wallet update | `LOCAL_PAYMENT_SANDBOX` unset (off); `local_recharge_transactions` absent; HTTP/TCP process started before implementation commit | BLOCKED; actual PURCHASE not clicked |

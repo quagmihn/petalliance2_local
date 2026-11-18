@@ -66,6 +66,14 @@ CREATE TABLE IF NOT EXISTS local_recharge_transactions (
     UNIQUE(char_id, order_key)
 );
 
+CREATE TABLE IF NOT EXISTS local_month_cards (
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    package_id INTEGER NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    last_claim_day BIGINT,
+    PRIMARY KEY (char_id, package_id)
+);
+
 -- Remove the legacy always-on GM wallet enforcement. Balances are now changed
 -- only by validated transactional gameplay operations. Local payment sandbox
 -- is separately gated by LOCAL_PAYMENT_SANDBOX in the server process.

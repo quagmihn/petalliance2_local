@@ -1,5 +1,11 @@
 # Map identity matrix
 
+## Expanded asset and runtime audit
+
+The 24 locally available APK archives and all three extracted trees contained one identical AdventureInfo and SceneInfo pair. AdventureInfo.dat SHA256 is `4d0cfd0a0ef83b1560f51a57eabedcc73211b110d7b17bd256439128141107cc`. SceneInfo.dat SHA256 is `8fe50ef01642d1ff814522d9ad7e36f33a7914d795a912603fb29e0063cbb598`. These include the raw APK and the locally built generations. No distinct original Secret Path floor was found, and no substitute was introduced. Publisher intent and any unavailable alternate resource set remain unverified.
+
+Cold Waydroid login restored the Secret Path world node and existing star total. The Senior Gacha guide gate prevented a fresh map entry/clear comparison on the deployed build. **BLOCKED** for per-map encounters, exit and reward acceptance in this run. Prior evidence and configuration identities follow.
+
 Target APK configuration audit, 2026-11-18.
 
 | World | Node / map key | Localized name | Gameplay type | Adventure ID | Floor / grid | Scene IDs | Environment | Objectives / reward refs | Status |

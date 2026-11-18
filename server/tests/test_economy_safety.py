@@ -92,6 +92,26 @@ class EconomySafetyTests(unittest.IsolatedAsyncioTestCase):
                     char_id)
                 self.assertEqual((row["diamond"], row["recharge_total"]), (560, 598))
                 self.assertIsNotNone(row["month_card_until"])
+                card_request = Writer().i32(10001).bytes()
+                claim = await economy.take_month_card(session, card_request)
+                self.assertEqual([msg for msg, _ in claim], [473, 3103])
+                duplicate = await economy.take_month_card(session, card_request)
+                self.assertEqual(Reader(duplicate[1][1]).i32(), 0)
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT diamond FROM characters WHERE char_id=$1", char_id), 720)
+                self.assertEqual(Reader((await economy.take_month_card(
+                    session, Writer().i32(10002).bytes()))[1]).i32(), 1)
+                renew_order = "local:M10001:renew-" + secrets.token_hex(8)
+                await economy.recharge_test(session, Writer().u32(10001).string(renew_order).bytes())
+                renewed = await db.pool.fetchval(
+                    "SELECT month_card_until FROM characters WHERE char_id=$1", char_id)
+                self.assertEqual((renewed - row["month_card_until"]).days, 30)
+                await economy.take_month_card(session, card_request)
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT diamond FROM characters WHERE char_id=$1", char_id), 1120)
+                await db.pool.execute(
+                    "UPDATE local_month_cards SET expires_at=now() WHERE char_id=$1", char_id)
+                self.assertEqual(Reader((await economy.take_month_card(session, card_request))[1]).i32(), 1)
             with patch.dict(os.environ, {"LOCAL_PAYMENT_SANDBOX": "0", "PAYMENT_PROVIDER": "local", "GAME_ENV": "test"}):
                 rejected = await economy.recharge_test(session, body)
                 self.assertEqual((rejected[0], Reader(rejected[1]).u16()), (89, 1))

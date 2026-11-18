@@ -1,5 +1,9 @@
 # Coverage report
 
+## Deployment update
+
+Restore verification passed and the existing local recharge handler is live on monster2_db. M-PASS package entitlements and daily claims now pass PostgreSQL integration. Waydroid confirmed cold relogin to the existing map state, but the mandatory Senior Gacha guide blocked STORE and fresh map entries. These flows remain **BLOCKED** in real-client acceptance. See [full runtime acceptance](FULL_RUNTIME_ACCEPTANCE.md).
+
 ## 2026-11-18 map identity and runtime deployment audit
 
 | Scope | Result | Evidence / limit |

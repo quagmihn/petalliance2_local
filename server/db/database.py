@@ -262,13 +262,18 @@ class Database:
                         "UPDATE characters SET diamond=diamond+$2,recharge_total=recharge_total+$3 "
                         "WHERE char_id=$1", char_id, diamonds, paid_amount)
                 else:
+                    expires = await conn.fetchval(
+                        """INSERT INTO local_month_cards(char_id,package_id,expires_at)
+                           VALUES($1,$2,now()+$3 * interval '1 day')
+                           ON CONFLICT (char_id,package_id) DO UPDATE SET expires_at=
+                               greatest(local_month_cards.expires_at,now())+$3 * interval '1 day'
+                           RETURNING expires_at""", char_id, package_id, int(package["days"]))
                     await conn.execute(
                         """UPDATE characters SET diamond=diamond+$2,
                            recharge_total=recharge_total+$3,
-                           month_card_until=greatest(COALESCE(month_card_until,now()),now())
-                               + $4 * interval '1 day'
+                           month_card_until=greatest(month_card_until,$4)
                            WHERE char_id=$1""",
-                        char_id, diamonds, paid_amount, int(package["days"]))
+                        char_id, diamonds, paid_amount, expires)
                 await conn.execute(
                     """INSERT INTO local_recharge_transactions
                        (char_id,order_key,package_kind,package_id,paid_amount,rewards,simulated)
@@ -279,6 +284,33 @@ class Database:
                     "SELECT * FROM characters WHERE char_id=$1", char_id)
                 return {"character": updated, "duplicate": False,
                         "package_kind": package_kind, "package_id": package_id}
+
+    async def local_month_cards(self, char_id: int):
+        return await self.pool.fetch(
+            """SELECT package_id, extract(epoch FROM expires_at)::bigint AS expires,
+                      COALESCE(last_claim_day*86400,0) AS last_claim
+               FROM local_month_cards WHERE char_id=$1 ORDER BY package_id""", char_id)
+
+    async def claim_local_month_card(self, char_id: int, package_id: int, diamonds: int):
+        async with self.pool.acquire() as conn, conn.transaction():
+            await conn.fetchval("SELECT char_id FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+            # Client resets at 06:00 in the server's UTC+07 timezone.
+            claim_day = await conn.fetchval(
+                "SELECT floor((extract(epoch FROM now())+25200-21600)/86400)::bigint")
+            card = await conn.fetchrow(
+                """SELECT last_claim_day,expires_at>now() AS active
+                   FROM local_month_cards WHERE char_id=$1 AND package_id=$2""",
+                char_id, package_id)
+            if card is None or not card["active"]:
+                return None
+            if card["last_claim_day"] is None or card["last_claim_day"] < claim_day:
+                await conn.execute(
+                    """UPDATE local_month_cards SET last_claim_day=$3
+                       WHERE char_id=$1 AND package_id=$2""", char_id, package_id, claim_day)
+                return await conn.fetchrow(
+                    "UPDATE characters SET diamond=diamond+$2 WHERE char_id=$1 RETURNING *",
+                    char_id, diamonds)
+            return await conn.fetchrow("SELECT * FROM characters WHERE char_id=$1", char_id)
 
     async def adventure_clears(self, char_id: int):
         return await self.pool.fetch(

@@ -1,5 +1,15 @@
 # Full runtime acceptance checkpoint
 
+## Deployment and verification update
+
+- **Restore verified.** Connected as the PostgreSQL database administrator over the Unix socket solely to create `monster2_restore_purchase_1217ccbe`. Restored as `monster2`, exit 0, using a single transaction and no ownership or ACL replay. All 13 table data sets matched the archived COPY records. The restore contains 2 accounts, 2 characters, 3 pets, 17 quests and 2 inventory rows. PostgreSQL reports all constraints validated, including 13 foreign keys. Archive SHA256 `1217ccbe66d808ad03ae6be075720d39b36be4cd178856acfe8714631b2bfbfd`. Production role privileges and pg_hba were preserved.
+- **Deployed.** Started the project launcher in production mode on free ports. Both pools verified `monster2_db` / `monster2`. Launcher schema initialization added `local_recharge_transactions` and `local_month_cards`. The user unit `monster2-local-purchase.service` supplies `LOCAL_PAYMENT_SANDBOX=1` and `PAYMENT_PROVIDER=local`. No external provider or real checkout was used.
+- **WAYDROID_VERIFIED.** Installed APK SHA256 `364d275f98101e548758bc7b46ce775b7c9d0f13f830a574d24d2a2df5134e76`. After server restart, cold login returned character 2 on the Secret Path world node and showed the existing 2/10 map-star total. This is persisted progress evidence, not a new map clear.
+- **BLOCKED.** The mandatory guide intercepted world-map and currency taps. Following Senior Gacha → ONCE FREE sent 1392 → 1561/code 1 (`award_pool_catalog_unavailable`). Close and diamond controls did not respond after the rejection. Restart and cold login returned to the guide. No UI request 90 or 3102 was observed and both production payment tables still had zero rows. Wallet rows matched before and after. Map-entry/clear and checkout acceptance remain open.
+- **TCP_TESTED / PostgreSQL integration.** The 99-test suite passed on `monster2_test_db`. Coverage includes request 90, idempotent delivery, M-PASS initial diamonds and renewal, the 3102/3103 daily claim schema, all-or-nothing balance updates, duplicate claim, wrong package and expired entitlement. The new claim handler is tested via server dispatch functions; an actual Waydroid claim remains blocked.
+
+Local evidence is in `artifacts/secret-path-runtime-20261118/`, including `senior-gacha-blocked.png`, `secret-path-relogin-guide.png`, paired TCP and logcat, and before/after wallet rows. The earlier checkpoint below records the pre-deployment state.
+
 Date: 2026-11-18. This is a blocked deployment and partial source audit, not a complete gameplay acceptance.
 
 ## Identity and deployment
