@@ -1,0 +1,23 @@
+{
+  "account_id": 322,
+  "account_token": "e001ed42aae9a2a53a7769c97c83522d8d9a2818390e4400",
+  "char_id": 307,
+  "char_name": "Fresh9e56af7c",
+  "database": "monster2_test_db",
+  "device_binding_after": null,
+  "device_binding_before": null,
+  "fresh_control": true,
+  "pet_uid": 441,
+  "resources": {
+    "active_quests": {},
+    "cleared_adventures": {},
+    "diamond": 0,
+    "exp": 60,
+    "gold": 150000,
+    "independent": true,
+    "inventory": [],
+    "level": 2
+  },
+  "username": "fresh-control-7efe19bc172cbe752df5",
+  "version": 1
+}

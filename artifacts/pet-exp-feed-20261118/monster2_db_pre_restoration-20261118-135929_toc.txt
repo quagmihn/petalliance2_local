@@ -1,0 +1,94 @@
+;
+; Archive created at 2026-11-18 13:59:29 +07
+;     dbname: monster2_db
+;     TOC Entries: 83
+;     Compression: gzip
+;     Dump Version: 1.16-0
+;     Format: CUSTOM
+;     Integer: 4 bytes
+;     Offset: 8 bytes
+;     Dumped from database version: 18.6
+;     Dumped by pg_dump version: 18.6
+;
+;
+; Selected TOC Entries:
+;
+220; 1259 16523 TABLE public accounts monster2
+219; 1259 16522 SEQUENCE public accounts_user_id_seq monster2
+3650; 0 0 SEQUENCE OWNED BY public accounts_user_id_seq monster2
+233; 1259 17081 TABLE public adventure_cell_claims monster2
+235; 1259 17170 TABLE public adventure_fired_events monster2
+236; 1259 17239 TABLE public character_adventure_clears monster2
+234; 1259 17102 TABLE public character_adventures monster2
+223; 1259 16561 TABLE public characters monster2
+222; 1259 16560 SEQUENCE public characters_char_id_seq monster2
+3651; 0 0 SEQUENCE OWNED BY public characters_char_id_seq monster2
+221; 1259 16540 TABLE public device_bindings monster2
+230; 1259 16709 TABLE public homes monster2
+227; 1259 16639 TABLE public inventory monster2
+226; 1259 16638 SEQUENCE public inventory_id_seq monster2
+3652; 0 0 SEQUENCE OWNED BY public inventory_id_seq monster2
+225; 1259 16606 TABLE public pets monster2
+224; 1259 16605 SEQUENCE public pets_pet_uid_seq monster2
+3653; 0 0 SEQUENCE OWNED BY public pets_pet_uid_seq monster2
+229; 1259 16659 TABLE public quests monster2
+228; 1259 16658 SEQUENCE public quests_id_seq monster2
+3654; 0 0 SEQUENCE OWNED BY public quests_id_seq monster2
+232; 1259 16733 TABLE public tutorial_battle_sessions monster2
+231; 1259 16732 SEQUENCE public tutorial_battle_sessions_battle_id_seq monster2
+3655; 0 0 SEQUENCE OWNED BY public tutorial_battle_sessions_battle_id_seq monster2
+3375; 2604 16526 DEFAULT public accounts user_id monster2
+3378; 2604 16564 DEFAULT public characters char_id monster2
+3407; 2604 16642 DEFAULT public inventory id monster2
+3396; 2604 16609 DEFAULT public pets pet_uid monster2
+3409; 2604 16662 DEFAULT public quests id monster2
+3414; 2604 16736 DEFAULT public tutorial_battle_sessions battle_id monster2
+3627; 0 16523 TABLE DATA public accounts monster2
+3640; 0 17081 TABLE DATA public adventure_cell_claims monster2
+3642; 0 17170 TABLE DATA public adventure_fired_events monster2
+3643; 0 17239 TABLE DATA public character_adventure_clears monster2
+3641; 0 17102 TABLE DATA public character_adventures monster2
+3630; 0 16561 TABLE DATA public characters monster2
+3628; 0 16540 TABLE DATA public device_bindings monster2
+3637; 0 16709 TABLE DATA public homes monster2
+3634; 0 16639 TABLE DATA public inventory monster2
+3632; 0 16606 TABLE DATA public pets monster2
+3636; 0 16659 TABLE DATA public quests monster2
+3639; 0 16733 TABLE DATA public tutorial_battle_sessions monster2
+3656; 0 0 SEQUENCE SET public accounts_user_id_seq monster2
+3657; 0 0 SEQUENCE SET public characters_char_id_seq monster2
+3658; 0 0 SEQUENCE SET public inventory_id_seq monster2
+3659; 0 0 SEQUENCE SET public pets_pet_uid_seq monster2
+3660; 0 0 SEQUENCE SET public quests_id_seq monster2
+3661; 0 0 SEQUENCE SET public tutorial_battle_sessions_battle_id_seq monster2
+3430; 2606 16535 CONSTRAINT public accounts accounts_pkey monster2
+3432; 2606 16539 CONSTRAINT public accounts accounts_token_key monster2
+3434; 2606 16537 CONSTRAINT public accounts accounts_username_key monster2
+3461; 2606 17096 CONSTRAINT public adventure_cell_claims adventure_cell_claims_pkey monster2
+3465; 2606 17179 CONSTRAINT public adventure_fired_events adventure_fired_events_pkey monster2
+3467; 2606 17247 CONSTRAINT public character_adventure_clears character_adventure_clears_pkey monster2
+3463; 2606 17110 CONSTRAINT public character_adventures character_adventures_pkey monster2
+3440; 2606 16597 CONSTRAINT public characters characters_account_id_world_id_key monster2
+3442; 2606 16595 CONSTRAINT public characters characters_pkey monster2
+3444; 2606 16599 CONSTRAINT public characters characters_world_id_name_key monster2
+3436; 2606 16554 CONSTRAINT public device_bindings device_bindings_device_token_key monster2
+3438; 2606 16552 CONSTRAINT public device_bindings device_bindings_pkey monster2
+3456; 2606 16720 CONSTRAINT public homes homes_pkey monster2
+3448; 2606 16652 CONSTRAINT public inventory inventory_char_id_item_id_key monster2
+3450; 2606 16650 CONSTRAINT public inventory inventory_pkey monster2
+3446; 2606 16632 CONSTRAINT public pets pets_pkey monster2
+3452; 2606 16675 CONSTRAINT public quests quests_char_id_quest_id_key monster2
+3454; 2606 16673 CONSTRAINT public quests quests_pkey monster2
+3459; 2606 16748 CONSTRAINT public tutorial_battle_sessions tutorial_battle_sessions_pkey monster2
+3457; 1259 16754 INDEX public tutorial_battle_sessions_char_session_idx monster2
+3475; 2606 17097 FK CONSTRAINT public adventure_cell_claims adventure_cell_claims_char_id_fkey monster2
+3477; 2606 17180 FK CONSTRAINT public adventure_fired_events adventure_fired_events_char_id_fkey monster2
+3478; 2606 17248 FK CONSTRAINT public character_adventure_clears character_adventure_clears_char_id_fkey monster2
+3476; 2606 17111 FK CONSTRAINT public character_adventures character_adventures_char_id_fkey monster2
+3469; 2606 16600 FK CONSTRAINT public characters characters_account_id_fkey monster2
+3468; 2606 16555 FK CONSTRAINT public device_bindings device_bindings_account_id_fkey monster2
+3473; 2606 16721 FK CONSTRAINT public homes homes_char_id_fkey monster2
+3471; 2606 16653 FK CONSTRAINT public inventory inventory_char_id_fkey monster2
+3470; 2606 16633 FK CONSTRAINT public pets pets_char_id_fkey monster2
+3472; 2606 16676 FK CONSTRAINT public quests quests_char_id_fkey monster2
+3474; 2606 16749 FK CONSTRAINT public tutorial_battle_sessions tutorial_battle_sessions_char_id_fkey monster2

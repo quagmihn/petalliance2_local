@@ -1,0 +1,2 @@
+PASS official production TCP / monster2_db / temporary account 61 char 3 / free x1 x10 / key retry rejected / 12 items persisted after relogin
+fixture cleanup DELETE 1
