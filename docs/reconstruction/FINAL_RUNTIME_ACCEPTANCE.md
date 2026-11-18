@@ -2,6 +2,8 @@
 
 Date: 2026-11-18. This records a partial verified checkpoint; it is not a release-complete report.
 
+Verified source commit: `144d757` (`Fix Waydroid wild capture and market state sync`). Push is blocked because GitHub HTTPS credentials are unavailable in this session.
+
 | Check | Result | Evidence |
 |---|---|---|
 | Baseline source | PASS | tag `baseline-partial-verified-2026-11-18`, commit `947a052d59663a70b28821b28d3983e1ed83951e` |

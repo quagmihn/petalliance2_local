@@ -53,10 +53,11 @@ PostgreSQL integration and TCP suite: **87 PASS, 0 FAIL, 0 skipped** using `TEST
 
 ## Runtime, backup, and APK
 
-- Official launcher log confirms both HTTP and TCP pools on `monster2_db` / `monster2`, source directory `/home/quagmihn/Project/monster2_rebuild/server`, commit base `395f4c7e874b57732cbc25da1d0381dc44467227` with local changes.
+- Official launcher confirmed both HTTP and TCP pools on `monster2_db` / `monster2`, source directory `/home/quagmihn/Project/monster2_rebuild/server`; final committed source is `144d757` (`Fix Waydroid wild capture and market state sync`).
 - Waydroid cold relogin on account 6 / character 2 succeeded after capture; Town and the post-capture guide dialogue loaded. Evidence screenshots: `artifacts/pet-exp-feed-20261118/waydroid-capture-success.png`, `capture-award.png`, and `post-capture-relogin-progress.png`.
 - Installed/rebuilt APK SHA256: `362d724207e8b1da7fe55f8f86e0672f195e9f6b6388d2c7119e56fa1d677448`; pulled installed APK hash matched. Signing certificate SHA256 `f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a` matches the app signer. App data was preserved; `pm clear` was not used.
-- Verified source changes are in commit `6c21560` (`Restore configured wild capture and Pet economy flows`).
+- This work builds on `6c21560` (configured wild capture/Pet economy) and `34bb058` (client subsystem inventory/capacity); the current verified capture/shop/wallet fix is commit `144d757`.
+- `git push origin main` remains BLOCKED: the available HTTPS remote has no non-interactive GitHub username credential.
 - Pre-change custom-format production backup: `artifacts/pet-exp-feed-20261118/monster2_db_before_runtime.dump`, SHA256 `9a76b45359542acef1849d2a454a193ef7f2df1a6e355b208c591a1316962844`; archive TOC parsed. A second PostgreSQL custom archive `monster2_db_pre_restoration-20261118-135929.dump` has SHA256 `db83a441108b7eba5d5eb9fe1c1cdb6d3a74e04201aba6af8a0d8e40d1edd89b` and `pg_restore --list` succeeds. Full isolated restore verification was blocked because the current role lacks CREATEDB and local postgres sudo requires a password. No production restore or manual gameplay-state rewrite was performed.
 
 ## Remaining status
