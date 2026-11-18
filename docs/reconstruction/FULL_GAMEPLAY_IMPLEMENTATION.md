@@ -6,9 +6,9 @@ Date: 2026-11-18. This is a partial implementation checkpoint, not a claim that 
 
 ### Reconnect and loading callbacks
 
-Client logs showed a reconnect replay path sending a pending quest-list request and then unconditionally sending another quest-list request from `NetInterface.resend()`. `Reconnector.finish()` could also reissue a channel join already being replayed. Lua diagnostics showed callback registrations for ACK 26 and 386 being replaced. `NetInterface.hasPending()` now guards those automatic requests, and `resend()` snapshots the pending cache before replay. This keeps one callback owner for each in-flight ACK and retains its normal success/error cleanup.
+Older client logs showed a reconnect replay path sending a pending quest-list request and then unconditionally sending another quest-list request from `NetInterface.resend()`. `Reconnector.finish()` could also reissue a channel join already being replayed. Lua diagnostics showed callback registrations for ACK 26 and 386 being replaced. `NetInterface.hasPending()` now guards those automatic requests, and `resend()` snapshots the pending cache before replay. This keeps one callback owner for each in-flight ACK and retains its normal success/error cleanup.
 
-The logged request/ACK pairs completed and the loading overlay was hidden before `SOCKET_TCP_CLOSE`; the extracted log does not include a synchronized production TCP close row. The close initiator and the underlying transport close cause therefore remain **unresolved**. The reconnect duplicate was fixed because the source call stacks demonstrated it, but that alone does not prove the connection close or map transition is fixed.
+After installing the rebuilt APK with `adb install -r` (app data preserved), Waydroid cold login for account 6/character 2 reached MainScene. In the same client PID, quest-list request 785 had one registration (`ack 26 replaced=false`), change-channel request 380 had one registration (`ack 386 replaced=false`), ACK 386 completed with `loading_visible=false`, and the input lock was released. There was no socket close/reconnect during the roughly 20-second observation window. This validates cold login/loading cleanup, not the reconnect path itself; no disconnect occurred to exercise replay. The old close initiator and the original map-completion transition remain **unresolved** because no paired TCP/server log was captured for the old close session.
 
 ### Local recharge simulation
 
@@ -23,7 +23,9 @@ Schema is additive in `local_recharge_transactions`. Activation requires `LOCAL_
 - PostgreSQL test database: real test transaction for normal package 2 (160 configured diamonds), duplicate delivery (one ledger row and one grant), month card 10001 (400 initial diamonds, 30-day entitlement), and sandbox-disabled rejection.
 - Framed TCP test: request 90 returns wallet notification 473 then ACK 89, with an idempotent second delivery.
 - Lua syntax: `luac -p` on recharge and reconnect modules.
-- APK builder: all four patched encrypted Lua entries were extracted and compared byte-for-byte to the edited sources. Package/version are `com.petalliance2.sea` / 7 / 1.0.0; signature matches the installed baseline certificate. New APK SHA256: `364d275f98101e548758bc7b46ce775b7c9d0f13f830a574d24d2a2df5134e76`. APK was not installed during this checkpoint.
+- APK builder/install: all four patched encrypted Lua entries were extracted and compared byte-for-byte to the edited sources. Package/version are `com.petalliance2.sea` / 7 / 1.0.0; signature matches the installed baseline certificate. `adb install -r` preserved app data, and pulling the installed `base.apk` confirmed SHA256 `364d275f98101e548758bc7b46ce775b7c9d0f13f830a574d24d2a2df5134e76`.
+- Waydroid cold login/input state: **PASS for this path**. Screenshot `artifacts/full-gameplay-20261118/waydroid-after-reconnect-patch.png`; filtered same-PID client log `artifacts/full-gameplay-20261118/waydroid-reconnect-session.log`. Process 99836 was confirmed using database `monster2_db`, role `monster2`; read-only identity lookup confirmed account 6/character 2. The official TCP process was not restarted.
+- Actual reconnect after an induced disconnect: **PENDING**. The verified login did not reconnect, so the dedupe branch remains Lua-contract tested but not Waydroid exercised.
 - Waydroid local purchase click: **BLOCKED/PENDING**. The official production server is still the previous running process; it was not restarted and the play database schema was not modified during this work.
 
 ## Content status retained from prior checkpoint
@@ -36,12 +38,12 @@ Schema is additive in `local_recharge_transactions`. Activation requires `LOCAL_
 
 ## Remaining steps
 
-1. Run the full suite after the latest reconnect/client changes and record exact counts.
-2. Rebuild and validate the signed APK from the installed baseline.
-3. Use a separately configured test runtime and Waydroid session to verify the actual recharge BUY click and reconnect behavior, capturing synchronized TCP and Android logs.
-4. Diagnose the remaining close using the same connection/session ID on both sides; do not infer the cause from ACK 386 or ACK 26 alone.
+1. The latest full suite is 96 PASS, 0 FAIL, 0 skipped; rerun after subsequent source changes.
+2. Signed APK is installed and hash-verified on Waydroid.
+3. Use an isolated test runtime and Waydroid flow to verify actual recharge BUY and induced reconnect, capturing synchronized TCP and Android logs.
+4. Diagnose the old close using the same connection/session ID on both sides; do not infer its cause from ACK 386 or ACK 26 alone.
 5. Back up and validate restore of the selected play database before restarting/migrating its server process. Only then configure the local sandbox explicitly if desired.
-6. Continue the quest/map/event engines from `IMPLEMENTATION_BACKLOG.md`; this checkpoint does not mark broad coverage complete.
+6. Continue quest/map/event engines from `IMPLEMENTATION_BACKLOG.md`; this checkpoint does not mark broad coverage complete.
 
 ## Release state
 
