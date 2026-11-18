@@ -35,6 +35,18 @@ gold diamond viplevel vip_level actionvalue stamina vip_points create_time
 NUMERIC_KEYS.add("furniturecomputervalu erate".replace(" ", ""))
 
 
+def _capacity_defaults() -> dict[str, int]:
+    """Initial capacities are client-configured, not zero-valued character data."""
+    from client_config import table
+
+    global_config = table("GlobalConfigAddInfo")
+    return {
+        "explorepacketnum": 10,  # CharInfo.Init() in the target Lua client
+        "itempacketnum": int(global_config[6601]["values"][0]),
+        "petpacketnum": int(global_config[6701]["values"][0]),
+    }
+
+
 def _expected(key: str):
     normalized = key.lower()
     if normalized in STRING_KEYS: return str, ""
@@ -49,6 +61,7 @@ def _expected(key: str):
 
 def validate_character_values(requested: list[str], raw: dict[str, Any]) -> dict[str, Any]:
     result: dict[str, Any] = {}
+    capacity_defaults = _capacity_defaults()
     for key in requested:
         spec = _expected(key)
         if spec is None:
@@ -58,7 +71,13 @@ def validate_character_values(requested: list[str], raw: dict[str, Any]) -> dict
                 result[key] = raw[key]
             continue
         expected, default = spec
+        default = capacity_defaults.get(key.lower(), default)
         value = raw.get(key, default)
+        if key.lower() in capacity_defaults and isinstance(value, int) and not isinstance(value, bool):
+            # Persisted zero was previously emitted by the server's generic
+            # numeric default and overwrote the target client's configured
+            # capacity, causing the client to report a full bag with empty slots.
+            value = max(value, default)
         if expected == (bool, int) and isinstance(value, int) and not isinstance(value, bool):
             if value in (0, 1):
                 value = bool(value)

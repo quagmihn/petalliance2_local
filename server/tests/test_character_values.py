@@ -52,6 +52,20 @@ class CharacterValueContractTests(unittest.IsolatedAsyncioTestCase):
                                            {"treasureBoxSelect": 0, "isMArenaOn": 1})
         self.assertEqual(values, {"treasureBoxSelect": "", "isMArenaOn": True})
 
+    async def test_initial_inventory_capacities_come_from_target_client_config(self):
+        from character_values import validate_character_values
+        values = validate_character_values(
+            ["explorePacketNum", "itemPacketNum", "petPacketNum"],
+            {"itemPacketNum": 0, "petPacketNum": 0})
+        self.assertEqual(values, {"explorePacketNum": 10, "itemPacketNum": 70,
+                                  "petPacketNum": 40})
+
+    async def test_purchased_capacity_above_configured_initial_value_is_preserved(self):
+        from character_values import validate_character_values
+        values = validate_character_values(["itemPacketNum", "petPacketNum"],
+                                           {"itemPacketNum": 90, "petPacketNum": 50})
+        self.assertEqual(values, {"itemPacketNum": 90, "petPacketNum": 50})
+
 
 if __name__ == "__main__":
     unittest.main()
