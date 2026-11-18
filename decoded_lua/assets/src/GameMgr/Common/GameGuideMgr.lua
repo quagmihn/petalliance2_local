@@ -313,6 +313,15 @@ function GameGuideMgr.sendQuestFinished()
 
 end
 
+function GameGuideMgr.interruptProcess(guideID)
+    if process == guideID and isGuiding then
+        -- Keep the quest active and avoid starting the same guide again
+        -- immediately in this session.
+        isGuiding = false
+        print("[GUIDE] interrupted id="..tostring(guideID))
+    end
+end
+
 ---完成当前新手引导
 function GameGuideMgr.finishProcess()
     print("完成新手引导", process)

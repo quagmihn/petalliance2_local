@@ -59,6 +59,17 @@ local stopGachaAnim = false
 local orderString = {}
 local curSound = nil
 
+local function machineDrawFailed(machine, buttonGroup, code)
+    GameGuideMgr.cancelGachaResultWait()
+    if CSResourceMgr.getCsbObj(resNameA) == machine then
+        CSResourceMgr.setButtonEnabledByNode(buttonGroup, true)
+        if code and code > 0 and code ~= Proto.Error.ERROR__PET_BRINGLIMIT
+                and code ~= Proto.Error.ERROR_NOT_ENOUGH_BAG_FREE_CELL then
+            TipsMgr.showError(SceneMgr.getRunningScene, code)
+        end
+    end
+end
+
 function GachaViewMgr.Init()
     resNameBG = "Pet/Formation/FormationBGNew.csb"
     resName = "Item/Gacha/gachaListView.csb"
@@ -319,6 +330,7 @@ end
 
 function GachaViewMgr.setMachine(theEggType)
     UIStack.push("GachaViewMgr.setMachine",function()
+        GameGuideMgr.cancelGachaResultWait()
         UIStack.pop("GachaViewMgr.setMachine")
         gMachineTime = nil
         mMachineTime = nil
@@ -369,6 +381,7 @@ function GachaViewMgr.setMachine(theEggType)
         cbbi:setLocalZOrder(-1)
 
         local function closeMachine()
+            GameGuideMgr.cancelGachaResultWait()
             UIStack.pop("GachaViewMgr.setMachine")
             GameAudio.playUISound("retract")
             gMachineTime = nil
@@ -547,33 +560,10 @@ function GachaViewMgr.setMachine(theEggType)
                                         -- GachaViewMgr.refreshServerTime()
                                     end)
                                 end,function(code)
-                                    if code == -1 then
-                                        NetInterface.sendWithBlock("GC_CapsuleEgg_Ack", function()
-                                            local PetSend = require("src.Net.Send.PetSend")
-                                            PetSend.sendCG_CapsuleEgg_Req({optType=theEggType ,choice = 1 ,bFree = bfree,choiceEx = 0})
-                                        end,function()
-                                                CSResourceMgr.setButtonEnabledByNode(OneChou, true)
-                                                if theEggType == eggType.mMachine and openHopeForce then
-                                                    NetInterface.sendWithBlock("GC_CapsuleEggAllInfoCmd_Ack", function()
-                                                    local PetSend = require("src.Net.Send.PetSend")
-                                                    PetSend.sendCG_CapsuleEggAllInfoCmd_Req()
-                                                    end)
-                                                end
-                                                -- if theEggType == eggType.vMachine and openHopeForce2 then
-                                                --     NetInterface.sendWithBlock("GC_CapsuleEggAllInfoCmd_Ack", function()
-                                                --     local PetSend = require("src.Net.Send.PetSend")
-                                                --     PetSend.sendCG_CapsuleEggAllInfoCmd_Req()
-                                                --     end)
-                                                -- end
-                                                NetInterface.sendWithBlock("GC_CapsuleEggCDs_Ack", function()
-                                                local PetSend = require("src.Net.Send.PetSend")
-                                                PetSend.sendCG_CapsuleEggCDs_Req()
-                                                end,function()
-                                                    -- GachaViewMgr.refreshServerTime()
-                                                end)
-                                            end,nil,nil,false)
-                                    end
-                                end,nil,false)
+                                    machineDrawFailed(page, OneChou, code)
+                                end,nil,false,function()
+                                    machineDrawFailed(page, OneChou)
+                                end)
                     else
                         DialogBoxMgr.showSmallDialogBox(scene, 1, unEnoughLabel)
                     end
@@ -604,7 +594,11 @@ function GachaViewMgr.setMachine(theEggType)
                                     --     PetSend.sendCG_CapsuleEggAllInfoCmd_Req()
                                     --     end)
                                     -- end
-                                end,nil,nil,false)
+                                end,function(code)
+                                    machineDrawFailed(page, TenChou, code)
+                                end,nil,false,function()
+                                    machineDrawFailed(page, TenChou)
+                                end)
                     else
                         DialogBoxMgr.showSmallDialogBox(scene, 1, unEnoughLabel)
                     end
@@ -1792,6 +1786,7 @@ function GachaViewMgr.setHopeForce(type)
 end
 
 function GachaViewMgr.hide()
+    GameGuideMgr.cancelGachaResultWait()
     StatusBarMgr.hideTopInfoBar()
     UIStack.pop("GachaViewMgr")
     if isEggMFree==0 and isEggGFree==0 and hopeValue<hopeValueMax and dreamValue<dreamValueMax --[[and hopeValue2<hopeValueMax2]] then

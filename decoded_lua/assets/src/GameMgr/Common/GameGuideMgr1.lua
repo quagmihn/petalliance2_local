@@ -615,6 +615,33 @@ function GameGuideMgr.secondAdventure()
 end
 
 --扭蛋引导
+local waitingForGachaResult = false
+
+function GameGuideMgr.cancelGachaResultWait()
+    if not waitingForGachaResult then
+        return
+    end
+    waitingForGachaResult = false
+    UnblockLoader.cancel("GachaViewMgrB")
+    GameGuideMgr.interruptProcess(10010)
+end
+
+local function waitForGachaResult(callback)
+    -- The draw button handler runs before the guide listener. A local
+    -- rejection (such as insufficient funds) never starts a request.
+    if not NetInterface.hasPending("GC_CapsuleEgg_Ack") then
+        GameGuideMgr.interruptProcess(10010)
+        return
+    end
+
+    -- NetInterface owns the loading mask until the ACK resolves.
+    waitingForGachaResult = true
+    UnblockLoader.addCallback("GachaViewMgrB", function()
+        waitingForGachaResult = false
+        callback()
+    end)
+end
+
 function GameGuideMgr.firstGacha()
     local function clickGachaStepTwo()
         local eggM = CSResourceMgr.getNodeByName("Item/Gacha/gachaListView.csb", "Button_Enter2")
@@ -625,8 +652,8 @@ function GameGuideMgr.firstGacha()
                 local OneChou = CSResourceMgr.getNodeByName("Item/Gacha/gachaMachineView.csb", "OneChou")
                 local oneDrawBtn = CSResourceMgr.seekNodeByName(OneChou,"Button_Go")
                 CocosModuleMgr.setButtonGuide(oneDrawBtn, 3.5, function()
-                    CocosModuleMgr.setScreenTouch(false)
-                    UnblockLoader.addCallback("GachaViewMgrB", function()
+                    waitForGachaResult(function()
+                        CocosModuleMgr.setScreenTouch(false)
                         local parent = CSResourceMgr.getNodeByName("Item/Gacha/oneDrawAwardView.csb","getItem_Copy")
                         parent:performWithDelay(function()
                             CocosModuleMgr.setScreenTouch(true)
@@ -666,8 +693,8 @@ function GameGuideMgr.firstGacha()
                 local OneChou = CSResourceMgr.getNodeByName("Item/Gacha/gachaMachineView.csb", "OneChou")
                 local oneDrawBtn = CSResourceMgr.seekNodeByName(OneChou,"Button_Go")
                 CocosModuleMgr.setButtonGuide(oneDrawBtn, 3.5, function()
-                    CocosModuleMgr.setScreenTouch(false)
-                    UnblockLoader.addCallback("GachaViewMgrB", function()
+                    waitForGachaResult(function()
+                        CocosModuleMgr.setScreenTouch(false)
                         local parent = CSResourceMgr.getNodeByName("Item/Gacha/oneDrawAwardView.csb","getItem_Copy")
                         parent:performWithDelay(function()
                             CocosModuleMgr.setScreenTouch(true)
@@ -756,6 +783,11 @@ function GameGuideMgr.firstGacha()
             PetSend.sendCG_CapsuleEggCDs_Req()
         end, function()
             startGuide()
+        end, function(code)
+            GameGuideMgr.interruptProcess(10010)
+            TipsMgr.showError(SceneMgr.getRunningScene, code)
+        end, nil, true, function()
+            GameGuideMgr.interruptProcess(10010)
         end)
     end, 0.5)
 
