@@ -17,7 +17,8 @@ def fixture_args(**overrides):
     return SimpleNamespace(**{
         "test_dsn_env": "TEST_DATABASE_URL", "apply": False, "manifest": None,
         "device_id": None, "level": 2, "gold": 500, "diamond": 250,
-        "item": [(1, 3)], **overrides,
+        "item": [(1, 3)], "independent": False, "active_quest": None,
+        "cleared_adventure": None, **overrides,
     })
 
 
@@ -26,6 +27,9 @@ class QAFixtureTests(unittest.IsolatedAsyncioTestCase):
         for overrides in (
             {"level": 0}, {"level": 100000}, {"gold": -1}, {"diamond": 1 << 32},
             {"item": [(0, 1)]}, {"item": [(1, 0)]}, {"item": [(1, 1), (1, 1)]},
+            {"independent": True, "level": 1},
+            {"independent": True, "active_quest": [10010]},
+            {"independent": True, "cleared_adventure": [(1, 7)]},
         ):
             with self.subTest(overrides=overrides), self.assertRaises(ValueError):
                 fixtures.fresh_resources(fixture_args(**overrides))
@@ -54,7 +58,8 @@ class QAFixtureTests(unittest.IsolatedAsyncioTestCase):
         try:
             with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()) as output:
                 path = Path(directory) / "fixture.json"
-                args = fixture_args(manifest=str(path))
+                args = fixture_args(manifest=str(path), independent=True, active_quest=[2],
+                                    cleared_adventure=[(1, 12)])
                 await fixtures.create_fresh_control(args)
                 plan = json.loads(output.getvalue())
                 self.assertTrue(plan["dry_run"])
@@ -76,6 +81,15 @@ class QAFixtureTests(unittest.IsolatedAsyncioTestCase):
                                                        "gold": 500, "diamond": 250})
                     self.assertEqual(await connection.fetchval(
                         "SELECT count FROM inventory WHERE char_id=$1 AND item_id=1", manifest["char_id"]), 3)
+                    self.assertTrue(await connection.fetchval(
+                        "SELECT game_values->'qa_independent'='true'::jsonb FROM characters WHERE char_id=$1",
+                        manifest["char_id"]))
+                    self.assertEqual([tuple(row) for row in await connection.fetch(
+                        "SELECT quest_id,status FROM quests WHERE char_id=$1", manifest["char_id"])],
+                        [(2, 0)])
+                    self.assertEqual(await connection.fetchval(
+                        "SELECT star_mask FROM character_adventure_clears WHERE char_id=$1 AND adventure_id=1",
+                        manifest["char_id"]), 12)
                 finally:
                     await fixtures.rollback_fixture(args)
                 self.assertIsNone(await connection.fetchval(

@@ -7,6 +7,14 @@ from client_config import table
 log = logging.getLogger("game_socket.inventory")
 
 
+def item_counts_update(counts):
+    """Synchronize absolute counts for changed inventory stacks."""
+    return 112, Writer().vector_strings([
+        json.dumps({"itemID": item_id, "num": count}, separators=(",", ":"))
+        for item_id, count in counts
+    ]).bytes()
+
+
 async def get_items(session, payload: bytes):
     rows = []
     if session.char_id is not None:
@@ -20,10 +28,7 @@ async def get_items(session, payload: bytes):
     responses = [(37, ack)]
     for start in range(0, len(rows) or 1, 255):
         batch = rows[start:start + 255]
-        items = [json.dumps(
-            {"itemID": row["item_id"], "num": row["count"]}, separators=(",", ":")
-        ) for row in batch]
-        responses.append((112, Writer().vector_strings(items).bytes()))
+        responses.append(item_counts_update((row["item_id"], row["count"]) for row in batch))
     return responses
 
 

@@ -74,6 +74,21 @@ CREATE TABLE IF NOT EXISTS local_month_cards (
     PRIMARY KEY (char_id, package_id)
 );
 
+CREATE TABLE IF NOT EXISTS local_draw_history (
+    draw_id BIGSERIAL PRIMARY KEY,
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    machine_id INTEGER NOT NULL,
+    draw_count INTEGER NOT NULL CHECK (draw_count IN (1, 10)),
+    is_free BOOLEAN NOT NULL,
+    draw_day BIGINT NOT NULL,
+    currency TEXT NOT NULL CHECK (currency IN ('gold', 'diamond')),
+    cost BIGINT NOT NULL CHECK (cost >= 0),
+    awards JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS local_draw_history_by_machine
+    ON local_draw_history(char_id, machine_id, draw_day) WHERE is_free;
+
 -- Remove the legacy always-on GM wallet enforcement. Balances are now changed
 -- only by validated transactional gameplay operations. Local payment sandbox
 -- is separately gated by LOCAL_PAYMENT_SANDBOX in the server process.

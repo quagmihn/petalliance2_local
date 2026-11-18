@@ -235,8 +235,11 @@ async def restore_device_binding(args):
 def fresh_resources(args):
     from client_config import table
     from db.database import _character_exp_thresholds
+    from quest_config import load_quests
 
     level = args.level if args.level is not None else 1
+    if args.independent and level < 2:
+        raise ValueError("independent QA requires level 2 or higher to avoid automatic quest 1")
     thresholds = _character_exp_thresholds()
     if not 1 <= level <= len(thresholds) + 1:
         raise ValueError("fixture level is outside the configured character level range")
@@ -257,8 +260,27 @@ def fresh_resources(args):
             inventory[item_id] = count
         if sum(inventory.values()) > max_amount:
             raise ValueError("fixture inventory exceeds the protocol item-count limit")
+    if (args.active_quest or args.cleared_adventure) and not args.independent:
+        raise ValueError("quest and adventure seeds require an independent QA fixture")
+    active_quests = {}
+    if args.active_quest:
+        quests = load_quests()
+        for quest_id in args.active_quest:
+            quest = quests.get(quest_id)
+            if quest is None or quest.strong_type.strip() == "1" or quest_id in active_quests:
+                raise ValueError(f"unknown, duplicate or tutorial quest {quest_id}")
+            active_quests[quest_id] = [0] * len(quest.objectives)
+    cleared_adventures = {}
+    if args.cleared_adventure:
+        adventures = table("AdventureInfo")
+        for adventure_id, star in args.cleared_adventure:
+            if adventure_id not in adventures or adventure_id in cleared_adventures or not 8 <= star <= 15:
+                raise ValueError(f"invalid clear state for adventure {adventure_id}")
+            cleared_adventures[adventure_id] = star
     return {"level": level, "exp": thresholds[level - 2] if level > 1 else 0,
-            "gold": gold, "diamond": diamond, "inventory": sorted(inventory.items())}
+            "gold": gold, "diamond": diamond, "inventory": sorted(inventory.items()),
+            "independent": args.independent, "active_quests": active_quests,
+            "cleared_adventures": cleared_adventures}
 
 
 async def create_fresh_control(args):
@@ -298,10 +320,11 @@ async def create_fresh_control(args):
                 "INSERT INTO accounts(username,token) VALUES($1,$2) RETURNING user_id",
                 username, account_token)
             character = await target.fetchrow(
-                """INSERT INTO characters(account_id,world_id,name,avatar,gender,level,exp,gold,diamond)
-                   VALUES($1,1,$2,1,1,$3,$4,$5,$6) RETURNING char_id""",
+                """INSERT INTO characters(account_id,world_id,name,avatar,gender,level,exp,gold,diamond,game_values)
+                   VALUES($1,1,$2,1,1,$3,$4,$5,$6,$7::jsonb) RETURNING char_id""",
                 account["user_id"], char_name, resources["level"], resources["exp"],
-                resources["gold"], resources["diamond"])
+                resources["gold"], resources["diamond"],
+                json.dumps({"qa_independent": True} if resources["independent"] else {}))
             char_id = character["char_id"]
             if resources["inventory"]:
                 await target.executemany(
@@ -311,9 +334,20 @@ async def create_fresh_control(args):
                 """INSERT INTO pets(char_id,pet_template_id,slot_index,skills_json,passive_skills_json)
                    VALUES($1,7,0,$2::jsonb,$3::jsonb) RETURNING pet_uid""",
                 char_id, json.dumps(skills), json.dumps(passives))
-            await target.execute(
-                "INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,1,0,'[0]'::jsonb)",
-                char_id)
+            if not resources["independent"]:
+                await target.execute(
+                    "INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,1,0,'[0]'::jsonb)",
+                    char_id)
+            if resources["active_quests"]:
+                await target.executemany(
+                    "INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,$2,0,$3::jsonb)",
+                    [(char_id, quest_id, json.dumps(progress))
+                     for quest_id, progress in resources["active_quests"].items()])
+            if resources["cleared_adventures"]:
+                await target.executemany(
+                    "INSERT INTO character_adventure_clears(char_id,adventure_id,star_mask) VALUES($1,$2,$3)",
+                    [(char_id, adventure_id, star)
+                     for adventure_id, star in resources["cleared_adventures"].items()])
             await target.execute(
                 "INSERT INTO homes(char_id,home_data) VALUES($1,jsonb_build_object('level',1,'homeName',$2::text,'furnitures','{}'::jsonb))",
                 char_id, char_name)
@@ -347,6 +381,12 @@ def main():
     parser.add_argument("--fresh-control", action="store_true",
                         help="create a fresh test account, character, configured Pet, quest and home")
     parser.add_argument("--level", type=int, help="fresh control character level")
+    parser.add_argument("--independent", action="store_true",
+                        help="create a level 2+ fresh control without the starter tutorial quest")
+    parser.add_argument("--active-quest", type=int, action="append", metavar="ID",
+                        help="seed an active non-tutorial quest for an independent QA fixture")
+    parser.add_argument("--cleared-adventure", type=int, nargs=2, action="append", metavar=("ID", "MASK"),
+                        help="seed an adventure clear for an independent QA fixture")
     parser.add_argument("--gold", type=int, help="fresh control starting gold")
     parser.add_argument("--diamond", type=int, help="fresh control starting diamonds")
     parser.add_argument("--item", type=int, nargs=2, action="append", metavar=("ID", "COUNT"),
@@ -356,8 +396,9 @@ def main():
     parser.add_argument("--rollback", help="remove exactly the fixture described by this manifest")
     parser.add_argument("--restore-device-binding", help="restore prior test device mapping, retain fixture")
     args = parser.parse_args()
-    resource_options = (args.level, args.gold, args.diamond, args.item)
-    if any(value is not None for value in resource_options) and (
+    resource_options = (args.level, args.gold, args.diamond, args.item,
+                        args.active_quest, args.cleared_adventure)
+    if (args.independent or any(value is not None for value in resource_options)) and (
             not args.fresh_control or args.rollback or args.restore_device_binding):
         parser.error("resource options only apply when creating a fresh control")
     if args.restore_device_binding:

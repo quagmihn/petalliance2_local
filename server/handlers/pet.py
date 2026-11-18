@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 
 from protocol import Reader, Writer
@@ -113,11 +114,19 @@ async def get_army(session, payload: bytes):
 
 
 async def get_capsule_egg_cds(session, payload: bytes):
+    from local_draw import cooldowns
+
+    Reader(payload).finish()
     # Proto.parseP_GC_CapsuleEggCDs_Ack reads a byte-count vector of
     # { times: WORD, timeLast: QWORD }. PetProcess indexes entries 1 and 2.
     body = Writer().u16(0).u8(2)
-    for _ in range(2):
-        body.u16(0).u64(0)
+    history = {}
+    if (session is not None and session.char_id is not None
+            and os.getenv("GAME_ENV") == "test" and os.getenv("MONSTER2_TEST_DRAW_CATALOG")):
+        history = await cooldowns(session.db, session.char_id)
+    for machine_id in (1, 2):
+        times, last = history.get(machine_id, (0, 0))
+        body.u16(times).u64(last)
     return 1526, body.bytes()
 
 

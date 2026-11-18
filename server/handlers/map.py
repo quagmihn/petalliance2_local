@@ -340,12 +340,12 @@ async def commit_quest(session, payload: bytes):
         responses.append((3141, Writer().u64(pet["objID"]).string(pet_payload).bytes()))
     item_ids = sorted({int(row["id"]) for row in awards if row["kind"] == "item"})
     if item_ids:
+        from handlers.inventory import item_counts_update
+
         counts = await session.db.pool.fetch(
             "SELECT item_id,count FROM inventory WHERE char_id=$1 AND item_id=ANY($2::int[])",
             session.char_id, item_ids)
-        responses.append((112, Writer().vector_strings([
-            json.dumps({"itemID": row["item_id"], "num": row["count"]}, separators=(",", ":"))
-            for row in counts]).bytes()))
+        responses.append(item_counts_update((row["item_id"], row["count"]) for row in counts))
     if any(row["kind"] in ("g_cash", "m_cash") for row in awards):
         from handlers.economy import wallet_update
         wallet = await session.db.pool.fetchrow(

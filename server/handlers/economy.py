@@ -76,6 +76,8 @@ async def buy_product(session, payload: bytes):
 
 
 async def buy_market(session, payload: bytes):
+    from handlers.inventory import item_counts_update
+
     r = Reader(payload); product_id, count = r.u32(), r.u32(); r.finish()
     ack = (563, Writer().u16(1).bytes())
     if session.char_id is None or not 1 <= count <= 99:
@@ -95,9 +97,7 @@ async def buy_market(session, payload: bytes):
     if purchase is None:
         return ack
     notifications = []
-    notifications.append((112, Writer().vector_strings([
-        json.dumps({"itemID": purchase["item_id"], "num": purchase["item_count"]},
-                   separators=(",", ":"))]).bytes()))
+    notifications.append(item_counts_update([(purchase["item_id"], purchase["item_count"])]))
     notifications.append(wallet_update(purchase["character"]))
     notifications.append((563, Writer().u16(0).bytes()))
     log.info("market_purchase char_id=%s market_id=%s item_id=%s count=%s cost=%s currency=%s",
@@ -194,10 +194,33 @@ async def recharge_test(session, payload: bytes):
 
 
 async def capsule_egg(session, payload: bytes):
-    r = Reader(payload); opt_type, choice, _free, _choice_ex = r.u16(), r.u16(), r.u16(), r.u16()
+    from handlers.inventory import item_counts_update
+    from local_draw import execute, test_catalog
+
+    r = Reader(payload)
+    opt_type, choice, free, selection = r.u16(), r.u16(), r.u16(), r.u16()
     r.finish()
-    log.warning("gacha_rejected reason=award_pool_catalog_unavailable char_id=%s", session.char_id)
-    return 1561, Writer().u16(1).bytes()
+    failure = 1561, Writer().u16(1).bytes()
+    if session.char_id is None or selection or free not in (0, 1) or choice not in (1, 2):
+        return failure
+    try:
+        machine = test_catalog().get(opt_type)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        log.error("local_draw_catalog_invalid error=%s", exc)
+        return failure
+    if machine is None:
+        log.info("gacha_rejected reason=no_local_catalog char_id=%s", session.char_id)
+        return failure
+    code, result = await execute(session.db, session.char_id, opt_type, machine,
+                                 1 if choice == 1 else 10, bool(free))
+    if result is None:
+        return 1561, Writer().u16(code).bytes()
+    awards, wallet, item_counts = result
+    return [
+        item_counts_update(item_counts.items()),
+        wallet_update(wallet),
+        (1561, Writer().u16(0).vector_strings([json.dumps(award) for award in awards]).bytes()),
+    ]
 
 
 async def load_month_card(session, payload: bytes):
