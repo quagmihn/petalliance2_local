@@ -90,6 +90,52 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(army.u16(), 0)
             self.assertEqual(json.loads(army.string()), {"1": [pet_uid], "1h": []})
 
+            # Exercise the real Stage-up protocol against configured costs in the test DB.
+            from client_config import table
+            pokemon = table("PokemonInfo")[starter["pokeID"]]
+            costs = table("PetAdvanceInfo")[1]["stageCons"][int(pokemon["elementAtt1"]) - 1]["costs"]
+            consume_table = table("ConsumeElementInfo")
+            await db.pool.execute("UPDATE pets SET level=2 WHERE pet_uid=$1", pet_uid)
+            await db.pool.execute("UPDATE characters SET gold=10000,diamond=10000 WHERE char_id=$1", char_id)
+            for cost_id in costs:
+                cost = consume_table[cost_id]
+                if cost["elementType"] == 3:
+                    await db.pool.execute(
+                        """INSERT INTO inventory(char_id,item_id,count) VALUES($1,$2,$3)
+                           ON CONFLICT(char_id,item_id) DO UPDATE SET count=EXCLUDED.count""",
+                        char_id, cost["elementID"], cost["num"])
+            before_costs = await db.pool.fetchrow(
+                "SELECT gold,diamond FROM characters WHERE char_id=$1", char_id)
+            stage_ack = await send(1038, Writer().u32(pet_uid).bytes(), 1032)
+            self.assertEqual((stage_ack.u16(), stage_ack.u32(), stage_ack.u16()), (0, pet_uid, 1))
+            stage_ack.finish()
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT training_stage FROM pets WHERE char_id=$1 AND pet_uid=$2", char_id, pet_uid), 1)
+            for cost_id in costs:
+                cost = consume_table[cost_id]
+                if cost["elementType"] == 3:
+                    self.assertIsNone(await db.pool.fetchval(
+                        "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2",
+                        char_id, cost["elementID"]))
+            r = await send(3140, Writer().u64(char_id).u32(0).u32(10).bytes(), 3139)
+            self.assertEqual((r.u16(), r.u64()), (0, char_id)); r.u32(); r.u32()
+            self.assertEqual(r.u8(), 1)
+            upgraded_pet = json.loads(r.string())
+            self.assertEqual((upgraded_pet["objID"], upgraded_pet["Stage"]), (pet_uid, 1))
+            r.u8(); r.u32(); r.u8(); r.finish()
+            after_costs = await db.pool.fetchrow(
+                "SELECT gold,diamond FROM characters WHERE char_id=$1", char_id)
+            for cost_id in costs:
+                cost = consume_table[cost_id]
+                if cost["elementType"] == 1:
+                    self.assertEqual(before_costs["gold"] - after_costs["gold"], cost["num"])
+                elif cost["elementType"] == 2:
+                    self.assertEqual(before_costs["diamond"] - after_costs["diamond"], cost["num"])
+            second_stage = await send(1038, Writer().u32(pet_uid).bytes(), 1032)
+            self.assertEqual(second_stage.u16(), 1); second_stage.finish()
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT training_stage FROM pets WHERE char_id=$1 AND pet_uid=$2", char_id, pet_uid), 1)
+
             await db.start_adventure(char_id, 1)
             event_ack = await send(4, Writer().u32(1).u8(2).u32(5).u32(30).bytes(), 5)
             self.assertEqual(event_ack.u16(), 0); event_ack.finish()
@@ -215,6 +261,32 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10003", char_id)
             self.assertEqual(json.loads(guide_progress) if isinstance(guide_progress, str)
                              else guide_progress, [1])
+            await db.pool.execute(
+                """INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,10006,1,'[1]')
+                   ON CONFLICT(char_id,quest_id) DO UPDATE SET status=1,progress='[1]'""", char_id)
+            await db.pool.execute(
+                """INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,10007,0,'[0]')
+                   ON CONFLICT(char_id,quest_id) DO UPDATE SET status=0,progress='[0]'""", char_id)
+            group_ack = await send(136, Writer().u32(5).u32(99999).u32(0).bytes(), 210)
+            self.assertEqual(group_ack.u16(), 0); self.assertEqual(group_ack.u8(), 1)
+            group_enemy = json.loads(group_ack.string())
+            self.assertEqual(group_enemy["mID"], 999994)
+            self.assertEqual(group_enemy["skill1"], 541)
+            self.assertEqual((group_ack.u32(), group_ack.u8()), (37, 0)); group_ack.finish()
+            end_ack = await send(263, Writer().u16(1).vector_strings(["{\"turn\":1}"]).bytes(), 186)
+            self.assertEqual((end_ack.u16(), end_ack.u32()), (0, 37)); end_ack.finish()
+            battle_progress = await db.pool.fetchval(
+                "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10007", char_id)
+            self.assertEqual(json.loads(battle_progress) if isinstance(battle_progress, str)
+                             else battle_progress, [1])
+            self.assertEqual((await send(400, Writer().u32(10007).bytes(), 726)).u16(), 0)
+            child_ntf = Reader((await receive())[1]); spawned = []
+            for _ in range(child_ntf.u8()):
+                spawned.append(child_ntf.u32()); child_ntf.u8(); child_ntf.u64()
+                for _ in range(child_ntf.u8()): child_ntf.u32()
+            child_ntf.finish(); self.assertEqual(spawned, [10008])
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT status FROM quests WHERE char_id=$1 AND quest_id=10007", char_id), 1)
         finally:
             if writer:
                 writer.close(); await writer.wait_closed()

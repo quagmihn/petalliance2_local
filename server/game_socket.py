@@ -82,6 +82,7 @@ CMD = {
     "take_month_card": 3102, "take_month_card_ack": 3103,
     "buy_npc": 86, "red_heart": 79, "claim_vip": 61,
     "pet_star_up": 1596, "pet_evolve": 1247, "pet_super_evolve": 729,
+    "pet_advance_stage": 1038, "pet_advance_stage_ack": 1032,
     "pet_skill_level": 1302, "pet_equip_strengthen": 561,
     "change_channel": 380, "change_channel_ack": 386,
     "chat": 45, "chat_ack": 35,
@@ -185,6 +186,7 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["red_heart"]: return await economy.red_heart(session, payload)
     if msg_id == CMD["claim_vip"]: return await economy.claim_vip_award(session, payload)
     if msg_id == CMD["pet_star_up"]: return await economy.pet_star_up(session, payload)
+    if msg_id == CMD["pet_advance_stage"]: return await pet.advance_stage(session, payload)
     if msg_id == CMD["pet_evolve"]: return await economy.pet_evolve(session, payload, 777)
     if msg_id == CMD["pet_super_evolve"]: return await economy.pet_evolve(session, payload, 728)
     if msg_id == CMD["pet_skill_level"]: return await economy.pet_skill_level(session, payload)

@@ -374,6 +374,78 @@ class Database:
                         await self._advance_configured_battle_objectives(conn, char_id)
                 return True
 
+    async def advance_pet_training_stage(self, char_id: int, pet_uid: int) -> int | None:
+        """Atomically charge and persist one configured Pet Stage increase."""
+        from client_config import table
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                char = await conn.fetchrow(
+                    "SELECT level,gold,diamond FROM characters WHERE char_id=$1 FOR UPDATE",
+                    char_id)
+                pet = await conn.fetchrow(
+                    "SELECT pet_uid,pet_template_id,level,training_stage FROM pets "
+                    "WHERE pet_uid=$1 AND char_id=$2 FOR UPDATE", pet_uid, char_id)
+                if char is None or pet is None:
+                    return None
+                pokemon = table("PokemonInfo").get(pet["pet_template_id"])
+                if pokemon is None:
+                    raise ValueError("unknown Pet template")
+                new_stage = int(pet["training_stage"]) + 1
+                max_stage = int(pokemon["topLevel"]) // 2
+                if new_stage > max_stage or int(pet["level"]) < new_stage * 2:
+                    raise ValueError("Pet level requirement or maximum Stage not met")
+                advance = table("PetAdvanceInfo").get(new_stage)
+                if advance is None:
+                    raise ValueError("missing configured PetAdvanceInfo row")
+                rarity_index = int(pokemon["elementAtt1"]) - 1
+                stage_cons = advance["stageCons"]
+                if not 0 <= rarity_index < len(stage_cons):
+                    raise ValueError("Pet rarity has no configured Stage costs")
+                consume_ids = stage_cons[rarity_index]["costs"]
+                consume_table = table("ConsumeElementInfo")
+                requirements: dict[tuple[str, int], int] = {}
+                for consume_id in consume_ids:
+                    consume = consume_table.get(int(consume_id))
+                    if consume is None:
+                        raise ValueError(f"missing ConsumeElementInfo {consume_id}")
+                    element_type, element_id, amount = (int(consume["elementType"]),
+                                                        int(consume["elementID"]),
+                                                        int(consume["num"]))
+                    kind = {1: "gold", 2: "diamond", 3: "item"}.get(element_type)
+                    if kind is None or amount <= 0:
+                        raise ValueError("unsupported Pet Stage cost configuration")
+                    key = (kind, element_id)
+                    requirements[key] = requirements.get(key, 0) + amount
+                for (kind, item_id), amount in requirements.items():
+                    if kind in ("gold", "diamond"):
+                        balance = int(char[kind])
+                        if balance < amount:
+                            raise ValueError(f"insufficient {kind}")
+                    else:
+                        item = await conn.fetchrow(
+                            "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2 FOR UPDATE",
+                            char_id, item_id)
+                        if item is None or int(item["count"]) < amount:
+                            raise ValueError(f"insufficient item {item_id}")
+                for (kind, item_id), amount in requirements.items():
+                    if kind in ("gold", "diamond"):
+                        await conn.execute(
+                            f"UPDATE characters SET {kind}={kind}-$2 WHERE char_id=$1",
+                            char_id, amount)
+                        char = dict(char)
+                        char[kind] = int(char[kind]) - amount
+                    else:
+                        await conn.execute(
+                            "UPDATE inventory SET count=count-$3 WHERE char_id=$1 AND item_id=$2",
+                            char_id, item_id, amount)
+                        await conn.execute(
+                            "DELETE FROM inventory WHERE char_id=$1 AND item_id=$2 AND count=0",
+                            char_id, item_id)
+                await conn.execute(
+                    "UPDATE pets SET training_stage=$3 WHERE char_id=$1 AND pet_uid=$2",
+                    char_id, pet_uid, new_stage)
+                return new_stage
+
     @staticmethod
     async def _advance_configured_battle_objectives(conn, char_id: int) -> None:
         from quest_config import load_quests

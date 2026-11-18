@@ -119,3 +119,21 @@ async def get_capsule_egg_cds(session, payload: bytes):
     for _ in range(2):
         body.u16(0).u64(0)
     return 1526, body.bytes()
+
+
+async def advance_stage(session, payload: bytes):
+    """Advance Pet training Stage using the client's configured costs."""
+    r = Reader(payload)
+    pet_uid = r.u32()
+    r.finish()
+    if session.char_id is None:
+        return 1032, Writer().u16(1).bytes()
+    try:
+        stage = await session.db.advance_pet_training_stage(session.char_id, pet_uid)
+    except (ValueError, KeyError, TypeError, IndexError) as exc:
+        log.warning("pet_stage_rejected account_id=%s char_id=%s pet_uid=%s reason=%s",
+                    getattr(session, "account_id", None), session.char_id, pet_uid, str(exc))
+        return 1032, Writer().u16(1).bytes()
+    if stage is None:
+        return 1032, Writer().u16(1).bytes()
+    return 1032, Writer().u16(0).u32(pet_uid).u16(stage).bytes()
