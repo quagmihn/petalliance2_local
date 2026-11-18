@@ -91,5 +91,17 @@ assert(pets.getFightPoint({}) == 0)
         r.finish()
 
 
+class TutorialBattleLuaContracts(unittest.TestCase):
+    def test_second_battle_reports_result_before_tutorial_continuation(self):
+        source = (Path(__file__).resolve().parents[2] /
+                  "decoded_lua/assets/src/GameMgr/Common/GameGuideMgr1.lua").read_text()
+        start = source.index("function GameGuideMgr.secondBattle()")
+        end = source.index("function GameGuideMgr.firstPetCatch()", start)
+        second_battle = source[start:end]
+        self.assertIn("param=99999", second_battle)
+        self.assertIn("BattleMapMgr.setBattleCallback(function(detail)", second_battle)
+        self.assertIn("BattleMapMgr.sendGameOver(detail.result, detail.me)", second_battle)
+
+
 if __name__ == "__main__":
     unittest.main()

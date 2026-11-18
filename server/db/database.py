@@ -308,13 +308,15 @@ class Database:
                 return True
 
     async def start_tutorial_battle(self, char_id: int, session_id: str, group_id: int) -> bool:
-        if group_id != 99998:
+        from battle_group_config import tutorial_requirements
+        requirement = tutorial_requirements().get(group_id)
+        if requirement is None:
             return False
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 active = await conn.fetchval(
-                    "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=10001 AND status=0",
-                    char_id)
+                    "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=$2 AND status=0",
+                    char_id, int(requirement["quest_id"]))
                 if not active:
                     return False
                 await conn.execute(
@@ -358,10 +360,16 @@ class Database:
                     "UPDATE tutorial_battle_sessions SET state=$2,finished_at=now() WHERE battle_id=$1",
                     battle["battle_id"], "won" if won else "lost")
                 if won:
-                    if battle["group_id"] == 99998 and battle["battle_type"] == 5:
-                        await conn.execute(
-                            "UPDATE quests SET progress='[1]'::jsonb WHERE char_id=$1 AND quest_id=10001 AND status=0",
-                            char_id)
+                    from battle_group_config import tutorial_requirements
+                    requirement = tutorial_requirements().get(battle["group_id"])
+                    if requirement is not None and battle["battle_type"] == 5:
+                        from quest_config import load_quests
+                        quest = load_quests().get(int(requirement["quest_id"]))
+                        if quest and quest.objectives:
+                            await conn.execute(
+                                "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2 AND status=0",
+                                char_id, quest.quest_id,
+                                json.dumps([objective.amount for objective in quest.objectives]))
                     elif battle["battle_type"] == 3:
                         await self._advance_configured_battle_objectives(conn, char_id)
                 return True

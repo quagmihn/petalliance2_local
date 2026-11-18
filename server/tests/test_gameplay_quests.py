@@ -63,7 +63,9 @@ class QuestDB:
         return False
 
     async def start_tutorial_battle(self, char_id, session_id, group_id):
-        if group_id != 99998 or self.quests.get(10001, {}).get("status") != 0:
+        from battle_group_config import tutorial_requirements
+        requirement = tutorial_requirements().get(group_id)
+        if requirement is None or self.quests.get(requirement["quest_id"], {}).get("status") != 0:
             return False
         self.battles[session_id] = ("started", group_id, 5)
         return True
@@ -73,8 +75,10 @@ class QuestDB:
         if not battle or battle[0] != "started":
             return False
         self.battles[session_id] = ("won" if won else "lost", battle[1], battle[2])
-        if won and battle[1] == 99998:
-            self.quests[10001]["progress"] = [1]
+        from battle_group_config import tutorial_requirements
+        requirement = tutorial_requirements().get(battle[1])
+        if won and requirement:
+            self.quests[requirement["quest_id"]]["progress"] = [1]
         elif won and battle[2] == 3 and 10002 in self.quests:
             self.quests[10002]["progress"] = [1]
         return True
@@ -295,6 +299,28 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         ack_id, body = await dispatch(self.session, 263,
                                       Writer().u16(1).vector_strings(["1,0"]).bytes())
         self.assertEqual((ack_id, Reader(body).u16()), (186, 1))
+
+    async def test_configured_second_tutorial_battle_99999_advances_quest_10007(self):
+        self.session.db.quests[10007] = {"status": 0, "progress": [0]}
+        ack_id, body = await dispatch(
+            self.session, 136, Writer().u32(5).u32(99999).u32(0).bytes())
+        self.assertEqual(ack_id, 210)
+        r = Reader(body); self.assertEqual(r.u16(), 0)
+        self.assertEqual(r.u8(), 1)
+        enemy = json.loads(r.string())
+        self.assertEqual(enemy, {"mID": 999994, "level": 1, "skill1": 541,
+                                 "skill2": 0, "skill3": 0, "hp": 224,
+                                 "petStage": 0, "petStar": 0, "skin": 0})
+        self.assertEqual(r.u32(), 37); self.assertEqual(r.u8(), 0); r.finish()
+        end = Writer().u16(1).u8(1).string("{\"turn\":1}").bytes()
+        ack_id, body = await dispatch(self.session, 263, end)
+        self.assertEqual((ack_id, Reader(body).u16(), self.session.db.quests[10007]["progress"]),
+                         (186, 0, [1]))
+        # A configured battle group is still rejected when its configured quest is inactive.
+        self.session.db.quests[10007]["status"] = 1
+        ack_id, body = await dispatch(
+            self.session, 136, Writer().u32(5).u32(99999).u32(0).bytes())
+        self.assertEqual((ack_id, Reader(body).u16()), (210, 1))
 
     async def test_old_assumed_group_id_is_rejected_with_error_ack(self):
         self.session.db.quests[10001] = {"status": 0, "progress": [0]}

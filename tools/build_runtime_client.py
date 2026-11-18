@@ -74,6 +74,7 @@ def main():
                 data = b"XXTEA" + encrypt(Path("decoded_lua/assets/src/Net/Process/PVEProcess.lua").read_bytes(), b"kyopkm")
             if info.filename in {
                 "assets/src/GameMgr/Data/PokemonInfo.lua",
+                "assets/src/GameMgr/Common/GameGuideMgr1.lua",
                 "assets/src/Net/Process/ChatProcess.lua",
             }:
                 source_path = Path("decoded_lua") / info.filename

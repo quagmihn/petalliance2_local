@@ -8,6 +8,7 @@ from protocol import Reader, Writer
 from pet_config import tutorial_monster
 from client_config import table as client_table
 from pet_config import untrained_hp
+from battle_group_config import resolve_tutorial_group
 
 log = logging.getLogger("game_socket")
 
@@ -82,27 +83,29 @@ async def handle(message_id: int, payload: bytes, session):
             reason = "character_not_selected"
         elif battle_type != FIRST_GUIDE_BATTLE["battle_type"]:
             reason = "battle_type_mismatch"
-        elif battle_type_id != FIRST_GUIDE_BATTLE["battle_type_id"]:
-            reason = "group_id_mismatch"
         elif sub_id != 0:
             reason = "sub_id_unsupported"
         else:
-            started = await session.db.start_tutorial_battle(
-                session.char_id, session.session_id, FIRST_GUIDE_BATTLE["group_id"])
+            resolved = resolve_tutorial_group(battle_type_id)
+            if resolved is None:
+                reason = "unconfigured_or_unauthorized_group"
+                started = False
+            else:
+                quest_id, enemies, exp = resolved
+                started = await session.db.start_tutorial_battle(
+                    session.char_id, session.session_id, battle_type_id)
+                if started:
+                    session.tutorial_battle_exp = exp
             if not started:
-                reason = "quest_not_active_or_encounter_already_invalid"
+                reason = reason or "quest_not_active_or_encounter_already_invalid"
         if reason:
             log.warning("battle_rejected request_id=136 char_id=%s handler=create_pve_battle "
                         "battle_type=%s battle_type_id=%s sub_id=%s rejection_reason=%s response_id=210 response_code=1",
                         session.char_id, battle_type, battle_type_id, sub_id, reason)
             return 210, Writer().u16(1).bytes()
-        monster = {key: value for key, value in FIRST_GUIDE_BATTLE.items()
-                   if key in {"monster_id", "level", "skill1", "skill2", "skill3", "hp",
-                              "petStage", "petStar", "skin"}}
-        monster["mID"] = monster.pop("monster_id")
         body = (Writer().u16(0).vector_strings([
-            json.dumps(monster, separators=(",", ":"))
-        ]).u32(FIRST_GUIDE_BATTLE["exp"]).vector_strings([]).bytes())
+            json.dumps(monster, separators=(",", ":")) for monster in enemies
+        ]).u32(exp).vector_strings([]).bytes())
         return 210, body
 
     if message_id == 263:  # CG_PVEBattleEnd_Req
@@ -127,6 +130,6 @@ async def handle(message_id: int, payload: bytes, session):
                         session.char_id, result, len(details), reason)
             return 186, Writer().u16(1).bytes()
         return 186, Writer().u16(0).u32(
-            FIRST_GUIDE_BATTLE["exp"] if won else 0).bytes()
+            int(getattr(session, "tutorial_battle_exp", 0)) if won else 0).bytes()
 
     return None
