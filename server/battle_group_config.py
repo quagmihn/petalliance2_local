@@ -84,6 +84,42 @@ def world_map_trainer_events() -> dict[int, int]:
 
 
 @lru_cache(maxsize=1)
+def world_map_wild_events() -> dict[int, int]:
+    """Map event IDs of type 1 to their configured MonstrosityInfo IDs."""
+    from client_config import text_table
+    return {int(row[0]): int(row[2]) for row in text_table("map_event.txt")[1:]
+            if len(row) >= 3 and row[0].isdigit() and row[1] == "1" and row[2].isdigit()}
+
+
+def resolve_world_map_wild(monster_id: int) -> tuple[dict, int] | None:
+    """Resolve a normal world-map wild encounter without capture privileges."""
+    configured_ids = set(world_map_wild_events().values())
+    info = table("MonstrosityInfo").get(monster_id)
+    if monster_id not in configured_ids or info is None or not info["level"]:
+        return None
+    level = int(info["level"][0])
+    stage, star = int(info["petStage"]), int(info["petStar"])
+    hp = (untrained_hp(int(info["petnumber"]), level, stage, star)
+          * int(info["amendmentHP"]) // 1000)
+    skill = lambda key: int(info[key][0]) if info[key] else 0
+    return ({"mID": int(info["id"]), "level": level,
+             "skill1": skill("skill1"), "skill2": skill("skill2"),
+             "skill3": skill("skill3"), "hp": hp,
+             "petStage": stage, "petStar": star, "skin": 0}, int(info["exp"]))
+
+
+@lru_cache(maxsize=1)
+def world_map_event_types() -> dict[int, int]:
+    """Target client's configured world-map event type by event ID."""
+    from client_config import text_table
+    result = {}
+    for row in text_table("map_event.txt")[1:]:
+        if len(row) >= 2 and row[0].isdigit() and row[1].isdigit():
+            result[int(row[0])] = int(row[1])
+    return result
+
+
+@lru_cache(maxsize=1)
 def world_map_node_unlocks() -> dict[tuple[int, int], int]:
     """Target client lock index for each configured (world map, node) pair."""
     from client_config import text_table

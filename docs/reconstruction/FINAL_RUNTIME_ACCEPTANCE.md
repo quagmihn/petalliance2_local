@@ -23,6 +23,8 @@ Verified source commit: `144d757` (`Fix Waydroid wild capture and market state s
 | Push | BLOCKED | `git push origin main` failed because GitHub HTTPS credential helper has no interactive username source |
 | Configured quest rewards | CODE + PostgreSQL/TCP PASS; PLAY RUNTIME PENDING | RewardInfo-backed atomic gold/diamond/item/EXP/Pet grants, claim idempotency, and pre-ACK notifications tested in the 93-test suite on `monster2_test_db`; not deployed to the play server and not yet exercised through Waydroid |
 | World-map event-18 trainer nodes | PROTOCOL + PostgreSQL/TCP PASS; WAYDROID PENDING | 55 configured objective references across 53 groups; target `map_event.txt` type-0 group resolution and `map_node.txt` unlock validation; one full battle/update/commit integration fixture |
+| World-map event-18 wild nodes | PROTOCOL + PostgreSQL/TCP PASS; WAYDROID PENDING | 30 objective references; event type 1 resolves configured MonstrosityInfo, requires unlocked node and active quest, and advances only on won type-1 battle |
+| World-map event-18 gift/collect nodes | PROTOCOL + PostgreSQL/TCP PASS; WAYDROID PENDING | 111 objective references; event type 2 follows client `result=998` then request 3133, validates node unlock, and stores an idempotent node claim |
 
 Screenshots and synchronized server logs are local evidence under `artifacts/pet-exp-feed-20261118/` and are deliberately not tracked in Git. Production data was not manually edited to create a test pass. Runtime encounter rows from normal Waydroid gameplay are present in `monster2_db`.
 

@@ -9,7 +9,7 @@ from pet_config import tutorial_monster
 from client_config import table as client_table
 from pet_config import untrained_hp
 from battle_group_config import (resolve_monster_man_group, resolve_tutorial_group,
-                                 resolve_tutorial_wild)
+                                 resolve_tutorial_wild, resolve_world_map_wild)
 
 log = logging.getLogger("game_socket")
 
@@ -42,20 +42,27 @@ async def handle(message_id: int, payload: bytes, session):
             resolved = resolve_tutorial_wild(battle_type_id)
             if session.char_id is None:
                 return 210, Writer().u16(1).bytes()
-            if resolved is None:
-                reason = "unconfigured_wild_encounter"
-                started = False
-            else:
+            if resolved is not None:
                 quest_id, enemy, exp = resolved
                 started = await session.db.start_tutorial_wild_battle(
                     session.char_id, session.session_id, battle_type_id, quest_id,
                     int(client_table("MonstrosityInfo")[battle_type_id]["capture"]))
                 if started:
                     session.tutorial_battle_exp = exp
+            else:
+                world_wild = resolve_world_map_wild(battle_type_id)
+                started = bool(world_wild and await session.db.start_world_map_quest_wild(
+                    session.char_id, session.session_id, battle_type_id))
+                if started and world_wild:
+                    enemy, exp = world_wild
+                    session.tutorial_battle_exp = exp
+                    resolved = (None, enemy, exp)
+                elif world_wild is None:
+                    reason = "unconfigured_wild_encounter"
             if not started:
                 reason = reason or "quest_not_active_or_encounter_already_invalid"
             if reason:
-                log.warning("battle_rejected request_id=136 char_id=%s handler=tutorial_wild_battle "
+                log.warning("battle_rejected request_id=136 char_id=%s handler=wild_battle "
                             "battle_type=%s battle_type_id=%s sub_id=%s rejection_reason=%s "
                             "response_id=210 response_code=1",
                             session.char_id, battle_type, battle_type_id, sub_id, reason)

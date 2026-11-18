@@ -145,6 +145,16 @@ CREATE TABLE IF NOT EXISTS quest_reward_claims (
     PRIMARY KEY (char_id, quest_id)
 );
 
+-- Idempotency for world-map gift/collect nodes reported by the target client.
+CREATE TABLE IF NOT EXISTS world_map_node_claims (
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    quest_id INTEGER NOT NULL,
+    map_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    claimed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (char_id, quest_id, map_id, node_id)
+);
+
 CREATE TABLE IF NOT EXISTS homes (
     char_id BIGINT PRIMARY KEY REFERENCES characters(char_id) ON DELETE CASCADE,
     home_data JSONB NOT NULL DEFAULT '{"level":1,"furnitures":{}}'::jsonb,

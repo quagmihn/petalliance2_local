@@ -401,7 +401,7 @@ class Database:
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 character = await conn.fetchrow(
-                    "SELECT level FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                    "SELECT level,game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
                 quest = await conn.fetchrow(
                     "SELECT status FROM quests WHERE char_id=$1 AND quest_id=$2 FOR UPDATE",
                     char_id, quest_id)
@@ -411,6 +411,43 @@ class Database:
                 configured = load_quests().get(quest_id)
                 if (configured and len(configured.objectives) == 1
                         and configured.objectives[0].event_type == 18):
+                    objective = configured.objectives[0]
+                    from battle_group_config import world_map_event_types, world_map_node_unlocks
+                    event_type = world_map_event_types().get(objective.final_id)
+                    if event_type == 2:
+                        # EmbeddedMapMgr's type-3 gift calls QuestInfo.sendQuestUpdate
+                        # after a successful tap (result=998). Validate that exact
+                        # configured node is unlocked, then claim it once.
+                        values = character.get("game_values")
+                        if isinstance(values, str): values = json.loads(values)
+                        if not isinstance(values, dict):
+                            return False
+                        try:
+                            map_lock = int(str(values.get("map_lock", "0-0")).split("-", 1)[0])
+                        except ValueError:
+                            return False
+                        node_lock = world_map_node_unlocks().get(
+                            (objective.main_id, objective.sub_id))
+                        if node_lock is None or node_lock > map_lock:
+                            return False
+                        saved = await conn.fetchval(
+                            "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=$2",
+                            char_id, quest_id)
+                        if isinstance(saved, str): saved = json.loads(saved)
+                        if isinstance(saved, list) and saved == [amount]:
+                            return True
+                        if not isinstance(saved, list) or saved != [0]:
+                            return False
+                        claim = await conn.fetchval(
+                            """INSERT INTO world_map_node_claims(char_id,quest_id,map_id,node_id)
+                               VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING 1""",
+                            char_id, quest_id, objective.main_id, objective.sub_id)
+                        if not claim:
+                            return False
+                        await conn.execute(
+                            "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2 AND status=0",
+                            char_id, quest_id, json.dumps([amount]))
+                        return True
                     # Lua echoes the progress after its node battle. The server
                     # already advanced this objective from the won encounter.
                     saved = await conn.fetchval(
@@ -525,6 +562,62 @@ class Database:
                     """INSERT INTO tutorial_battle_sessions
                        (char_id,session_id,group_id,battle_type,battle_type_id,state)
                        VALUES($1,$2,$3,5,$3,'started')""", char_id, session_id, group_id)
+                return True
+
+    async def start_world_map_quest_wild(self, char_id: int, session_id: str,
+                                         monster_id: int) -> bool:
+        """Authorize a map wild battle against one active, unlocked event-18 node."""
+        from battle_group_config import world_map_node_unlocks, world_map_wild_events
+        from quest_config import load_quests
+        event_monsters = world_map_wild_events()
+        matching = [(qid, obj.main_id, obj.sub_id) for qid, quest in load_quests().items()
+                    for obj in quest.objectives
+                    if obj.event_type == 18 and event_monsters.get(obj.final_id) == monster_id]
+        if not matching:
+            return False
+        node_unlocks = world_map_node_unlocks()
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                character = await conn.fetchrow(
+                    "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                if character is None:
+                    return False
+                values = character["game_values"] or {}
+                if isinstance(values, str): values = json.loads(values)
+                try:
+                    map_lock = int(str(values.get("map_lock", "0-0")).split("-", 1)[0])
+                except (AttributeError, ValueError):
+                    return False
+                eligible = [(qid, map_id, node_id) for qid, map_id, node_id in matching
+                            if (node_unlocks.get((map_id, node_id)) is not None
+                                and node_unlocks[(map_id, node_id)] <= map_lock)]
+                active_ids = list({qid for qid, _, _ in eligible})
+                active = await conn.fetch(
+                    """SELECT quest_id FROM quests WHERE char_id=$1 AND quest_id=ANY($2::int[])
+                       AND status=0 FOR UPDATE""", char_id, active_ids)
+                active_set = {int(row["quest_id"]) for row in active}
+                active_nodes = [entry for entry in eligible if entry[0] in active_set]
+                # The battle request omits map and node IDs. If the same
+                # monster appears in multiple active, reachable objectives,
+                # do not guess which one the client entered.
+                if len(active_nodes) != 1:
+                    return False
+                previous = await conn.fetchrow(
+                    """SELECT battle_id,battle_type,battle_type_id FROM tutorial_battle_sessions
+                       WHERE char_id=$1 AND state='started' ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""",
+                    char_id)
+                if previous is not None:
+                    if int(previous["battle_type"]) == 1 and int(previous["battle_type_id"]) == monster_id:
+                        await conn.execute("UPDATE tutorial_battle_sessions SET session_id=$2 WHERE battle_id=$1",
+                                           previous["battle_id"], session_id)
+                        return True
+                    await conn.execute(
+                        "UPDATE tutorial_battle_sessions SET state='lost',finished_at=now() WHERE battle_id=$1",
+                        previous["battle_id"])
+                await conn.execute(
+                    """INSERT INTO tutorial_battle_sessions
+                       (char_id,session_id,group_id,battle_type,battle_type_id,state)
+                       VALUES($1,$2,$3,1,$3,'started')""", char_id, session_id, monster_id)
                 return True
 
     async def start_tutorial_wild_battle(self, char_id: int, session_id: str,
@@ -765,6 +858,9 @@ class Database:
                     if battle["battle_type"] == 5 and not tutorial_handled:
                         await self._advance_world_map_trainer_objectives(
                             conn, char_id, int(battle["group_id"]))
+                    elif battle["battle_type"] == 1:
+                        await self._advance_world_map_wild_objectives(
+                            conn, char_id, int(battle["group_id"]))
                 return True
 
     @staticmethod
@@ -801,6 +897,40 @@ class Database:
             if type(values[index]) is int and values[index] < amount:
                 values[index] = amount
                 changed = True
+        if changed:
+            await conn.execute(
+                "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
+                char_id, quest.quest_id, json.dumps(values))
+
+    @staticmethod
+    async def _advance_world_map_wild_objectives(conn, char_id: int, monster_id: int) -> None:
+        from battle_group_config import world_map_node_unlocks, world_map_wild_events
+        from quest_config import load_quests
+        event_monsters = world_map_wild_events()
+        active = await conn.fetch(
+            "SELECT quest_id,progress FROM quests WHERE char_id=$1 AND status=0 FOR UPDATE", char_id)
+        matching = []
+        for row in active:
+            quest = load_quests().get(row["quest_id"])
+            if quest is None:
+                continue
+            for i, obj in enumerate(quest.objectives):
+                if obj.event_type == 18 and event_monsters.get(obj.final_id) == monster_id:
+                    matching.append((row, quest, i))
+        if len(matching) != 1:
+            return
+        row, quest, index = matching[0]
+        progress = row["progress"]
+        if isinstance(progress, str): progress = json.loads(progress)
+        if not isinstance(progress, list) or len(progress) != len(quest.objectives):
+            return
+        values = list(progress)
+        changed = False
+        objective = quest.objectives[index]
+        lock = world_map_node_unlocks().get((objective.main_id, objective.sub_id))
+        if lock is not None and type(values[index]) is int and values[index] < objective.amount:
+            values[index] = objective.amount
+            changed = True
         if changed:
             await conn.execute(
                 "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",

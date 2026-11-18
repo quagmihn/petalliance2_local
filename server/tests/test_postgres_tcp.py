@@ -511,6 +511,61 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((node_commit.u16(), node_commit.u32(), node_commit.u8()), (0, 1501, 0))
             node_commit.finish()
 
+            # Gift node: map_event 1006 is configured type 2, which the client
+            # exposes as EmbeddedMapMgr event type 3 and reports through 3133.
+            await db.pool.execute(
+                "UPDATE characters SET game_values=game_values || jsonb_build_object('map_lock','10-0') WHERE char_id=$1",
+                char_id)
+            await db.pool.execute(
+                "INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,1502,0,'[0]')",
+                char_id)
+            gift_update = Writer().u32(1502).u8(0).u64(1).u8(1).u32(1).bytes()
+            locked_gift = await send(3133, gift_update, 3132)
+            self.assertEqual(locked_gift.u16(), 1); locked_gift.finish()
+            await db.pool.execute(
+                "UPDATE characters SET game_values=game_values || jsonb_build_object('map_lock','11-0') WHERE char_id=$1",
+                char_id)
+            gift_ack = await send(3133, gift_update, 3132)
+            self.assertEqual(gift_ack.u16(), 0); gift_ack.finish()
+            duplicate_gift = await send(3133, gift_update, 3132)
+            self.assertEqual(duplicate_gift.u16(), 0); duplicate_gift.finish()
+            gift_progress = await db.pool.fetchval(
+                "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=1502", char_id)
+            self.assertEqual(json.loads(gift_progress) if isinstance(gift_progress, str)
+                             else gift_progress, [1])
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count(*) FROM world_map_node_claims WHERE char_id=$1 AND quest_id=1502",
+                char_id), 1)
+
+            # Wild node: event 1014 is type 1 and references MonstrosityInfo 215.
+            await db.pool.execute(
+                "UPDATE characters SET game_values=game_values || jsonb_build_object('map_lock','22-0') WHERE char_id=$1",
+                char_id)
+            await db.pool.execute(
+                "INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,1503,0,'[0]')",
+                char_id)
+            wild_req = Writer().u32(1).u32(215).u32(0).bytes()
+            locked_wild = await send(136, wild_req, 210)
+            self.assertEqual(locked_wild.u16(), 1); locked_wild.finish()
+            await db.pool.execute(
+                "UPDATE characters SET game_values=game_values || jsonb_build_object('map_lock','23-0') WHERE char_id=$1",
+                char_id)
+            wild_battle = await send(136, wild_req, 210)
+            self.assertEqual((wild_battle.u16(), wild_battle.u8()), (0, 1))
+            wild_enemy = json.loads(wild_battle.string())
+            self.assertEqual(wild_enemy["mID"], 215)
+            self.assertNotIn("canCatch", wild_enemy)
+            self.assertEqual(wild_battle.u32(), 16); wild_battle.u8(); wild_battle.finish()
+            wild_end = await send(263, Writer().u16(1).vector_strings(["{\"turn\":2}"]).bytes(), 186)
+            self.assertEqual((wild_end.u16(), wild_end.u32()), (0, 16)); wild_end.finish()
+            wild_progress = await db.pool.fetchval(
+                "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=1503", char_id)
+            self.assertEqual(json.loads(wild_progress) if isinstance(wild_progress, str)
+                             else wild_progress, [1])
+            wild_commit, _ = await commit_quest(1503)
+            self.assertEqual((wild_commit.u16(), wild_commit.u32(), wild_commit.u8()), (0, 1503, 0))
+            wild_commit.finish()
+
             await db.pool.execute(
                 """INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,10006,1,'[1]')
                    ON CONFLICT(char_id,quest_id) DO UPDATE SET status=1,progress='[1]'""", char_id)
