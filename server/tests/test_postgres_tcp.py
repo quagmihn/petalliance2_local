@@ -71,6 +71,21 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             r = await send(1655, create, 807)
             self.assertEqual((r.i32(), r.string(), r.i32()), (0, "", 0))
             char_id = r.u32(); self.assertNotEqual(char_id, 2)
+            async def draw_state():
+                return await db.pool.fetchrow(
+                    """SELECT gold, diamond,
+                       (SELECT count(*) FROM pets WHERE char_id=$1) AS pets,
+                       (SELECT coalesce(jsonb_object_agg(item_id, count), '{}'::jsonb)
+                        FROM inventory WHERE char_id=$1) AS items,
+                       (SELECT count(*) FROM quests WHERE char_id=$1 AND status=1) AS quests_finished
+                       FROM characters WHERE char_id=$1""", char_id)
+
+            before_draw = await draw_state()
+            draw = Writer().u16(2).u16(1).u16(1).u16(0).bytes()
+            rejected = await send(1392, draw, 1561)
+            self.assertEqual(rejected.u16(), 1)
+            rejected.finish()
+            self.assertEqual(await draw_state(), before_draw)
             # Exercise the configured local recharge on the real framed TCP
             # route. Its response is a committed wallet notification followed
             # by the protocol ACK; repeating the same order cannot grant twice.

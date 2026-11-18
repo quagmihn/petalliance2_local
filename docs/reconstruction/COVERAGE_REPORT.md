@@ -1,5 +1,9 @@
 # Coverage report
 
+## Draw rejection and isolated QA
+
+The full suite passed 103 tests with real PostgreSQL. Coverage gained a targeted Lua guide recovery check, a framed TCP draw rejection with a database state comparison, and three fixture tests. The draw reward engine and Android acceptance coverage did not increase. See [GAMEPLAY_ACCEPTANCE.md](GAMEPLAY_ACCEPTANCE.md).
+
 ## Deployment update
 
 Restore verification passed and the existing local recharge handler is live on monster2_db. M-PASS package entitlements and daily claims now pass PostgreSQL integration. Waydroid confirmed cold relogin to the existing map state, but the mandatory Senior Gacha guide blocked STORE and fresh map entries. These flows remain **BLOCKED** in real-client acceptance. See [full runtime acceptance](FULL_RUNTIME_ACCEPTANCE.md).
