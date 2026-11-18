@@ -16,6 +16,33 @@ Run `./server/run_all.sh test` with an explicit DATABASE_URL for
 for the previous `monster2_play_db` environment. The launcher verifies the
 actual database identity before either service starts.
 
+## Independent QA accounts
+
+Create a fresh account on `monster2_test_db` with a starting level, wallet and
+item stacks suited to the scenario. The fixture reads its connection from
+`TEST_DATABASE_URL` and checks the server-reported database and role before
+writing. Run the command first as a dry run, then rerun it with `--apply`.
+
+```bash
+python server/admin/copy_legacy_character_test.py --fresh-control \
+  --level 2 --gold 500 --diamond 250 --item 1 3 \
+  --manifest artifacts/legacy-pet-compat-20261118/example-qa.json
+```
+
+For an Android QA device whose binding already exists in `monster2_test_db`,
+add `--device-id <test-device-id>` to use that device's existing test login.
+Point the QA client at the test launcher. Keep the private manifest outside
+Git and use it to remove the fixture and restore the previous test binding.
+
+```bash
+python server/admin/copy_legacy_character_test.py \
+  --rollback artifacts/legacy-pet-compat-20261118/example-qa.json
+```
+
+This fixture supplies starting resources. Quest and tutorial progression still
+follow the normal client and server paths. Record fixture based interactions
+separately from a sequential tutorial playthrough.
+
 The verified gameplay APK is `dist/monster2_gameplay.apk`, SHA256
 `2957196b52dc2d86e87e1df8a5ab878aa0bf8f66c91407e17f2bff00af70f90f`.
 Keep signed APKs and database backups outside Git.

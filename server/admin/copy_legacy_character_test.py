@@ -232,6 +232,35 @@ async def restore_device_binding(args):
         await target.close()
 
 
+def fresh_resources(args):
+    from client_config import table
+    from db.database import _character_exp_thresholds
+
+    level = args.level if args.level is not None else 1
+    thresholds = _character_exp_thresholds()
+    if not 1 <= level <= len(thresholds) + 1:
+        raise ValueError("fixture level is outside the configured character level range")
+    gold = args.gold if args.gold is not None else 0
+    diamond = args.diamond if args.diamond is not None else 0
+    max_amount = (1 << 32) - 1
+    if not all(0 <= amount <= max_amount for amount in (gold, diamond)):
+        raise ValueError("fixture balances must be unsigned 32-bit values")
+
+    inventory = {}
+    if args.item:
+        items = table("ItemInfo")
+        for item_id, count in args.item:
+            if item_id not in items:
+                raise ValueError(f"unknown fixture item ID {item_id}")
+            if item_id in inventory or not 1 <= count <= max_amount:
+                raise ValueError(f"duplicate item or invalid count for fixture item {item_id}")
+            inventory[item_id] = count
+        if sum(inventory.values()) > max_amount:
+            raise ValueError("fixture inventory exceeds the protocol item-count limit")
+    return {"level": level, "exp": thresholds[level - 2] if level > 1 else 0,
+            "gold": gold, "diamond": diamond, "inventory": sorted(inventory.items())}
+
+
 async def create_fresh_control(args):
     target = await asyncpg.connect(os.environ[args.test_dsn_env])
     try:
@@ -240,6 +269,7 @@ async def create_fresh_control(args):
             "(SELECT rolsuper FROM pg_roles WHERE rolname=current_user) superuser")
         if identity["db"] != "monster2_test_db" or identity["superuser"]:
             raise ValueError("fresh control requires non-superuser monster2_test_db")
+        resources = fresh_resources(args)
         device = None
         if args.device_id:
             device = await target.fetchrow(
@@ -255,21 +285,28 @@ async def create_fresh_control(args):
             print(json.dumps({"database": identity["db"], "role": identity["role"],
                               "character": char_name, "pet_template_id": 7,
                               "device_binding_will_move": bool(args.device_id),
+                              "resources": resources,
                               "dry_run": True}))
             return
         from pet_config import starting_skills
         skills, passives = starting_skills(7)
         fixture = {"version": 1, "database": "monster2_test_db", "username": username,
                    "account_token": account_token, "device_binding_before": dict(device) if device else None,
-                   "fresh_control": True, "char_name": char_name}
+                   "fresh_control": True, "char_name": char_name, "resources": resources}
         async with target.transaction():
             account = await target.fetchrow(
                 "INSERT INTO accounts(username,token) VALUES($1,$2) RETURNING user_id",
                 username, account_token)
             character = await target.fetchrow(
-                """INSERT INTO characters(account_id,world_id,name,avatar,gender)
-                   VALUES($1,1,$2,1,1) RETURNING char_id""", account["user_id"], char_name)
+                """INSERT INTO characters(account_id,world_id,name,avatar,gender,level,exp,gold,diamond)
+                   VALUES($1,1,$2,1,1,$3,$4,$5,$6) RETURNING char_id""",
+                account["user_id"], char_name, resources["level"], resources["exp"],
+                resources["gold"], resources["diamond"])
             char_id = character["char_id"]
+            if resources["inventory"]:
+                await target.executemany(
+                    "INSERT INTO inventory(char_id,item_id,count) VALUES($1,$2,$3)",
+                    [(char_id, item_id, count) for item_id, count in resources["inventory"]])
             pet = await target.fetchrow(
                 """INSERT INTO pets(char_id,pet_template_id,slot_index,skills_json,passive_skills_json)
                    VALUES($1,7,0,$2::jsonb,$3::jsonb) RETURNING pet_uid""",
@@ -281,9 +318,13 @@ async def create_fresh_control(args):
                 "INSERT INTO homes(char_id,home_data) VALUES($1,jsonb_build_object('level',1,'homeName',$2::text,'furnitures','{}'::jsonb))",
                 char_id, char_name)
             if device:
-                await target.execute(
-                    "UPDATE device_bindings SET account_id=$3 WHERE device_id=$1 AND world_id=$2",
-                    args.device_id, 1, account["user_id"])
+                updated = await target.fetchval(
+                    """UPDATE device_bindings SET account_id=$3 WHERE device_id=$1 AND world_id=1
+                       AND account_id=$2 AND device_token=$4 AND created_at=$5 RETURNING account_id""",
+                    args.device_id, device["account_id"], account["user_id"],
+                    device["device_token"], device["created_at"])
+                if updated is None:
+                    raise ValueError("test device binding changed during fixture setup")
             fixture.update(account_id=account["user_id"], char_id=char_id,
                            pet_uid=pet["pet_uid"], device_binding_after=(
                                dict(device, account_id=account["user_id"]) if device else None))
@@ -291,7 +332,8 @@ async def create_fresh_control(args):
         print(json.dumps({"database": identity["db"], "role": identity["role"],
                           "account_id": fixture["account_id"], "char_id": fixture["char_id"],
                           "pet_uid": fixture["pet_uid"], "pet_template_id": 7,
-                          "skills": skills, "manifest": str(manifest_path)}, sort_keys=True))
+                          "skills": skills, "resources": resources,
+                          "manifest": str(manifest_path)}, sort_keys=True))
     finally:
         await target.close()
 
@@ -304,11 +346,20 @@ def main():
     parser.add_argument("--device-id", help="temporarily bind this existing test device to the copy")
     parser.add_argument("--fresh-control", action="store_true",
                         help="create a fresh test account, character, configured Pet, quest and home")
+    parser.add_argument("--level", type=int, help="fresh control character level")
+    parser.add_argument("--gold", type=int, help="fresh control starting gold")
+    parser.add_argument("--diamond", type=int, help="fresh control starting diamonds")
+    parser.add_argument("--item", type=int, nargs=2, action="append", metavar=("ID", "COUNT"),
+                        help="fresh control inventory stack, repeatable")
     parser.add_argument("--manifest")
     parser.add_argument("--apply", action="store_true", help="create test fixture; default is dry-run")
     parser.add_argument("--rollback", help="remove exactly the fixture described by this manifest")
     parser.add_argument("--restore-device-binding", help="restore prior test device mapping, retain fixture")
     args = parser.parse_args()
+    resource_options = (args.level, args.gold, args.diamond, args.item)
+    if any(value is not None for value in resource_options) and (
+            not args.fresh_control or args.rollback or args.restore_device_binding):
+        parser.error("resource options only apply when creating a fresh control")
     if args.restore_device_binding:
         asyncio.run(restore_device_binding(args))
     elif args.rollback:
