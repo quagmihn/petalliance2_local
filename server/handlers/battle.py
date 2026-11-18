@@ -51,7 +51,7 @@ async def handle(message_id: int, payload: bytes, session):
                     session.tutorial_battle_exp = exp
             else:
                 world_wild = resolve_world_map_wild(battle_type_id)
-                started = bool(world_wild and await session.db.start_world_map_quest_wild(
+                started = bool(sub_id == 0 and world_wild and await session.db.start_world_map_quest_wild(
                     session.char_id, session.session_id, battle_type_id))
                 if started and world_wild:
                     enemy, exp = world_wild
@@ -135,7 +135,7 @@ async def handle(message_id: int, payload: bytes, session):
                 # active event-18 quest resolves this exact configured trainer
                 # through target map_event.txt (type 0) data.
                 group = resolve_monster_man_group(battle_type_id)
-                if group is not None:
+                if group is not None and sub_id == 0:
                     world_enemies, world_exp = group
                     started = await session.db.start_world_map_quest_battle(
                         session.char_id, session.session_id, battle_type_id)

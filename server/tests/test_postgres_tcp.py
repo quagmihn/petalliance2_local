@@ -550,6 +550,8 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             await db.pool.execute(
                 "UPDATE characters SET game_values=game_values || jsonb_build_object('map_lock','23-0') WHERE char_id=$1",
                 char_id)
+            wrong_node_wild = await send(136, Writer().u32(1).u32(215).u32(1).bytes(), 210)
+            self.assertEqual(wrong_node_wild.u16(), 1); wrong_node_wild.finish()
             wild_battle = await send(136, wild_req, 210)
             self.assertEqual((wild_battle.u16(), wild_battle.u8()), (0, 1))
             wild_enemy = json.loads(wild_battle.string())
