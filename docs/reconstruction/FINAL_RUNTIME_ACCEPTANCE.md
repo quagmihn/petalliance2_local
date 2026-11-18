@@ -21,6 +21,7 @@ Verified source commit: `144d757` (`Fix Waydroid wild capture and market state s
 | Events/recharge | BLOCKED/INCOMPLETE | no live event reward or local simulated recharge completion |
 | Production backup | PARTIAL | PostgreSQL archives and SHA256/TOC validation pass; isolated restore could not be run because current role lacks CREATEDB and `sudo -n -u postgres` requires password |
 | Push | BLOCKED | `git push origin main` failed because GitHub HTTPS credential helper has no interactive username source |
+| Configured quest rewards | CODE + PostgreSQL/TCP PASS; PLAY RUNTIME PENDING | RewardInfo-backed atomic gold/diamond/item/EXP/Pet grants, claim idempotency, and pre-ACK notifications tested in the 92-test suite on `monster2_test_db`; not deployed to the play server and not yet exercised through Waydroid |
 
 Screenshots and synchronized server logs are local evidence under `artifacts/pet-exp-feed-20261118/` and are deliberately not tracked in Git. Production data was not manually edited to create a test pass. Runtime encounter rows from normal Waydroid gameplay are present in `monster2_db`.
 

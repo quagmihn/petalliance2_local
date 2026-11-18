@@ -135,6 +135,16 @@ CREATE TABLE IF NOT EXISTS quests (
     UNIQUE(char_id, quest_id)
 );
 
+-- Persist the exact configured quest rewards so a retried CommitQuest returns
+-- the same award payload without granting the reward twice.
+CREATE TABLE IF NOT EXISTS quest_reward_claims (
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    quest_id INTEGER NOT NULL,
+    awards JSONB NOT NULL DEFAULT '[]'::jsonb,
+    claimed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (char_id, quest_id)
+);
+
 CREATE TABLE IF NOT EXISTS homes (
     char_id BIGINT PRIMARY KEY REFERENCES characters(char_id) ON DELETE CASCADE,
     home_data JSONB NOT NULL DEFAULT '{"level":1,"furnitures":{}}'::jsonb,

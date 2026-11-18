@@ -11,8 +11,8 @@ Checkpoint baseline tag: `baseline-partial-verified-2026-11-18` at commit `947a0
 
 ## P1 — shared domain engines
 
-5. Implement inventory slot/stack limits from client config and catalog semantics; make reward and purchase grants share the same transactional service.
-6. Map every quest objective event type to a verified domain event adapter; add graph/reference tests for all 747 rows.
+5. Implement inventory slot/stack limits from client config and catalog semantics; share the reward resolver with purchase/adventure paths. Quest commits now grant supported RewardInfo gold/diamond/item/EXP/Pet rewards atomically and persist idempotency claims; purchase/adventure reward service reuse remains.
+6. Map every quest objective event type to a verified domain event adapter; add graph/reference tests for all 747 rows. Current quest reward coverage: 72 configured award IDs resolve; 367 reference absent RewardInfo IDs; 308 use awardID=0. Quest reward runtime through Waydroid is pending.
 7. Build map/adventure state graph and generic entry/explore/event/battle/clear/reward lifecycle from AdventureInfo, SceneInfo, MapNodeInfo, MapEventInfo, and client callsites.
 8. Add per-mode battle resolver/eligibility/reward contract for all discovered battle type families; never authorize unknown IDs.
 9. Implement Pet level/stage/evolution/strengthen/star/equipment/skill flows independently from their exact configs and protocol.

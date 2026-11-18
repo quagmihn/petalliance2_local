@@ -1,5 +1,7 @@
 import json
 import unittest
+from dataclasses import replace
+from unittest.mock import patch
 from types import SimpleNamespace
 
 from game_socket import CMD, dispatch
@@ -103,16 +105,16 @@ class QuestDB:
         from client_config import table
         return int(table("MonsterGroupManInfo")[group_id]["exp"])
 
-    async def commit_configured_tutorial_quest(self, char_id, quest, all_quests):
+    async def commit_configured_tutorial_quest(self, char_id, quest, all_quests, configured_reward=None):
         row = self.quests.get(quest.quest_id)
         if row is None:
-            return False, []
+            return False, [], [], []
         if row["status"] == 1:
-            return True, []
+            return True, [], [], []
         if row["status"] != 0:
-            return False, []
+            return False, [], [], []
         if quest.parent_id and self.quests.get(quest.parent_id, {}).get("status") != 1:
-            return False, []
+            return False, [], [], []
         progress = row.get("progress", [])
         marker = (quest.strong_type == "1" and bool(quest.objectives)
                   and all(o.event_type == 2 and not o.main_id and not o.sub_id and not o.final_id
@@ -120,7 +122,7 @@ class QuestDB:
         if (len(progress) != len(quest.objectives)
                 or (not marker and any(value < objective.amount
                                        for value, objective in zip(progress, quest.objectives)))):
-            return False, []
+            return False, [], [], []
         if marker:
             progress = [max(value, objective.amount)
                         for value, objective in zip(progress, quest.objectives)]
@@ -131,7 +133,8 @@ class QuestDB:
             if child and child not in self.quests:
                 self.quests[child] = {"status": 0, "progress": [0] * max(1, len(all_quests[child].objectives))}
                 children.append(child)
-        return True, children
+        rewards = [configured_reward] if configured_reward else []
+        return True, children, rewards, []
 
     async def home_state(self, char_id):
         return {"level": 1, "homeName": "starter", "furnitures": {}} if char_id == 2 else None
@@ -225,15 +228,28 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         # completion marker used by GameGuideMgr.finishProcess().
         self.session.db.quests[10002] = {"status": 1, "progress": [1]}
         self.session.db.quests[10003] = {"status": 0, "progress": [0]}
-        ok, _ = await self.session.db.commit_configured_tutorial_quest(
+        ok, _, _, _ = await self.session.db.commit_configured_tutorial_quest(
             self.session.char_id, self.config[10003], self.config)
         self.assertTrue(ok)
         self.assertEqual(self.session.db.quests[10003]["progress"], [1])
         self.session.db.quests[10003]["status"] = 0
         self.session.db.quests[10002]["status"] = 0
-        ok, _ = await self.session.db.commit_configured_tutorial_quest(
+        ok, _, _, _ = await self.session.db.commit_configured_tutorial_quest(
             self.session.char_id, self.config[10003], self.config)
         self.assertFalse(ok)
+
+    async def test_missing_configured_reward_rejects_commit_without_completion(self):
+        from handlers import map as map_handler
+        quest = replace(self.config[10025], award_id=99999999)
+        catalog = dict(self.config)
+        catalog[quest.quest_id] = quest
+        self.session.db.quests[quest.quest_id] = {
+            "status": 0, "progress": [objective.amount for objective in quest.objectives]}
+        with patch.object(map_handler, "_QUEST_CONFIG", catalog):
+            ack_id, body = await map_handler.commit_quest(
+                self.session, Writer().u32(quest.quest_id).bytes())
+        self.assertEqual((ack_id, Reader(body).u16()), (726, 1))
+        self.assertEqual(self.session.db.quests[quest.quest_id]["status"], 0)
 
     async def test_configured_adventure_returns_real_sceneinfo_cells(self):
         ack_id, body = await dispatch(self.session, 2996, Writer().u32(1).bytes())

@@ -270,21 +270,28 @@ class PostgreSQLIntegrationTests(unittest.IsolatedAsyncioTestCase):
             char_id = char["char_id"]
             await db.ensure_first_quest_for_level_one(char_id)
             self.assertEqual(await db.commit_configured_tutorial_quest(char_id, quests[1], quests),
-                             (True, [10001]))
+                             (True, [10001], [], []))
             self.assertEqual(await db.commit_configured_tutorial_quest(char_id, quests[10001], quests),
-                             (False, []))
+                             (False, [], [], []))
             battle_session = "pgtest-" + secrets.token_hex(8)
             self.assertTrue(await db.start_tutorial_battle(char_id, battle_session, 99998))
             self.assertTrue(await db.finish_tutorial_battle(char_id, battle_session, True))
             self.assertFalse(await db.finish_tutorial_battle(char_id, battle_session, True))
-            self.assertEqual(await db.commit_configured_tutorial_quest(char_id, quests[10001], quests),
-                             (True, [2, 10002]))
+            from reward_config import resolve_reward
+            result = await db.commit_configured_tutorial_quest(
+                char_id, quests[10001], quests, resolve_reward(quests[10001].award_id, draw=0))
+            self.assertEqual(result[:2], (True, [2, 10002]))
+            self.assertEqual(result[2][0], {"kind": "g_cash", "id": 0, "num": 2000})
+            self.assertEqual(result[2][-1], {"kind": "pet", "id": 116, "num": 1})
+            self.assertEqual(len(result[3]), 1)
+            self.assertIn('"pokeID":116', result[3][0])
             gold = await db.pool.fetchval("SELECT gold FROM characters WHERE char_id=$1", char_id)
             self.assertEqual(gold, sum(int(q.gold_reward) if q.gold_reward.isdigit() else 0
                                        for q in (quests[1], quests[10001])))
             self.assertEqual(await db.commit_configured_tutorial_quest(char_id, quests[10001], quests),
-                             (True, []))
+                             (True, [], result[2], result[3]))
             self.assertEqual(await db.pool.fetchval("SELECT gold FROM characters WHERE char_id=$1", char_id), gold)
+            self.assertEqual(await db.pool.fetchval("SELECT count(*) FROM pets WHERE char_id=$1", char_id), 2)
         finally:
             try:
                 if account is not None:

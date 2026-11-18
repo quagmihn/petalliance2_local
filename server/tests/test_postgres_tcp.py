@@ -44,6 +44,16 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 actual, response, _ = await asyncio.wait_for(receive(), 3)
                 self.assertEqual(actual, expected)
                 return Reader(response)
+            async def commit_quest(quest_id):
+                writer.write(frame(400, xor_payload(Writer().u32(quest_id).bytes())))
+                await writer.drain()
+                notes = []
+                while True:
+                    msg, body, _ = await asyncio.wait_for(receive(), 3)
+                    if msg == 726:
+                        return Reader(body), notes
+                    self.assertIn(msg, (112, 3141, 473))
+                    notes.append(msg)
             suffix = secrets.token_hex(8)
             username, token = "tcp-test-" + suffix, secrets.token_hex(16)
             r = await send(2130, Writer().string(username).string(token).bytes(), 2126)
@@ -366,12 +376,28 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await send(690, Writer().string("sevenDayCompleteTask").bytes(), 721)).u16(), 0)
             self.assertEqual((await send(785, b"", 26)).u16(), 0)
             self.assertEqual((await receive())[0], 404)
-            self.assertEqual((await send(400, Writer().u32(1).bytes(), 726)).u16(), 0)
+            self.assertEqual((await commit_quest(1))[0].u16(), 0)
             self.assertEqual((await receive())[0], 404)
             self.assertEqual((await send(136, bytes.fromhex("050000009e86010000000000"), 210)).u16(), 0)
             # Explicit synthetic protocol fixture; never used as runtime proof.
             self.assertEqual((await send(263, Writer().u16(1).vector_strings(["1,0"]).bytes(), 186)).u16(), 0)
-            self.assertEqual((await send(400, Writer().u32(10001).bytes(), 726)).u16(), 0)
+            writer.write(frame(400, xor_payload(Writer().u32(10001).bytes())))
+            await writer.drain()
+            reward_messages = []
+            while True:
+                msg, body, _ = await asyncio.wait_for(receive(), 3)
+                reward_messages.append(msg)
+                if msg == 726:
+                    commit = Reader(body)
+                    self.assertEqual(commit.u16(), 0)
+                    self.assertEqual(commit.u32(), 10001)
+                    quest_awards = [json.loads(commit.string()) for _ in range(commit.u8())]
+                    commit.finish()
+                    break
+            self.assertEqual(reward_messages, [3141, 473, 726])
+            self.assertIn({"elementType": "pet", "elementID": 116, "num": 1}, quest_awards)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count(*) FROM pets WHERE char_id=$1 AND pet_template_id=116", char_id), 1)
             msg, body, _ = await receive(); self.assertEqual(msg, 404)
             ntf = Reader(body); children = []
             for _ in range(ntf.u8()):
@@ -401,7 +427,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             await db.pool.execute("UPDATE characters SET level=2 WHERE char_id=$1", char_id)
             update = Writer().u32(10002).u8(0).u64(1).u8(1).u32(1).bytes()
             self.assertEqual((await send(3133, update, 3132)).u16(), 0)
-            self.assertEqual((await send(400, Writer().u32(10002).bytes(), 726)).u16(), 0)
+            self.assertEqual((await commit_quest(10002))[0].u16(), 0)
             self.assertEqual((await receive())[0], 404)
             self.assertEqual((await send(2996, Writer().u32(1).bytes(), 3080)).u16(), 0)
             # The second configured map clear advances event-19 story progress.
@@ -412,7 +438,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=2", char_id)
             self.assertEqual(json.loads(story_progress) if isinstance(story_progress, str)
                              else story_progress, [1])
-            self.assertEqual((await send(400, Writer().u32(2).bytes(), 726)).u16(), 0)
+            self.assertEqual((await commit_quest(2))[0].u16(), 0)
             story_children = Reader((await receive())[1])
             spawned = []
             for _ in range(story_children.u8()):
@@ -420,11 +446,31 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 for _ in range(story_children.u8()): story_children.u32()
             story_children.finish()
             self.assertIn(3, spawned)
+            await db.pool.execute(
+                "UPDATE quests SET progress='[1]'::jsonb WHERE char_id=$1 AND quest_id=3", char_id)
+            item_commit, item_notes = await commit_quest(3)
+            self.assertEqual((item_commit.u16(), item_commit.u32()), (0, 3))
+            item_awards = [json.loads(item_commit.string()) for _ in range(item_commit.u8())]
+            item_commit.finish()
+            self.assertEqual(item_notes, [112, 473])
+            self.assertIn({"elementType": "item", "elementID": 10003, "num": 30}, item_awards)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=10003", char_id), 30)
+            child_message, child_body, _ = await receive()
+            self.assertEqual(child_message, 404)
+            retry_item_commit, _ = await commit_quest(3)
+            retry_item_commit.u16(); retry_item_commit.u32()
+            retry_awards = [json.loads(retry_item_commit.string())
+                            for _ in range(retry_item_commit.u8())]
+            retry_item_commit.finish()
+            self.assertEqual(retry_awards, item_awards)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=10003", char_id), 30)
             guide_progress = await db.pool.fetchval(
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10003", char_id)
             self.assertEqual(json.loads(guide_progress) if isinstance(guide_progress, str)
                              else guide_progress, [0])
-            self.assertEqual((await send(400, Writer().u32(10003).bytes(), 726)).u16(), 0)
+            self.assertEqual((await commit_quest(10003))[0].u16(), 0)
             self.assertEqual((await receive())[0], 404)
             self.assertEqual(await db.pool.fetchval(
                 "SELECT status FROM quests WHERE char_id=$1 AND quest_id=10003", char_id), 1)
@@ -450,7 +496,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10007", char_id)
             self.assertEqual(json.loads(battle_progress) if isinstance(battle_progress, str)
                              else battle_progress, [1])
-            self.assertEqual((await send(400, Writer().u32(10007).bytes(), 726)).u16(), 0)
+            self.assertEqual((await commit_quest(10007))[0].u16(), 0)
             child_ntf = Reader((await receive())[1]); spawned = []
             for _ in range(child_ntf.u8()):
                 spawned.append(child_ntf.u32()); child_ntf.u8(); child_ntf.u64()

@@ -22,6 +22,12 @@ Partial recovery only. The official server and client can log in, load Town, mov
 
 These catalogs preserve raw numeric fields where client semantics have not been established. They are discovery artifacts, not proof that every quest, map, event, or protocol flow is implemented. Quest graph checks expose inconsistent parent/child and missing reward references; see the generated validation block in `ALL_QUESTS.md`.
 
+### Configuration-driven quest rewards (new implementation checkpoint)
+
+Quest commit now resolves a configured `award_id` through `RewardInfo` and `AwardElementInfo`, using the configured weighted alternative and quantity. Element types 1–5 are handled as gold, diamonds, items, character EXP, or Pets. All direct NewQuestInfo rewards and the configured reward grant are committed atomically with quest completion, map unlock state, child activation, and a `quest_reward_claims` idempotency record. The exact ACK awards are replayed on duplicate CommitQuest requests without granting again. Item/currency updates and new Pet records are notified before ACK. Unknown/missing reward references fail with the quest error ACK and do not transition quest state.
+
+Content audit of 747 quest rows: 72 have a currently resolvable nonzero `award_id` using the implemented reward types; 308 have `award_id=0`; 367 reference RewardInfo IDs absent from the target asset set. This is configuration coverage only; the reward path has PostgreSQL/TCP tests but has not yet been exercised through Waydroid. Other AwardElementInfo types and the absent reward catalogs remain unsupported.
+
 ## Implemented changes and evidence
 
 ### Pet EXP feed and immediate UI ordering
@@ -49,7 +55,7 @@ On Waydroid, a tap on a walkable map position moved the avatar locally and gener
 
 ## Automated tests
 
-PostgreSQL integration and TCP suite: **87 PASS, 0 FAIL, 0 skipped** using `TEST_DATABASE_URL` for `monster2_test_db`. Tests include feed transaction/notification ordering, configured wild encounter authorization, capture transaction/idempotency, market catalog purchase, wallet canonical-field precedence, capture request/client state contract, and battle reconnect handling. These results do not replace Waydroid gameplay verification.
+PostgreSQL integration and TCP suite: **92 PASS, 0 FAIL, 0 skipped** using `TEST_DATABASE_URL` for `monster2_test_db`. The expanded suite covers quest reward resolution, atomic grants, Pet notification payload, retry idempotency, and fail-closed handling for missing RewardInfo, in addition to feed ordering, configured encounter authorization, capture idempotency, market purchase, wallet precedence, and battle reconnect handling. These results do not replace Waydroid gameplay verification.
 
 ## Runtime, backup, and APK
 
@@ -76,6 +82,4 @@ PostgreSQL integration and TCP suite: **87 PASS, 0 FAIL, 0 skipped** using `TEST
 | Local recharge | Not implemented. Only the configured `recharge.totalMoney` response shape was corrected |
 | Latency profiling | Request handler durations are logged; end-to-end database/TCP/UI interval profile is not yet produced |
 
-The live purchase dialog reports “BAG IS FULL”, but a read-only production query found one inventory stack containing two units; client config `GlobalConfigAddInfo` 6601 defines 70 initial item slots. No request 577 followed the dialog. The mismatch is likely in client bag state/capacity initialization and needs tracing before the catalog purchase can be accepted in Waydroid.
-
-The primary next acceptance path is to repair and verify that bag-capacity state, use the configured MarketInfo 201 purchase in the live capture UI, verify inventory/wallet notifications, complete one real capture at configured odds, and then verify quest progress and Pet persistence after relogin. Do not force success or inject items into the production character to manufacture a pass.
+The next runtime acceptance should use a fresh test character/database fixture to complete a quest with a configured item or Pet award and verify the client consumes notification 112/3141 plus the serialized awards vector. Do not use account 6 / character 2 to manufacture a quest-reward test. Broader quest objectives, Adventure progression, events, local recharge, and most shop catalogs remain incomplete.

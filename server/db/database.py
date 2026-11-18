@@ -804,11 +804,13 @@ class Database:
                     char_id, quest.quest_id, json.dumps(values))
 
     async def commit_configured_tutorial_quest(self, char_id: int, quest,
-                                               all_quests: dict[int, Any]) -> tuple[bool, list[int]]:
+                                               all_quests: dict[int, Any],
+                                               configured_reward: dict | None = None
+                                               ) -> tuple[bool, list[int], list[dict], list[str]]:
         """Atomically validate, complete, reward, unlock, and activate configured children."""
         objectives = quest.objectives
         if not objectives or any(objective.amount <= 0 for objective in objectives):
-            return False, []
+            return False, [], [], []
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 char = await conn.fetchrow(
@@ -818,17 +820,22 @@ class Database:
                     "SELECT status,progress FROM quests WHERE char_id=$1 AND quest_id=$2 FOR UPDATE",
                     char_id, quest.quest_id)
                 if char is None or current is None:
-                    return False, []
+                    return False, [], [], []
                 if current["status"] == 1:
-                    return True, []
+                    claim = await conn.fetchrow(
+                        "SELECT awards FROM quest_reward_claims WHERE char_id=$1 AND quest_id=$2",
+                        char_id, quest.quest_id)
+                    stored = (claim["awards"] if claim else {}) or {}
+                    if isinstance(stored, str): stored = json.loads(stored)
+                    return True, [], stored.get("awards", []), stored.get("pets", [])
                 if current["status"] != 0:
-                    return False, []
+                    return False, [], [], []
                 if quest.parent_id:
                     parent = await conn.fetchval(
                         "SELECT status FROM quests WHERE char_id=$1 AND quest_id=$2",
                         char_id, quest.parent_id)
                     if parent != 1:
-                        return False, []
+                        return False, [], [], []
                 progress = current["progress"]
                 if isinstance(progress, str):
                     progress = json.loads(progress)
@@ -836,7 +843,7 @@ class Database:
                     progress = progress.get("progressList", [])
                 if (not isinstance(progress, list) or len(progress) != len(objectives)
                         or any(type(value) is not int for value in progress)):
-                    return False, []
+                    return False, [], [], []
 
                 # Mandatory guide records sometimes encode a client tutorial
                 # step as event_type 2 with all target IDs set to zero. This is
@@ -852,7 +859,7 @@ class Database:
                                 for value, objective in zip(progress, objectives)]
                 elif any(value < objective.amount
                          for value, objective in zip(progress, objectives)):
-                    return False, []
+                    return False, [], [], []
 
                 new_children = []
                 for child_id in quest.child_ids:
@@ -872,6 +879,18 @@ class Database:
 
                 gold = int(quest.gold_reward) if quest.gold_reward.isdigit() else 0
                 exp = int(quest.exp_reward) if quest.exp_reward.isdigit() else 0
+                awards: list[dict] = []
+                if gold:
+                    awards.append({"kind": "g_cash", "id": 0, "num": gold})
+                if quest.diamond_reward:
+                    awards.append({"kind": "m_cash", "id": 0, "num": quest.diamond_reward})
+                if exp:
+                    awards.append({"kind": "exp", "id": 0, "num": exp})
+                if configured_reward is not None:
+                    awards.append(dict(configured_reward))
+                from reward_service import grant_rewards
+                grant_result = await grant_rewards(conn, char_id, awards, self._grant_character_exp)
+                pet_payloads = grant_result["pets"]
                 values = char["game_values"] or {}
                 if isinstance(values, str): values = json.loads(values)
                 map_lock = _merge_map_unlock(
@@ -880,12 +899,14 @@ class Database:
                     """UPDATE quests SET status=1,progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2""",
                     char_id, quest.quest_id, json.dumps(progress))
                 await conn.execute(
-                    """UPDATE characters SET gold=gold+$2,
-                       diamond=diamond+$3,game_values=game_values || jsonb_build_object('map_lock',$4::text)
-                       WHERE char_id=$1""",
-                    char_id, gold, quest.diamond_reward, map_lock)
-                await self._grant_character_exp(conn, char_id, exp)
-                return True, new_children
+                    """UPDATE characters SET game_values=game_values || jsonb_build_object('map_lock',$2::text)
+                       WHERE char_id=$1""", char_id, map_lock)
+                await conn.execute(
+                    """INSERT INTO quest_reward_claims(char_id,quest_id,awards)
+                       VALUES($1,$2,$3::jsonb) ON CONFLICT(char_id,quest_id) DO NOTHING""",
+                    char_id, quest.quest_id,
+                    json.dumps({"awards": awards, "pets": pet_payloads}, separators=(",", ":")))
+                return True, new_children, awards, pet_payloads
 
     async def repair_completed_quest_unlocks(self, char_id: int, all_quests: dict[int, Any]) -> None:
         """Reconcile only unlocks implied by already-completed configured quests."""
