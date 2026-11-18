@@ -43,6 +43,7 @@ The live account could not perform the Stage upgrade through the UI because it l
 ## Remaining limitations
 
 - Production Pet Stage UI action remains unverified until Pet UID 2 meets its actual level/material requirement through ordinary gameplay.
+- Request 1038 carries only the Pet UID, with no operation sequence/idempotency token. The atomic transaction prevents concurrent overspending, but a repeated application-level request after a committed success is indistinguishable from a deliberate next Stage action. Retry deduplication therefore remains unresolved and must not be claimed as guaranteed.
 - This change implements the traced training Stage operation; it does not assert that every distinct Pet level-up, enhancement, evolution, or skill-change operation is implemented.
 - The matrix inventories source-configured groups but does not claim every battle family has a handler; groups without verified caller semantics remain unimplemented.
 - The server exited once during the manual runtime sequence; it was restarted using the official launcher. The final cold relogin was successful and recovered the existing character, Pet, and quest state.
