@@ -478,6 +478,39 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10003", char_id)
             self.assertEqual(json.loads(guide_progress) if isinstance(guide_progress, str)
                              else guide_progress, [1])
+
+            # Configured event-18 map-node trainer: map_event 1003 is type 0,
+            # whose configured object is MonsterGroupManInfo 2003.
+            await db.pool.execute(
+                "UPDATE characters SET game_values=game_values || jsonb_build_object('map_lock','4-0') WHERE char_id=$1",
+                char_id)
+            await db.pool.execute(
+                "INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,1501,0,'[0]')",
+                char_id)
+            denied = await send(136, Writer().u32(5).u32(99999).u32(0).bytes(), 210)
+            self.assertEqual(denied.u16(), 1); denied.finish()
+            locked_node = await send(136, Writer().u32(5).u32(2003).u32(0).bytes(), 210)
+            self.assertEqual(locked_node.u16(), 1); locked_node.finish()
+            await db.pool.execute(
+                "UPDATE characters SET game_values=game_values || jsonb_build_object('map_lock','5-0') WHERE char_id=$1",
+                char_id)
+            node_battle = await send(136, Writer().u32(5).u32(2003).u32(0).bytes(), 210)
+            self.assertEqual((node_battle.u16(), node_battle.u8()), (0, 1))
+            node_enemy = json.loads(node_battle.string())
+            self.assertEqual(node_enemy["mID"], 1001)
+            self.assertEqual(node_battle.u32(), 24); node_battle.u8(); node_battle.finish()
+            node_end = await send(263, Writer().u16(1).vector_strings(["{\"turn\":1}"]).bytes(), 186)
+            self.assertEqual((node_end.u16(), node_end.u32()), (0, 24)); node_end.finish()
+            node_progress = await db.pool.fetchval(
+                "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=1501", char_id)
+            self.assertEqual(json.loads(node_progress) if isinstance(node_progress, str)
+                             else node_progress, [1])
+            node_update = Writer().u32(1501).u8(0).u64(1).u8(1).u32(1).bytes()
+            self.assertEqual((await send(3133, node_update, 3132)).u16(), 0)
+            node_commit, _ = await commit_quest(1501)
+            self.assertEqual((node_commit.u16(), node_commit.u32(), node_commit.u8()), (0, 1501, 0))
+            node_commit.finish()
+
             await db.pool.execute(
                 """INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,10006,1,'[1]')
                    ON CONFLICT(char_id,quest_id) DO UPDATE SET status=1,progress='[1]'""", char_id)

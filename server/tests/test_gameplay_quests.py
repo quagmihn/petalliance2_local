@@ -72,6 +72,9 @@ class QuestDB:
         self.battles[session_id] = ("started", group_id, 5)
         return True
 
+    async def start_world_map_quest_battle(self, char_id, session_id, group_id):
+        return False
+
     async def start_tutorial_wild_battle(self, char_id, session_id, monster_id, quest_id,
                                          capture_attempts):
         from battle_group_config import tutorial_wild_requirements
@@ -357,6 +360,15 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         ack_id, body = await dispatch(
             self.session, 136, Writer().u32(5).u32(99999).u32(0).bytes())
         self.assertEqual((ack_id, Reader(body).u16()), (210, 1))
+
+    async def test_world_map_trainer_resolves_from_map_event_config(self):
+        from battle_group_config import (resolve_monster_man_group, world_map_node_unlocks,
+                                         world_map_trainer_events)
+        self.assertEqual(world_map_trainer_events()[1003], 2003)
+        self.assertEqual(world_map_node_unlocks()[(1, 11)], 5)
+        enemies, exp = resolve_monster_man_group(2003)
+        self.assertEqual((enemies[0]["mID"], exp), (1001, 24))
+        self.assertIsNone(resolve_monster_man_group(99999999))
 
     async def test_configured_first_pet_catch_is_type_one_and_quest_gated(self):
         self.session.db.quests[10008] = {"status": 0, "progress": [0]}

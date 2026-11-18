@@ -2,7 +2,7 @@
 
 Configured MonsterGroupManInfo groups: **907**. Full matrix below. Referenced monster IDs are verified against MonstrosityInfo by the content audit; this does not mean every battle type has the correct caller, eligibility checks, or reward behavior implemented.
 
-Implemented subset: configured tutorial trainer groups and tutorial wild IDs are handled by current Python battle code; selected Adventure scene event type 8 is supported. Runtime evidence in the latest checkpoint covers wild battle 999998 start/end only. Other rows remain configuration-only unless a specific contract/runtime test says otherwise.
+Implemented subset: configured tutorial trainer groups and tutorial wild IDs are handled by current Python battle code; selected Adventure scene event type 8 is supported. In addition, configured event-18 world-map objectives can authorize their exact type-0 `map_event.txt` trainer group after the target node lock is met (55 objective references across 53 group IDs). PostgreSQL/TCP tests cover one such battle through quest commit; Waydroid validation is pending. The existing Waydroid checkpoint covers wild battle 999998 start/end. Other rows remain configuration-only unless a specific contract/runtime test says otherwise.
 
 | Group | Name key | Enemies | Helpers | EXP | Current scope |
 | --- | --- | --- | --- | --- | --- |
@@ -749,7 +749,7 @@ Implemented subset: configured tutorial trainer groups and tutorial wild IDs are
 | 744 | 10-5-英雄-热血青年 | 50485,50486,50487 |  | 237 | CONFIG_ONLY |
 | 745 | 10-5-英雄-富家少女 | 50488,50489,50490 |  | 237 | CONFIG_ONLY |
 | 746 | 10-5-英雄-旅行家女 | 50491,50492,50493 |  | 237 | CONFIG_ONLY |
-| 2003 | 莱伊娜 | 1001 |  | 24 | CONFIG_ONLY |
+| 2003 | 莱伊娜 | 1001 |  | 24 | PROTOCOL_TESTED (event-18 node; Waydroid pending) |
 | 2004 | 4号公路训练师 | 1004 |  | 16 | CONFIG_ONLY |
 | 2005 | 5号公路训练师 | 1006 |  | 16 | CONFIG_ONLY |
 | 2006 | 6号公路训练师 | 1008 |  | 22 | CONFIG_ONLY |

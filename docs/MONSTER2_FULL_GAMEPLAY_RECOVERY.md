@@ -55,7 +55,7 @@ On Waydroid, a tap on a walkable map position moved the avatar locally and gener
 
 ## Automated tests
 
-PostgreSQL integration and TCP suite: **92 PASS, 0 FAIL, 0 skipped** using `TEST_DATABASE_URL` for `monster2_test_db`. The expanded suite covers quest reward resolution, atomic grants, Pet notification payload, retry idempotency, and fail-closed handling for missing RewardInfo, in addition to feed ordering, configured encounter authorization, capture idempotency, market purchase, wallet precedence, and battle reconnect handling. These results do not replace Waydroid gameplay verification.
+PostgreSQL integration and TCP suite: **93 PASS, 0 FAIL, 0 skipped** using `TEST_DATABASE_URL` for `monster2_test_db`. The expanded suite covers quest reward resolution, atomic grants, Pet notification payload, retry idempotency, fail-closed missing RewardInfo, and a configured event-18 world-map trainer objective from group authorization through battle win, quest update, and commit. The node test also checks the target map-node unlock index. These results do not replace Waydroid gameplay verification.
 
 ## Runtime, backup, and APK
 

@@ -407,6 +407,17 @@ class Database:
                     char_id, quest_id)
                 if character is None or quest is None or quest["status"] != 0:
                     return False
+                from quest_config import load_quests
+                configured = load_quests().get(quest_id)
+                if (configured and len(configured.objectives) == 1
+                        and configured.objectives[0].event_type == 18):
+                    # Lua echoes the progress after its node battle. The server
+                    # already advanced this objective from the won encounter.
+                    saved = await conn.fetchval(
+                        "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=$2",
+                        char_id, quest_id)
+                    if isinstance(saved, str): saved = json.loads(saved)
+                    return isinstance(saved, list) and saved == [amount]
                 if quest_id == 1:
                     valid = await conn.fetchval("SELECT 1 FROM pets WHERE char_id=$1 LIMIT 1", char_id)
                 elif quest_id == 10002:
@@ -452,6 +463,68 @@ class Database:
                 await conn.execute(
                     "INSERT INTO tutorial_battle_sessions(char_id,session_id,group_id,state) "
                     "VALUES($1,$2,$3,'started')", char_id, session_id, group_id)
+                return True
+
+    async def start_world_map_quest_battle(self, char_id: int, session_id: str,
+                                           group_id: int) -> bool:
+        """Authorize a trainer battle only for one exact active event-18 quest node."""
+        from battle_group_config import world_map_node_unlocks, world_map_trainer_events
+        from quest_config import load_quests
+        event_groups = world_map_trainer_events()
+        quests = load_quests()
+        matching: list[tuple[int, int, int]] = []
+        for quest_id, quest in quests.items():
+            for objective in quest.objectives:
+                if (objective.event_type == 18
+                        and event_groups.get(objective.final_id) == group_id):
+                    matching.append((quest_id, objective.main_id, objective.sub_id))
+        if not matching:
+            return False
+        node_unlocks = world_map_node_unlocks()
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                character = await conn.fetchrow(
+                    "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                if character is None:
+                    return False
+                values = character["game_values"] or {}
+                if isinstance(values, str): values = json.loads(values)
+                lock_parts = str(values.get("map_lock", "0-0")).split("-", 1)
+                try:
+                    unlocked_node = int(lock_parts[0])
+                except ValueError:
+                    return False
+                eligible_nodes = [(qid, node_unlocks.get((map_id, node_id)))
+                                  for qid, map_id, node_id in matching]
+                eligible_nodes = [(qid, lock) for qid, lock in eligible_nodes
+                                  if lock is not None and lock <= unlocked_node]
+                active_ids = [qid for qid, _ in eligible_nodes]
+                if not active_ids:
+                    return False
+                active = await conn.fetch(
+                    """SELECT quest_id FROM quests WHERE char_id=$1 AND quest_id=ANY($2::int[])
+                       AND status=0 FOR UPDATE""", char_id, active_ids)
+                # Without a map ID in the request, overlapping active map-node
+                # objectives are ambiguous; fail closed rather than credit all.
+                if len(active) != 1:
+                    return False
+                previous = await conn.fetchrow(
+                    """SELECT battle_id,group_id,battle_type,battle_type_id
+                       FROM tutorial_battle_sessions WHERE char_id=$1 AND state='started'
+                       ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""", char_id)
+                if previous is not None:
+                    if (int(previous["battle_type"]) == 5
+                            and int(previous["battle_type_id"]) == group_id):
+                        await conn.execute("UPDATE tutorial_battle_sessions SET session_id=$2 WHERE battle_id=$1",
+                                           previous["battle_id"], session_id)
+                        return True
+                    await conn.execute(
+                        "UPDATE tutorial_battle_sessions SET state='lost',finished_at=now() WHERE battle_id=$1",
+                        previous["battle_id"])
+                await conn.execute(
+                    """INSERT INTO tutorial_battle_sessions
+                       (char_id,session_id,group_id,battle_type,battle_type_id,state)
+                       VALUES($1,$2,$3,5,$3,'started')""", char_id, session_id, group_id)
                 return True
 
     async def start_tutorial_wild_battle(self, char_id: int, session_id: str,
@@ -674,17 +747,64 @@ class Database:
                 if won:
                     from battle_group_config import tutorial_requirements
                     requirement = tutorial_requirements().get(battle["group_id"])
+                    tutorial_handled = False
                     if requirement is not None and battle["battle_type"] == 5:
                         from quest_config import load_quests
                         quest = load_quests().get(int(requirement["quest_id"]))
-                        if quest and quest.objectives:
+                        active_quest = (await conn.fetchval(
+                            "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=$2 AND status=0 FOR UPDATE",
+                            char_id, quest.quest_id) if quest else None)
+                        if quest and quest.objectives and active_quest:
                             await conn.execute(
                                 "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2 AND status=0",
                                 char_id, quest.quest_id,
                                 json.dumps([objective.amount for objective in quest.objectives]))
+                            tutorial_handled = True
                     elif battle["battle_type"] == 3:
                         await self._advance_configured_battle_objectives(conn, char_id)
+                    if battle["battle_type"] == 5 and not tutorial_handled:
+                        await self._advance_world_map_trainer_objectives(
+                            conn, char_id, int(battle["group_id"]))
                 return True
+
+    @staticmethod
+    async def _advance_world_map_trainer_objectives(conn, char_id: int, group_id: int) -> None:
+        from battle_group_config import world_map_trainer_events
+        from quest_config import load_quests
+        event_groups = world_map_trainer_events()
+        config = load_quests()
+        active = await conn.fetch(
+            "SELECT quest_id,progress FROM quests WHERE char_id=$1 AND status=0 FOR UPDATE", char_id)
+        matching_quests = []
+        for row in active:
+            quest = config.get(row["quest_id"])
+            if quest is None:
+                continue
+            matching = [i for i, objective in enumerate(quest.objectives)
+                        if objective.event_type == 18
+                        and event_groups.get(objective.final_id) == group_id]
+            if matching:
+                matching_quests.append((row, quest, matching))
+        # A trainer group shared by multiple simultaneously active map quests
+        # cannot be attributed to a specific map because this request omits it.
+        if len(matching_quests) != 1:
+            return
+        row, quest, indexes = matching_quests[0]
+        progress = row["progress"]
+        if isinstance(progress, str): progress = json.loads(progress)
+        if not isinstance(progress, list) or len(progress) != len(quest.objectives):
+            return
+        values = list(progress)
+        changed = False
+        for index in indexes:
+            amount = quest.objectives[index].amount
+            if type(values[index]) is int and values[index] < amount:
+                values[index] = amount
+                changed = True
+        if changed:
+            await conn.execute(
+                "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
+                char_id, quest.quest_id, json.dumps(values))
 
     async def last_tutorial_battle_exp(self, char_id: int) -> int:
         """Recompute configured battle EXP after a reconnect lost session memory."""

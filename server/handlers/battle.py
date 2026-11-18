@@ -8,7 +8,8 @@ from protocol import Reader, Writer
 from pet_config import tutorial_monster
 from client_config import table as client_table
 from pet_config import untrained_hp
-from battle_group_config import resolve_tutorial_group, resolve_tutorial_wild
+from battle_group_config import (resolve_monster_man_group, resolve_tutorial_group,
+                                 resolve_tutorial_wild)
 
 log = logging.getLogger("game_socket")
 
@@ -115,15 +116,27 @@ async def handle(message_id: int, payload: bytes, session):
             reason = "sub_id_unsupported"
         else:
             resolved = resolve_tutorial_group(battle_type_id)
-            if resolved is None:
-                reason = "unconfigured_or_unauthorized_group"
-                started = False
-            else:
+            started = False
+            if resolved is not None:
                 quest_id, enemies, exp = resolved
                 started = await session.db.start_tutorial_battle(
                     session.char_id, session.session_id, battle_type_id)
                 if started:
                     session.tutorial_battle_exp = exp
+            if not started:
+                # World-map node battles are allowed only when a currently
+                # active event-18 quest resolves this exact configured trainer
+                # through target map_event.txt (type 0) data.
+                group = resolve_monster_man_group(battle_type_id)
+                if group is not None:
+                    world_enemies, world_exp = group
+                    started = await session.db.start_world_map_quest_battle(
+                        session.char_id, session.session_id, battle_type_id)
+                    if started:
+                        enemies, exp = world_enemies, world_exp
+                        session.tutorial_battle_exp = exp
+            if not started:
+                reason = "group_not_authorized_by_active_quest"
             if not started:
                 reason = reason or "quest_not_active_or_encounter_already_invalid"
         if reason:
