@@ -204,7 +204,8 @@ function GachaViewMgr.show(scene)
         CSResourceMgr.setLabelStringByNode(money2G, LuaSqlite.getLanguageByKey("egg36").."/"..consumeElementInfo2.num,colorTable2[1],nil,166)
         local descLabel1 = CSResourceMgr.seekNodeByName(eggG,"desc")
         CSResourceMgr.setLabelColorByNode(descLabel1, descColorTable[1])
-        CSResourceMgr.setLabelStringByNode(descLabel1, "egg4",outLineColorTable[1],nil,595)
+        CSResourceMgr.setLabelStringByNode(descLabel1, nil,outLineColorTable[1],nil,595)
+        descLabel1:setString("LOCAL PRIZE POOL")
         CSResourceMgr.seekNodeByName(eggG,"title"):loadTexture(CocosModuleMgr.getWordImage("chujixinyuan.png"))
 
         local capsuleEggInfo2 = PokemonInfo.getCapsuleEggInfoByID(eggType.mMachine)
@@ -223,7 +224,8 @@ function GachaViewMgr.show(scene)
         CSResourceMgr.setLabelStringByNode(money2M, LuaSqlite.getLanguageByKey("egg36").."/"..consumeElementInfo4.num,colorTable2[2],nil,166)
         local descLabel2 = CSResourceMgr.seekNodeByName(eggM,"desc")
         CSResourceMgr.setLabelColorByNode(descLabel2, descColorTable[2])
-        CSResourceMgr.setLabelStringByNode(descLabel2, "egg6",outLineColorTable[2],nil,595)
+        CSResourceMgr.setLabelStringByNode(descLabel2, nil,outLineColorTable[2],nil,595)
+        descLabel2:setString("LOCAL PRIZE POOL")
         CSResourceMgr.seekNodeByName(eggM,"title"):loadTexture(CocosModuleMgr.getWordImage("gaojixinyuan.png"))
         hopeValueMax = capsuleEggInfo2.wishCost
         dreamValueMax = capsuleEggInfo2.dreamCost
@@ -242,7 +244,8 @@ function GachaViewMgr.show(scene)
         CSResourceMgr.setLabelStringByNode(money2V, LuaSqlite.getLanguageByKey("egg36").."/"..consumeElementInfo6.num,colorTable2[3],nil,166)
         local descLabel3 = CSResourceMgr.seekNodeByName(eggV,"desc")
         CSResourceMgr.setLabelColorByNode(descLabel3, descColorTable[3])
-        CSResourceMgr.setLabelStringByNode(descLabel3, "egg8",outLineColorTable[3],nil,595)
+        CSResourceMgr.setLabelStringByNode(descLabel3, nil,outLineColorTable[3],nil,595)
+        descLabel3:setString("LOCAL PRIZE POOL")
         CSResourceMgr.seekNodeByName(eggV,"title"):loadTexture(CocosModuleMgr.getWordImage("jinengxinyuan.png"))
         -- hopeValueMax2 = capsuleEggInfo3.addTypeCost
 
@@ -481,48 +484,11 @@ function GachaViewMgr.setMachine(theEggType)
              freeNode:setVisible(false)
         end
 
-        local MaybeGetItem = CSResourceMgr.getNodeByName(resNameA,"MaybeGetItem")
-        local getItemLabel = CSResourceMgr.seekNodeByName(MaybeGetItem,"getItemLabel")
-        CSResourceMgr.setLabelColorByNode(getItemLabel, {r=255,g=255,b=255,a=255})
-        CSResourceMgr.setLabelStringByNode(getItemLabel, "egg34",{r=4,g=41,b=66,a=255,w=5},nil,200)
-        local index = 1
-        local gachaMayGetInfo = ItemInfo.getGachaMayGetInfo()
-        for k,v in pairs(gachaMayGetInfo[theEggType]) do
-            local awardElementInfo = ItemInfo.getAwardElementInfoById(tonumber(v))
-            if awardElementInfo.elementType == 3 and index<=6 then
-                local item = CSResourceMgr.seekNodeByName(MaybeGetItem,"item"..index)
-                item:setVisible(true)
-                local itemInfo = ItemInfo.getItemInfoById(awardElementInfo.elementID)
-                local itemBtn = CSResourceMgr.seekNodeByName(item,"itemBtn")
-                CSResourceMgr.setButtonTextureByNode(itemBtn,  ItemInfo.getItemRareBGImage(awardElementInfo.elementID),  ItemInfo.getItemRareBGImage(awardElementInfo.elementID),  ItemInfo.getItemRareBGImage(awardElementInfo.elementID))
-                local itemIcon = CSResourceMgr.seekNodeByName(itemBtn, "icon")
-                CSResourceMgr.setSpriteTextureByNode(itemIcon, itemInfo.icon)
-                local itemName = CSResourceMgr.seekNodeByName(itemBtn, "name")
-                CSResourceMgr.setLabelColorByNode(itemName, ItemInfo.COLOR[itemInfo.itemRare+1])
-                CSResourceMgr.setLabelStringByNode(itemName, itemInfo.name,nil,nil,80)
-                CSResourceMgr.longtouchEventBindingByNode(itemBtn, function()
-                    GameAudio.playUISound("ok")
-                    ItemInfoViewMgr.show({id = awardElementInfo.elementID, sum = 1,type = 1,objID = 0},false)
-                end)
-                index = index + 1
-            elseif awardElementInfo.elementType == 5 and index<=6 then
-                local item = CSResourceMgr.seekNodeByName(MaybeGetItem,"item"..index)
-                item:setVisible(true)
-                local pokemonInfo = PokemonInfo.getPokemonInfoByID(awardElementInfo.elementID)
-                local itemBtn = CSResourceMgr.seekNodeByName(item,"itemBtn")
-                CSResourceMgr.setButtonTextureByNode(itemBtn,"Pet/BasicPetList_2/Stage/"..pokemonInfo.rarePoint..".png","Pet/BasicPetList_2/Stage/"..pokemonInfo.rarePoint..".png","Pet/BasicPetList_2/Stage/"..pokemonInfo.rarePoint..".png")
-                local itemIcon = CSResourceMgr.seekNodeByName(itemBtn, "icon")
-                CSResourceMgr.setSpriteTextureByNode(itemIcon,"Pet/PetIcon/"..pokemonInfo.icon..".png")
-                itemIcon:setScale(0.8,0.8)
-                local itemName = CSResourceMgr.seekNodeByName(itemBtn, "name")
-                CSResourceMgr.setLabelColorByNode(itemName,PokemonInfo.COLOR[pokemonInfo.rarePoint])
-                CSResourceMgr.setLabelStringByNode(itemName, pokemonInfo.name,nil,nil,80)
-                CSResourceMgr.longtouchEventBindingByNode(itemBtn, function()
-                    GameAudio.playUISound("ok")
-                    PetInfoViewMgr.show(SceneMgr.getRunningScene, awardElementInfo.elementID)
-                end)
-                index = index + 1
-            end
+        -- The packaged preview is for the original pools and does not show
+        -- the rewards selected by the configured local server.
+        local preview = CSResourceMgr.getNodeByName(resNameA, "MaybeGetItem")
+        if preview then
+            preview:setVisible(false)
         end
 
         local buttonOneDraw = CSResourceMgr.seekNodeByName(OneChou,"Button_Go")

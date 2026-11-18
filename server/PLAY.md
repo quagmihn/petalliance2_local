@@ -49,19 +49,21 @@ to seed an active non-tutorial quest and `--cleared-adventure ID MASK` to seed a
 clear prerequisite. Both flags are repeatable. These seeds establish a test
 starting point. They do not exercise the preceding quest or Adventure.
 
-### Local draw trials
+### Local draw catalog
 
-Configure `MONSTER2_TEST_DRAW_CATALOG` with the path to your JSON prize pool
-when running the test launcher. Use a machine index as the key and a list of
-`item_id`, `count`, and positive integer `weight` records as the value. The
-server validates the item IDs and reads the prices and cooldowns from the
-metadata already used by the client. Use only the independent QA account.
-Launch with the QA APK pointing at the same test ports.
+The official launcher loads `server/config/local_draw.json` in production,
+play and test. Set `MONSTER2_DRAW_CATALOG` to a path relative to `server/`
+or an absolute path to override it. A catalog must cover the three client
+machines. Each prize contains `item_id` or `pet_id`, `count` and a positive
+integer `weight`. Each pool must total 10,000. The launcher validates all
+references before opening the ports and prints the catalog hash.
 
-The JSON prizes define local test behavior. This does not use the original
-reward pools or apply first-draw bonuses, guarantees, wish, dream, or VIP
-rules. The local draw route requires `GAME_ENV=test`, the actual database
-`monster2_test_db`, and a character created with `--independent`.
+The pools define local rewards. Prices and cooldowns use the metadata already
+displayed by the client. The original first-draw, guarantee, wish, dream and VIP
+reward rules remain unavailable. In test mode use a character created with
+`--independent`. The patched runtime APK sends a local request key that prevents
+replaying the same transaction. Legacy APKs can still connect. Identical paid
+requests without a key are rejected for eight seconds after a draw.
 
 The verified gameplay APK is `dist/monster2_gameplay.apk`, SHA256
 `2957196b52dc2d86e87e1df8a5ab878aa0bf8f66c91407e17f2bff00af70f90f`.

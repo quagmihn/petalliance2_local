@@ -1,5 +1,12 @@
 # Implementation backlog
 
+The official local draw service is deployed. Continue on the controlled
+Waydroid profile once its agreement screen is resolved. Verify one eligible
+free, paid single and paid ten draw, result animation, close, input and cold
+relogin before promoting the Android status. The next independent runtime
+checks are shop purchase, M-PASS claims and Adventure progression using
+separate controlled fixtures.
+
 The independent fixture now accepts a level 2+ account with selected active
 quests and Adventure prerequisites. The local draw trial has verified
 server-side costs, rewards and relogin. Next run the draw result screen,
