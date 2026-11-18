@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 import os
 import time
@@ -12,7 +13,7 @@ from handlers import treasure
 from handlers import character_state
 from handlers import (auth, battle, chat, economy, inventory, map as map_handler,
                       pet, player, territory, world_boss)
-from protocol import (Reader, frame, read_frame, redact_payload,
+from protocol import (Reader, Writer, frame, read_frame, redact_payload,
                       ProtocolDecodeError, redact_response_payload,
                       safe_request_fields)
 
@@ -30,7 +31,11 @@ CMD = {
     "device_bind": 2211, "device_bind_ack": 2179,
     "create_character": 1655, "create_character_ack": 807,
     "query_pets": 3140, "query_pets_ack": 3139,
+    "get_fashions": 2075, "get_fashions_ack": 2102,
+    "set_fashions": 2121, "set_fashions_ack": 2109,
+    "restore_fashions": 2098, "restore_fashions_ack": 2066,
     "get_items": 59, "get_items_ack": 37, "get_items_ntf": 112,
+    "update_army": 1755, "update_army_ack": 1756,
     "get_army": 1760, "get_army_ack": 1774,
     "get_finished_adventures": 3078, "get_finished_adventures_ack": 3081,
     "get_character_values": 770, "get_character_values_ack": 747,
@@ -102,11 +107,12 @@ EXPECTED_ACKS = {
     118: (32,), 380: (386,), 154: (152,), 662: (655,), 785: (26, 404),
     3133: (3132,), 400: (726, 404), 632: (630,), 45: (35,),
     1644: (1664,), 1819: (1901,), 501: (498,),
+    2075: (2102,), 2121: (2109,), 2098: (2066,),
     1283: (1261,),
-    2996: (3080,),
+    2996: (3080,), 3078: (3081, 1749),
     2998: (3079,),
     4: (5,), 391: (390,),
-    3082: (2995,),
+    3082: (2995, 473, 1749),
     136: (210,), 263: (186,),
 }
 
@@ -154,7 +160,11 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == 1626: return await player.appoint_nickname(session, payload)
     if msg_id == CMD["create_character"]: return await player.create_character(session, payload)
     if msg_id == CMD["query_pets"]: return await pet.query_pets(session, payload)
+    if msg_id == CMD["get_fashions"]: return await player.get_fashions(session, payload)
+    if msg_id == CMD["set_fashions"]: return await player.set_fashions(session, payload)
+    if msg_id == CMD["restore_fashions"]: return await player.restore_fashions(session, payload)
     if msg_id == CMD["get_items"]: return await inventory.get_items(session, payload)
+    if msg_id == CMD["update_army"]: return await pet.update_army(session, payload)
     if msg_id == CMD["get_army"]: return await pet.get_army(session, payload)
     if msg_id == CMD["get_capsule_cds"]: return await pet.get_capsule_egg_cds(session, payload)
     if msg_id == CMD["get_character_values"]: return await player.get_character_values(session, payload)
@@ -258,6 +268,11 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             if answer is None:
                 continue
             answers = answer if isinstance(answer, list) else [answer]
+            if (msg_id == CMD["finish_adventure"] and session.char_id is not None
+                    and body != b"\0\0" and answers[0][1].startswith(b"\0\0")):
+                progress = await db.committed_character_progress(session.char_id)
+                answers.append((473, Writer().string(json.dumps(progress)).bytes()))
+                answers.extend(await map_handler.adventure_clear_notifications(session))
             packet_sizes = []
             for ack_id, ack_body in answers:
                 packet = frame(ack_id, ack_body)

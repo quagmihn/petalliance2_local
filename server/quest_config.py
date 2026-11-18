@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 
@@ -41,6 +41,7 @@ class Quest:
     unlock_map_id: str
     need_visible: int
     first_pokemon_id: int
+    client_commit_marker: bool = False
 
 
 class _Row:
@@ -116,4 +117,13 @@ def load_quests(path: Path | None = None) -> dict[int, Quest]:
         missing = [child for child in quest.child_ids if child and child not in quests]
         if missing:
             raise QuestConfigError(f"quest {quest.quest_id} references missing children {missing}")
+    # A small number of tutorial guide rows use a zero-target objective as a
+    # client-side walkthrough marker. Keep this protocol meaning in explicit
+    # data, rather than treating every zero-target objective as complete.
+    marker_path = Path(__file__).resolve().parent / "config/quest_client_commit_markers.json"
+    if marker_path.exists():
+        import json
+        marker_ids = {int(value) for value in json.loads(marker_path.read_text())}
+        quests = {qid: (replace(q, client_commit_marker=True)
+                        if qid in marker_ids else q) for qid, q in quests.items()}
     return quests

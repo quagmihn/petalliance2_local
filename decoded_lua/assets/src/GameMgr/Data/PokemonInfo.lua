@@ -705,10 +705,29 @@ end
 
 ---获取宠物战斗力
 --@param petInfoVec table 宠物信息组
+local function petFightPoint(info)
+    if not info then
+        return 0
+    end
+    if (info.fc or 0) > (info.sciencefc or 0) then
+        return info.fc
+    end
+
+    -- The local server does not send base combat power. Reuse the detail
+    -- view's calculation against this pet's current attributes and links.
+    local source = info.yoke and info.yoke.yokeValues or {}
+    local yokeValues = {}
+    for index = 1, 6 do
+        yokeValues[index] = source[index] or 0
+    end
+    return PetEducationMgr.calPetFC(PokemonInfo.getPokemonInfoByID(info.pokeID),
+        info, yokeValues, {0,0,0,0,0,0})
+end
+
 function PokemonInfo.getFightPoint(petInfoVec)
     local fc = 0
-    for key, var in pairs(petInfoVec) do
-        fc = fc+var.fc
+    for _, info in pairs(petInfoVec) do
+        fc = fc + petFightPoint(info)
     end
     return fc
 end
@@ -717,9 +736,8 @@ end
 --@param petObjIDVec table 宠物objID组
 function PokemonInfo.getFightPointByObjID(petObjIDVec)
     local fc = 0
-    for key, var in pairs(petObjIDVec) do
-        local info = PokemonInfo.getPetInfoByObjID(var)
-        fc = fc+info.fc
+    for _, id in pairs(petObjIDVec) do
+        fc = fc + petFightPoint(PokemonInfo.getPetInfoByObjID(id))
     end
     return fc
 end

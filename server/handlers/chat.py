@@ -1,15 +1,27 @@
 from __future__ import annotations
 
+import logging
+
 from protocol import ProtocolDecodeError, Reader, Writer
+
+
+log = logging.getLogger("game_socket")
 
 
 async def send_chat(session, payload: bytes):
     """Reject chat explicitly while completing the client's ACK contract."""
     r = Reader(payload)
-    _char_id, _channel, _content = r.string(), r.string(), r.string()
+    recipient, _channel, _content = r.string(), r.string(), r.string()
     r.finish()
     # There is no chat relay/storage in this offline backend. Return the
     # protocol error code instead of claiming a message was delivered.
+    log.info(
+        "chat_rejected connection_id=%s session_id=%s account_id=%s char_id=%s "
+        "request_id=45 response_id=35 recipient_char_id=%s reason=relay_unavailable",
+        getattr(session, "connection_id", None), getattr(session, "session_id", None),
+        getattr(session, "account_id", None), session.char_id,
+        recipient if recipient.isascii() and recipient.isdecimal() and len(recipient) <= 20 else None,
+    )
     return 35, Writer().u16(1).bytes()
 
 

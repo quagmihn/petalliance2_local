@@ -7,6 +7,7 @@ import struct
 import time
 
 from character_values import validate_character_values
+from fashion_config import normalize_fashion_ids
 from protocol import Reader, Writer, success_code
 
 
@@ -23,7 +24,14 @@ def write_char_base(row, username: str) -> bytes:
     w.u8(0).u32(0).u8(0)  # confraternity, char flags, forced location
     w.u8(0).u8(0)  # active garden, marriage
     w.u16(row["level"]).u32(row["exp"]).u16(row["stamina"]).u16(row["stamina"])
-    w.u32(now).u32(0).u32(0).string("")
+    w.u32(now).u32(0).u32(0)
+    values = row["game_values"] or {}
+    if isinstance(values, str): values = json.loads(values)
+    curfashion = values.get("curfashion")
+    if not isinstance(curfashion, str):
+        from fashion_config import default_fashion_ids
+        curfashion = json.dumps(default_fashion_ids(), separators=(",", ":"))
+    w.string(curfashion)
     return w.bytes()
 
 
@@ -51,11 +59,12 @@ async def create_character(session, payload: bytes):
     gender, country, pet_template_id, avatar = r.u8(), r.u8(), r.u8(), r.u8()
     world_id = r.i32()
     _spreader = r.string()
-    fashions = [r.u32() for _ in range(r.u8())]
+    fashions = normalize_fashion_ids([r.u32() for _ in range(r.u8())])
     if session.account_id is None: raise ValueError("character create before device login")
     session.world_id = world_id or session.world_id or 1
     char, pet_row = await session.db.create_character_with_pet(
-        session.account_id, session.world_id, name, avatar, gender, pet_template_id
+        session.account_id, session.world_id, name, avatar, gender, pet_template_id,
+        fashions,
     )
     session.char_id = char["char_id"]
     account = await session.db.pool.fetchrow("SELECT username FROM accounts WHERE user_id=$1", session.account_id)
@@ -76,6 +85,89 @@ async def get_character_values(session, payload: bytes):
                 session.char_id, len(keys), len(values),
                 {key: type(value).__name__ for key, value in values.items()})
     return 747, Writer().u16(0).string(json.dumps(values, separators=(",", ":"))).bytes()
+
+
+async def get_fashions(session, payload: bytes):
+    r = Reader(payload); r.finish()
+    if session.char_id is None:
+        return 2102, Writer().u16(1).bytes()
+    row = await session.db.pool.fetchrow(
+        "SELECT game_values FROM characters WHERE char_id=$1", session.char_id)
+    if row is None:
+        return 2102, Writer().u16(1).bytes()
+    values = row["game_values"] or {}
+    if isinstance(values, str): values = json.loads(values)
+    state = values.get("fashion_info")
+    if isinstance(state, str): state = json.loads(state)
+    if not isinstance(state, dict):
+        from fashion_config import initial_fashion_state
+        current = values.get("curfashion")
+        if isinstance(current, str):
+            try: current = json.loads(current)
+            except json.JSONDecodeError: current = []
+        state = initial_fashion_state(current if isinstance(current, list) else [])
+    return 2102, Writer().u16(0).string(json.dumps(state, separators=(",", ":"))).bytes()
+
+
+async def set_fashions(session, payload: bytes):
+    r = Reader(payload)
+    count = r.u8()
+    if count > 6:
+        return 2109, Writer().u16(1).bytes()
+    try:
+        requested = [r.u32() for _ in range(count)]
+        r.finish()
+        from fashion_config import validate_equipped_fashions
+        if session.char_id is None:
+            raise ValueError("character not selected")
+        async with session.db.pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE",
+                    session.char_id)
+                if row is None:
+                    raise ValueError("character not found")
+                values = row["game_values"] or {}
+                if isinstance(values, str): values = json.loads(values)
+                state = values.get("fashion_info")
+                if isinstance(state, str): state = json.loads(state)
+                current = validate_equipped_fashions(requested, state)
+                state = dict(state)
+                state["curFashion"] = current
+                values["fashion_info"] = state
+                values["curfashion"] = json.dumps(current, separators=(",", ":"))
+                await conn.execute(
+                    "UPDATE characters SET game_values=$2::jsonb WHERE char_id=$1",
+                    session.char_id, json.dumps(values))
+        encoded = json.dumps(state, separators=(",", ":"))
+        return 2109, Writer().u16(0).string(encoded).bytes()
+    except (ValueError, json.JSONDecodeError):
+        return 2109, Writer().u16(1).bytes()
+
+
+async def restore_fashions(session, payload: bytes):
+    r = Reader(payload); r.finish()
+    if session.char_id is None:
+        return 2066, Writer().u16(1).bytes()
+    async with session.db.pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", session.char_id)
+            if row is None:
+                return 2066, Writer().u16(1).bytes()
+            values = row["game_values"] or {}
+            if isinstance(values, str): values = json.loads(values)
+            state = values.get("fashion_info")
+            if isinstance(state, str): state = json.loads(state)
+            if not isinstance(state, dict) or not isinstance(state.get("defaultFashion"), list):
+                return 2066, Writer().u16(1).bytes()
+            restored = dict(state, curFashion=state["defaultFashion"])
+            values["fashion_info"] = restored
+            values["curfashion"] = json.dumps(restored["curFashion"], separators=(",", ":"))
+            await conn.execute(
+                "UPDATE characters SET game_values=$2::jsonb WHERE char_id=$1",
+                session.char_id, json.dumps(values))
+    return 2066, Writer().u16(0).string(json.dumps(restored, separators=(",", ":"))).bytes()
 
 
 async def change_character_info(session, payload: bytes):

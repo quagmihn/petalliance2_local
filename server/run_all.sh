@@ -2,7 +2,7 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
-mode="${1:-${GAME_ENV:-play}}"
+mode="${1:-${GAME_ENV:-production}}"
 case "$mode" in
     test) MONSTER2_EXPECTED_DB=monster2_test_db ;;
     play) MONSTER2_EXPECTED_DB=monster2_play_db ;;
@@ -10,9 +10,18 @@ case "$mode" in
     *) echo "Usage: $0 [test|play|production]" >&2; exit 2 ;;
 esac
 [[ $# -le 1 ]] || exit 2
-if [[ "$mode" == play && -f .env.play ]]; then
-    # shellcheck source=/dev/null
-    source ./.env.play
+if [[ "$mode" != test && -f ".env.$mode" ]]; then
+    # Disable xtrace while reading local credentials.
+    restore_trace=false
+    if [[ $- == *x* ]]; then
+        restore_trace=true
+        set +x
+    fi
+    source "./.env.$mode"
+    if "$restore_trace"; then set -x; fi
+fi
+if [[ "$mode" == production && -z "${DATABASE_URL:+set}" ]]; then
+    DATABASE_URL='postgresql://monster2@/monster2_db?host=/run/postgresql'
 fi
 if ! command -v "${PYTHON_BIN:-python}" >/dev/null; then
     echo "Python not found. Install Python or set PYTHON_BIN." >&2
@@ -22,11 +31,26 @@ if ! "${PYTHON_BIN:-python}" -B -c 'import asyncpg' >/dev/null 2>&1; then
     echo "asyncpg is missing. Install server/requirements.txt." >&2
     exit 1
 fi
-: "${DATABASE_URL:?Set DATABASE_URL or configure server/.env.play for play mode}"
+if [[ -z "${DATABASE_URL:+set}" ]]; then
+    echo "Set DATABASE_URL for test, or configure server/.env.play for play." >&2
+    exit 2
+fi
 export DATABASE_URL MONSTER2_EXPECTED_DB
-export GAME_BIND="${GAME_BIND:-0.0.0.0}" HTTP_BIND="${HTTP_BIND:-0.0.0.0}"
-export GAME_PORT="${GAME_PORT:-5568}" HTTP_PORT="${HTTP_PORT:-8080}"
 export GAME_HOST="${GAME_HOST:-192.168.240.1}"
+default_bind=0.0.0.0
+if [[ "$mode" == production && ( -z "${GAME_BIND:-}" || -z "${HTTP_BIND:-}" ) ]]; then
+    default_bind=127.0.0.1
+    if ip -o -4 addr show | awk -v host="$GAME_HOST" '
+        { split($4, address, "/"); if (address[1] == host) found=1 }
+        END { exit !found }
+    '; then
+        default_bind="$GAME_HOST"
+    else
+        echo "Waydroid address $GAME_HOST is unavailable. Using loopback; start Waydroid and restart the launcher for Android access." >&2
+    fi
+fi
+export GAME_BIND="${GAME_BIND:-$default_bind}" HTTP_BIND="${HTTP_BIND:-$default_bind}"
+export GAME_PORT="${GAME_PORT:-5568}" HTTP_PORT="${HTTP_PORT:-8080}"
 python_bin="${PYTHON_BIN:-python}"
 
 for port in "$GAME_PORT" "$HTTP_PORT"; do
@@ -55,6 +79,12 @@ async def main():
 
 try:
     asyncio.run(main())
+except FileNotFoundError:
+    raise SystemExit(
+        "Database preflight failed: PostgreSQL Unix socket is missing. "
+        "Check that the intended PostgreSQL instance is running and that "
+        "DATABASE_URL identifies its socket directory and port."
+    ) from None
 except Exception as exc:
     raise SystemExit(f"Database preflight failed ({type(exc).__name__})") from None
 PY

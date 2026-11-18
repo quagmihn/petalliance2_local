@@ -1,4 +1,4 @@
-"""Repackage current APK with scene error tracing; preserve all other Lua assets."""
+"""Repackage the verified runtime APK with scene and quest error recovery fixes."""
 import argparse
 import zipfile
 import struct
@@ -61,6 +61,7 @@ def main():
     args = p.parse_args()
     target = "assets/src/GameMgr/Map/SceneMgr.lua"
     with zipfile.ZipFile(args.input) as source, zipfile.ZipFile(args.output, "w") as output:
+        source_names = set(source.namelist())
         for info in source.infolist():
             if info.filename.upper().startswith("META-INF/"):
                 continue
@@ -71,23 +72,49 @@ def main():
                 data = b"XXTEA" + encrypt(Path("decoded_lua/assets/src/GameMgr/Support/LuaSqlite.lua").read_bytes(), b"kyopkm")
             if info.filename == "assets/src/Net/Process/PVEProcess.lua":
                 data = b"XXTEA" + encrypt(Path("decoded_lua/assets/src/Net/Process/PVEProcess.lua").read_bytes(), b"kyopkm")
+            if info.filename in {
+                "assets/src/GameMgr/Data/PokemonInfo.lua",
+                "assets/src/Net/Process/ChatProcess.lua",
+            }:
+                source_path = Path("decoded_lua") / info.filename
+                data = b"XXTEA" + encrypt(source_path.read_bytes(), b"kyopkm")
+            if info.filename == "assets/src/GameMgr/Data/QuestInfo.lua":
+                text = decrypt(data[5:], b"kyopkm").decode()
+                newline = "\r\n" if "\r\n" in text else "\n"
+                text = text.replace("\r\n", "\n")
+                old = """            if curQuestDatas[questID] then
+                curQuestDatas[questID].status = Proto.QUEST_STATUS_NORMAL
+            end
+        end"""
+                new = old.replace("            end\n        end", "            end\n            CocosModuleMgr.setScreenTouch(true)\n        end")
+                if new not in text:
+                    assert text.count(old) == 1, "QuestInfo release callback changed unexpectedly"
+                    text = text.replace(old, new, 1)
+                text = text.replace("\n", newline)
+                data = b"XXTEA" + encrypt(text.encode(), b"kyopkm")
             if info.filename.startswith("assets/res/Config/db/") and info.filename.endswith(".db"):
-                sidecar = zipfile.ZipInfo(info.filename + ".b64")
-                sidecar.compress_type = zipfile.ZIP_DEFLATED
-                output.writestr(sidecar, base64.b64encode(data))
+                sidecar_name = info.filename + ".b64"
+                if sidecar_name not in source_names:
+                    sidecar = zipfile.ZipInfo(sidecar_name)
+                    sidecar.compress_type = zipfile.ZIP_DEFLATED
+                    output.writestr(sidecar, base64.b64encode(data))
             if info.filename.lower().endswith((".mp4", ".m4a", ".mp3", ".ogg")):
                 # Android MediaPlayer opens packaged media through AssetFileDescriptor.
                 info.compress_type = zipfile.ZIP_STORED
             if info.filename == target:
                 text = decrypt(data[5:], b"kyopkm").decode()
                 old = '    print("开始加载新场景"..sceneName)'
-                assert text.count(old) == 1
-                text = text.replace(old, old + '\n    print("[SCENE_DIAG] from="..tostring(SceneMgr.currentScene).." to="..tostring(sceneName).." stack="..debug.traceback())', 1)
+                entry_trace = '    print("[SCENE_DIAG] from="..tostring(SceneMgr.currentScene).." to="..tostring(sceneName).." stack="..debug.traceback())'
+                if entry_trace not in text:
+                    assert text.count(old) == 1
+                    text = text.replace(old, old + '\n' + entry_trace, 1)
                 old = 'local ret,errMessage = pcall(function()\n                replaceFunc()\n            end)'
                 # Preserve the exact line endings of the existing asset.
                 text = text.replace('\r\n', '\n')
-                assert text.count(old) == 1
-                text = text.replace(old, 'local ret,errMessage = xpcall(replaceFunc, function(err)\n                local trace = debug.traceback(tostring(err), 2)\n                print("[SCENE_DIAG] initialization_failed target="..tostring(sceneName).." error="..trace)\n                return trace\n            end)', 1)
+                if old in text:
+                    text = text.replace(old, 'local ret,errMessage = xpcall(replaceFunc, function(err)\n                local trace = debug.traceback(tostring(err), 2)\n                print("[SCENE_DIAG] initialization_failed target="..tostring(sceneName).." error="..trace)\n                return trace\n            end)', 1)
+                else:
+                    assert '[SCENE_DIAG] initialization_failed' in text, "scene init diagnostics missing"
                 data = b"XXTEA" + encrypt(text.encode(), b"kyopkm")
             output.writestr(info, data)
 

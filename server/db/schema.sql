@@ -113,6 +113,19 @@ CREATE TABLE IF NOT EXISTS character_adventures (
 ALTER TABLE character_adventures ADD COLUMN IF NOT EXISTS completion_star INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE character_adventures ADD COLUMN IF NOT EXISTS completion_awards_json JSONB NOT NULL DEFAULT '[]'::jsonb;
 
+CREATE TABLE IF NOT EXISTS character_adventure_clears (
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    adventure_id INTEGER NOT NULL,
+    star_mask INTEGER NOT NULL CHECK (star_mask BETWEEN 8 AND 15),
+    PRIMARY KEY (char_id, adventure_id)
+);
+
+INSERT INTO character_adventure_clears(char_id,adventure_id,star_mask)
+SELECT char_id,adventure_id,completion_star
+FROM character_adventures
+WHERE completed_at IS NOT NULL AND completion_star BETWEEN 8 AND 15
+ON CONFLICT (char_id,adventure_id) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS quests (
     id BIGSERIAL PRIMARY KEY,
     char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,

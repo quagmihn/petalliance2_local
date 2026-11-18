@@ -15,6 +15,8 @@ class QuestClientTimeoutTests(unittest.TestCase):
         script = r'''
 Proto = {QUEST_STATUS_NORMAL=0, QUEST_STATUS_DONE=1}
 TipsMgr = {showError=function() end}
+local touch = {}
+CocosModuleMgr = {setScreenTouch=function(value) touch[#touch+1]=value end}
 local callbacks
 NetInterface = {sendWithBlock=function(name, send, success, failure, wait, resend, timeout)
   callbacks = {success=success, failure=failure, timeout=timeout}
@@ -49,6 +51,7 @@ for i=1, 16 do
   if name == "isContinuousFinishing" then flag=value end
 end
 assert(flag == false and quests[7].status == 0)
+assert(touch[#touch] == true)
 assert(questInfo.sendQuestFinished(7, true))
 callbacks.timeout()
 for i=1, 16 do
@@ -56,6 +59,7 @@ for i=1, 16 do
   if name == "isContinuousFinishing" then flag=value end
 end
 assert(flag == false and quests[7].status == 0)
+assert(touch[#touch] == true)
 '''
         result = subprocess.run([shutil.which("lua"), "-e", script, str(QUEST_INFO)],
                                 cwd=ROOT, text=True, capture_output=True)

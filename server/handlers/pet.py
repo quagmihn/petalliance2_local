@@ -83,6 +83,22 @@ async def query_pets(session, payload: bytes):
     return 3139, w.bytes()
 
 
+async def update_army(session, payload: bytes):
+    r = Reader(payload)
+    error = 1756, Writer().u16(1).bytes()
+    if r.u8() != 1 or r.u32() != 1 or session.char_id is None:
+        return error
+    members = [r.u32() for _ in range(r.u8())]
+    support = [r.u32() for _ in range(r.u8())]
+    r.finish()
+    if not 1 <= len(members) <= 3 or len(support) > 3 or (support and len(members) != 3):
+        return error
+    if len(set(members + support)) != len(members + support):
+        return error
+    changed = await session.db.update_primary_army(session.char_id, members, support)
+    return 1756, Writer().u16(0 if changed else 1).bytes()
+
+
 async def get_army(session, payload: bytes):
     Reader(payload).finish()
     if session.char_id is None: raise ValueError("pet army query before character login")

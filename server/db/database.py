@@ -2,11 +2,20 @@ from __future__ import annotations
 
 import json
 import logging
+from functools import cache
 import os
 from pathlib import Path
 from typing import Any
 
 import asyncpg
+
+@cache
+def _character_exp_thresholds():
+    from client_config import table
+
+    levels = sorted(table("ExperienceInfo").items())
+    return [int(row["roleExp"]) for _, row in levels[:-1]]
+
 
 class Database:
     def __init__(self, pool: asyncpg.Pool):
@@ -40,7 +49,71 @@ class Database:
     async def initialize(self, schema: Path | None = None) -> None:
         sql = (schema or Path(__file__).with_name("schema.sql")).read_text()
         async with self.pool.acquire() as conn:
-            await conn.execute(sql)
+            async with conn.transaction():
+                await conn.execute("SELECT pg_advisory_xact_lock(1295143763)")
+                await conn.execute(sql)
+                await conn.execute(
+                    """UPDATE characters SET level=(SELECT 1+count(*)
+                        FROM unnest($1::bigint[]) AS threshold WHERE threshold <= exp)
+                       WHERE level < (SELECT 1+count(*)
+                        FROM unnest($1::bigint[]) AS threshold WHERE threshold <= exp)""",
+                    _character_exp_thresholds(),
+                )
+
+    @staticmethod
+    async def _grant_character_exp(conn, char_id: int, amount: int):
+        if amount:
+            await conn.execute(
+                """UPDATE characters SET exp=exp+$2,
+                   level=greatest(level,(SELECT 1+count(*)
+                       FROM unnest($3::bigint[]) AS threshold WHERE threshold <= exp+$2))
+                   WHERE char_id=$1""",
+                char_id, amount, _character_exp_thresholds(),
+            )
+
+    async def update_primary_army(self, char_id: int, members: list[int], support: list[int]) -> bool:
+        from client_config import table
+
+        config = table("GlobalConfigAddInfo")
+        unlocks = [max(config[index]["values"]) for index in range(9001, 9005)]
+        slots = dict(zip(members, range(3))) | dict(zip(support, range(3, 6)))
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                level = await conn.fetchval(
+                    "SELECT level FROM characters WHERE char_id=$1 FOR UPDATE", char_id
+                )
+                if level is None or len(slots) > 2 + sum(level >= entry for entry in unlocks):
+                    return False
+                pets = await conn.fetch(
+                    """SELECT pet_uid,pet_template_id FROM pets
+                       WHERE char_id=$1 AND pet_uid=ANY($2::bigint[]) FOR UPDATE""",
+                    char_id, list(slots),
+                )
+                if len(pets) != len(slots) or len({pet["pet_template_id"] for pet in pets}) != len(slots):
+                    return False
+                await conn.execute(
+                    "UPDATE pets SET slot_index=-1 WHERE char_id=$1 AND slot_index BETWEEN 0 AND 5",
+                    char_id,
+                )
+                await conn.executemany(
+                    "UPDATE pets SET slot_index=$3 WHERE char_id=$1 AND pet_uid=$2",
+                    [(char_id, uid, slot) for uid, slot in slots.items()],
+                )
+                return True
+
+    async def committed_character_progress(self, char_id: int):
+        row = await self.pool.fetchrow(
+            "SELECT level,exp,gold AS g_cash,diamond AS m_cash FROM characters WHERE char_id=$1",
+            char_id,
+        )
+        return dict(row)
+
+    async def adventure_clears(self, char_id: int):
+        return await self.pool.fetch(
+            """SELECT adventure_id AS "advID",star_mask AS star
+               FROM character_adventure_clears WHERE char_id=$1 ORDER BY adventure_id""",
+            char_id,
+        )
 
     async def close(self) -> None:
         await self.pool.close()
@@ -108,7 +181,8 @@ class Database:
         )
 
     async def create_character_with_pet(self, account_id: int, world_id: int, name: str,
-                                        avatar: int, gender: int, pet_template_id: int):
+                                        avatar: int, gender: int, pet_template_id: int,
+                                        initial_fashions: list[int] | None = None):
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 await conn.fetchrow("SELECT user_id FROM accounts WHERE user_id=$1 FOR UPDATE", account_id)
@@ -118,10 +192,14 @@ class Database:
                 )
                 created = char is None
                 if char is None:
+                    from fashion_config import initial_fashion_state
+                    fashion_state = initial_fashion_state(initial_fashions or [])
                     char = await conn.fetchrow(
-                        """INSERT INTO characters(account_id,world_id,name,avatar,gender)
-                           VALUES($1,$2,$3,$4,$5) RETURNING *""",
+                        """INSERT INTO characters(account_id,world_id,name,avatar,gender,game_values)
+                           VALUES($1,$2,$3,$4,$5,$6::jsonb) RETURNING *""",
                         account_id, world_id, name, avatar, gender,
+                        json.dumps({"curfashion": json.dumps(fashion_state["curFashion"], separators=(",", ":")),
+                                    "fashion_info": fashion_state}),
                     )
                 first_pet = await conn.fetchrow(
                     "SELECT * FROM pets WHERE char_id=$1 ORDER BY pet_uid LIMIT 1", char["char_id"]
@@ -350,8 +428,23 @@ class Database:
                 if isinstance(progress, dict):
                     progress = progress.get("progressList", [])
                 if (not isinstance(progress, list) or len(progress) != len(objectives)
-                        or any(type(value) is not int or value < objective.amount
-                               for value, objective in zip(progress, objectives))):
+                        or any(type(value) is not int for value in progress)):
+                    return False, []
+
+                # Mandatory guide records sometimes encode a client tutorial
+                # step as event_type 2 with all target IDs set to zero. This is
+                # a guide-completion marker (the Lua flow calls finishProcess),
+                # not a collect-item objective. Accept that explicit client
+                # commit only while the configured strong guide is active and
+                # its configured parent has already been committed.
+                guide_marker = (quest.client_commit_marker and quest.strong_type == "1" and bool(objectives)
+                                and all(o.event_type == 2 and not o.main_id and not o.sub_id
+                                        and not o.final_id for o in objectives))
+                if guide_marker:
+                    progress = [max(value, objective.amount)
+                                for value, objective in zip(progress, objectives)]
+                elif any(value < objective.amount
+                         for value, objective in zip(progress, objectives)):
                     return False, []
 
                 new_children = []
@@ -369,6 +462,7 @@ class Database:
                     if inserted is not None:
                         new_children.append(child_id)
 
+
                 gold = int(quest.gold_reward) if quest.gold_reward.isdigit() else 0
                 exp = int(quest.exp_reward) if quest.exp_reward.isdigit() else 0
                 values = char["game_values"] or {}
@@ -379,10 +473,11 @@ class Database:
                     """UPDATE quests SET status=1,progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2""",
                     char_id, quest.quest_id, json.dumps(progress))
                 await conn.execute(
-                    """UPDATE characters SET gold=gold+$2,exp=exp+$3,
-                       diamond=diamond+$4,game_values=game_values || jsonb_build_object('map_lock',$5::text)
+                    """UPDATE characters SET gold=gold+$2,
+                       diamond=diamond+$3,game_values=game_values || jsonb_build_object('map_lock',$4::text)
                        WHERE char_id=$1""",
-                    char_id, gold, exp, quest.diamond_reward, map_lock)
+                    char_id, gold, quest.diamond_reward, map_lock)
+                await self._grant_character_exp(conn, char_id, exp)
                 return True, new_children
 
     async def repair_completed_quest_unlocks(self, char_id: int, all_quests: dict[int, Any]) -> None:
@@ -454,6 +549,9 @@ class Database:
                 raw_values[key] = currencies[normalized]
             elif normalized in aliases:
                 raw_values[key] = aliases[normalized]
+            elif normalized == "curfashion":
+                from fashion_config import default_fashion_ids
+                raw_values[key] = json.dumps(default_fashion_ids(), separators=(",", ":"))
         return validate_character_values(keys, raw_values)
 
     async def set_character_value(self, char_id: int, key: str, value: str) -> None:
@@ -511,8 +609,7 @@ class Database:
                         await conn.execute("UPDATE characters SET diamond=diamond+$2 WHERE char_id=$1",
                                            char_id, amount)
                     elif kind == "exp":
-                        await conn.execute("UPDATE characters SET exp=exp+$2 WHERE char_id=$1",
-                                           char_id, amount)
+                        await self._grant_character_exp(conn, char_id, amount)
                     elif kind == "item":
                         await conn.execute(
                             """INSERT INTO inventory(char_id,item_id,count) VALUES($1,$2,$3)
@@ -590,8 +687,7 @@ class Database:
                         await conn.execute("UPDATE characters SET diamond=diamond+$2 WHERE char_id=$1",
                                            char_id, amount)
                     elif kind == "exp":
-                        await conn.execute("UPDATE characters SET exp=exp+$2 WHERE char_id=$1",
-                                           char_id, amount)
+                        await self._grant_character_exp(conn, char_id, amount)
                     elif kind == "item":
                         await conn.execute(
                             """INSERT INTO inventory(char_id,item_id,count) VALUES($1,$2,$3)
@@ -605,6 +701,49 @@ class Database:
                     """UPDATE character_adventures
                        SET completed_at=now(),completion_star=$2,completion_awards_json=$3::jsonb
                        WHERE char_id=$1""", char_id, star, json.dumps(encoded))
+                # NewQuestInfo event 19 means that this configured Adventure
+                # has been cleared. Persist that objective in the same
+                # transaction as the clear and its rewards so the story quest
+                # is claimable after relogin and cannot advance on a failed run.
+                if star & 8:
+                    await conn.execute(
+                        """INSERT INTO character_adventure_clears(char_id,adventure_id,star_mask)
+                           VALUES($1,$2,$3) ON CONFLICT (char_id,adventure_id)
+                           DO UPDATE SET star_mask=character_adventure_clears.star_mask | EXCLUDED.star_mask""",
+                        char_id, row["adventure_id"], star,
+                    )
+                    from quest_config import load_quests
+                    config = load_quests()
+                    active = await conn.fetch(
+                        "SELECT quest_id,progress FROM quests WHERE char_id=$1 AND status=0 FOR UPDATE",
+                        char_id)
+                    for quest_row in active:
+                        quest = config.get(quest_row["quest_id"])
+                        if quest is None or not quest.objectives:
+                            continue
+                        matching = [i for i, objective in enumerate(quest.objectives)
+                                    if objective.event_type == 19
+                                    and objective.main_id == row["adventure_id"]]
+                        if not matching:
+                            continue
+                        progress = quest_row["progress"]
+                        if isinstance(progress, str):
+                            progress = json.loads(progress)
+                        if isinstance(progress, dict):
+                            progress = progress.get("progressList", [])
+                        if not isinstance(progress, list) or len(progress) != len(quest.objectives):
+                            continue
+                        progress = list(progress)
+                        changed = False
+                        for index in matching:
+                            amount = quest.objectives[index].amount
+                            if type(progress[index]) is int and progress[index] < amount:
+                                progress[index] = amount
+                                changed = True
+                        if changed:
+                            await conn.execute(
+                                "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
+                                char_id, quest.quest_id, json.dumps(progress))
         return encoded
 
     async def grant_pet(self, char_id: int, template_id: int) -> asyncpg.Record | None:

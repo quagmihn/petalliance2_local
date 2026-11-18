@@ -41,8 +41,20 @@ EMPTY_STARTUP_ACKS = {
 }
 
 
+async def adventure_clear_notifications(session):
+    rows = await session.db.adventure_clears(session.char_id)
+    entries = [json.dumps(dict(row), separators=(",", ":")) for row in rows]
+    return [(1749, Writer().vector_strings(entries[start:start + 32]).bytes())
+            for start in range(0, len(entries), 32)]
+
+
 async def get_finished_adventures(session, payload: bytes):
-    return 3081, Writer().u16(0).u32(0).bytes()
+    Reader(payload).finish()
+    if session.char_id is None:
+        return 3081, Writer().u16(1).u32(0).bytes()
+    notifications = await adventure_clear_notifications(session)
+    count = sum(body[0] for _, body in notifications)
+    return [(3081, Writer().u16(0).u32(count).bytes()), *notifications]
 
 
 async def create_adventure(session, payload: bytes):
@@ -200,7 +212,7 @@ async def finish_adventure(session, payload: bytes):
     rewards = []
     if star:
         # SearchingFuncMgr sets bit 8 only after the dungeon clear event.
-        if not (star & 8):
+        if not 8 <= star <= 15:
             return 2995, Writer().u16(1).bytes()
         exp = int(adventure.get("Exp_rewards", 0))
         if exp > 0:

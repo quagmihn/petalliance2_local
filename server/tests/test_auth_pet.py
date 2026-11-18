@@ -198,6 +198,12 @@ class PostgreSQLIntegrationTests(unittest.IsolatedAsyncioTestCase):
             char, starter = await db.create_character_with_pet(
                 account["user_id"], 1, "char-" + secrets.token_hex(6), 1, 0, 7)
             self.assertIsNotNone(starter)
+            game_values = char["game_values"]
+            if isinstance(game_values, str): game_values = json.loads(game_values)
+            expected_fashion = game_values["curfashion"]
+            from handlers.player import write_char_base
+            self.assertTrue(write_char_base(char, username).endswith(
+                expected_fashion.encode() + b"\0"))
             from handlers.pet import pet_json, get_army
             from pet_config import validate_pet
             pet_data = json.loads(pet_json(starter))
@@ -243,7 +249,6 @@ class PostgreSQLIntegrationTests(unittest.IsolatedAsyncioTestCase):
             wallet = await db.pool.fetchrow(
                 "SELECT gold,diamond,vip_level FROM characters WHERE char_id=$1", char["char_id"])
             self.assertEqual((wallet["gold"], wallet["diamond"], wallet["vip_level"]), (0, 0, 0))
-            from handlers.player import write_char_base
             import struct
             from pathlib import Path
             vip_config = (Path(__file__).resolve().parents[2] /

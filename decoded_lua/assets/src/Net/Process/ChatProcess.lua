@@ -72,7 +72,7 @@ function ChatProcess.onGC_Chat_Ack(msg)
 
     if (Proto.Error.ERROR_OK == res.code) then
     else
-        StandardTipsMgr.show(1, "friendList18")
+        TipsMgr.showError(nil, res.code)
     end
     CallbackMgr.doCallFunc(res.code, Proto.Command.GC_CHAT_ACK)
     return res.code

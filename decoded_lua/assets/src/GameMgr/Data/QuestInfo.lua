@@ -359,6 +359,10 @@ function QuestInfo.sendQuestFinished(questID, checkNext, callback)
             if curQuestDatas[questID] then
                 curQuestDatas[questID].status = Proto.QUEST_STATUS_NORMAL
             end
+            -- A mandatory child guide can keep the global touch mask active
+            -- while this ACK is pending. Release it on both server rejection
+            -- and timeout so the player can retry or leave the guide screen.
+            CocosModuleMgr.setScreenTouch(true)
         end
         NetInterface.sendWithBlock("ZC_CommitQuest_Ack", function()
             curQuestDatas[questID] = questData

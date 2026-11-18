@@ -90,9 +90,16 @@ class QuestDB:
         if quest.parent_id and self.quests.get(quest.parent_id, {}).get("status") != 1:
             return False, []
         progress = row.get("progress", [])
+        marker = (quest.strong_type == "1" and bool(quest.objectives)
+                  and all(o.event_type == 2 and not o.main_id and not o.sub_id and not o.final_id
+                          for o in quest.objectives))
         if (len(progress) != len(quest.objectives)
-                or any(value < objective.amount for value, objective in zip(progress, quest.objectives))):
+                or (not marker and any(value < objective.amount
+                                       for value, objective in zip(progress, quest.objectives)))):
             return False, []
+        if marker:
+            progress = [max(value, objective.amount)
+                        for value, objective in zip(progress, quest.objectives)]
         row["status"] = 1
         row["progress"] = progress
         children = []
@@ -188,6 +195,21 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         ntf = Reader(result[1][1]); self.assertEqual(ntf.u8(), 1)
         self.assertEqual((ntf.u32(), ntf.u8()), (10003, 0)); ntf.u64()
         self.assertEqual((ntf.u8(), ntf.u32()), (1, 0)); ntf.finish()
+
+    async def test_configured_mandatory_guide_marker_commits_after_parent(self):
+        # NewQuestInfo event-type 2 with no target IDs is the mandatory guide
+        # completion marker used by GameGuideMgr.finishProcess().
+        self.session.db.quests[10002] = {"status": 1, "progress": [1]}
+        self.session.db.quests[10003] = {"status": 0, "progress": [0]}
+        ok, _ = await self.session.db.commit_configured_tutorial_quest(
+            self.session.char_id, self.config[10003], self.config)
+        self.assertTrue(ok)
+        self.assertEqual(self.session.db.quests[10003]["progress"], [1])
+        self.session.db.quests[10003]["status"] = 0
+        self.session.db.quests[10002]["status"] = 0
+        ok, _ = await self.session.db.commit_configured_tutorial_quest(
+            self.session.char_id, self.config[10003], self.config)
+        self.assertFalse(ok)
 
     async def test_configured_adventure_returns_real_sceneinfo_cells(self):
         ack_id, body = await dispatch(self.session, 2996, Writer().u32(1).bytes())

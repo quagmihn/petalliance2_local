@@ -1,5 +1,7 @@
 import copy
 import json
+import subprocess
+from pathlib import Path
 import unittest
 from types import SimpleNamespace
 from handlers.pet import pet_json
@@ -44,6 +46,24 @@ class PetRuntimeContracts(unittest.TestCase):
 
 
 class FormationRuntimeContracts(unittest.IsolatedAsyncioTestCase):
+    def test_lua_team_power_reuses_detail_formula_and_ignores_missing_uid(self):
+        root = Path(__file__).resolve().parents[2]
+        program = """
+local pets = dofile("decoded_lua/assets/src/GameMgr/Data/PokemonInfo.lua")
+pets.getPokemonInfoByID = function(id) return {id=id} end
+local first = {pokeID=1, fc=0, yoke={yokeValues={7}}}
+local second = {pokeID=2, fc=900}
+PetEducationMgr = {calPetFC=function(config, pet, yoke, rates)
+    assert(config.id == pet.pokeID and yoke[1] == 7 and yoke[6] == 0 and rates[1] == 0)
+    return 383
+end}
+pets.getPetInfoByObjID = function(id) return ({[11]=first,[12]=second})[id] end
+assert(pets.getFightPoint({first,second}) == 1283)
+assert(pets.getFightPointByObjID({11,12,13}) == 1283)
+assert(pets.getFightPoint({}) == 0)
+"""
+        subprocess.run(["lua", "-"], input=program, text=True, cwd=root, check=True)
+
     async def test_primary_and_helper_vectors_match_army_uids(self):
         from handlers.pet import query_pets, get_army
         from protocol import Reader, Writer
