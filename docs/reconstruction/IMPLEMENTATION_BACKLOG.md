@@ -21,7 +21,7 @@ Checkpoint baseline tag: `baseline-partial-verified-2026-11-18` at commit `947a0
 
 10. Event claim state and reset semantics for verified local schedules.
 11. Each shop catalog, stock refresh/limit rules, and atomic wallet/inventory notifications.
-12. Local-only recharge package catalog and simulated idempotent transaction after correctly parsing package/reward configs; reject external provider integration.
+12. Local-only RechargeTestCmd checkout now parses all 12 normal and 2 month-card catalogs, grants configured initial diamonds, advances recharge total/month entitlement, and is idempotent per generated order key. PostgreSQL/TCP verified; Android BUY click still needs Waydroid verification. First-charge mail rewards and daily month-card claims remain unresolved.
 13. Social/family/friends/chat/mail/ranking/achievement protocol coverage and persistence.
 14. Appearance/equipment/pet/UI cache contracts, including state revisions where wire protocol supports them.
 
@@ -31,3 +31,12 @@ Checkpoint baseline tag: `baseline-partial-verified-2026-11-18` at commit `947a0
 16. Profile request/SQL/transaction/client redraw latencies; optimize only measured slow paths.
 17. Separate Waydroid acceptance by interaction/scene/battle family, cold relogin, and official server restart.
 18. Compare optional newer lawful assets against the target APK before integration; no upgrade assets currently merged.
+
+## 2026-11-18 active implementation checkpoint
+
+- Implemented the local recharge UI path in `PayConfig.payLocal`; Android/iOS no longer invoke external SDK checkout in this private build. The APK packer now includes those Lua changes.
+- Added a local recharge ledger with `simulated=TRUE`, per-character idempotency, configured normal package grant rules from `PayConfig.genRechargeInfoTable`, and month-card entitlement. Activation requires `LOCAL_PAYMENT_SANDBOX=1` and no external `PAYMENT_PROVIDER`; default is off.
+- Fixed a demonstrated reconnect duplication: source traces showed `NetInterface.resend()` replaying pending quest/channel requests and then issuing a second quest-list request; `Reconnector.finish()` could also submit another channel join. This overwrote callbacks (`replaced=true`). Replay now snapshots pending requests and checks ACK ownership before starting the automatic refresh/channel join.
+- Full suite after recharge + reconnect dedupe: 96 PASS, 0 FAIL, 0 skipped on `monster2_test_db` (log `/tmp/monster2-full-suite-20261118.log`).
+- Built APK from the exact installed baseline (`dist/monster2_restoration.apk`, SHA256 matched installed package). New APK is not installed; live server was not restarted or migrated.
+- Next: capture paired server/client logs during a fresh Waydroid reconnect, verify actual package BUY click against a test runtime before enabling any production-style local checkout.

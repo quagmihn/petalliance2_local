@@ -29,3 +29,18 @@ Verified source commit: `144d757` (`Fix Waydroid wild capture and market state s
 Screenshots and synchronized server logs are local evidence under `artifacts/pet-exp-feed-20261118/` and are deliberately not tracked in Git. Production data was not manually edited to create a test pass. Runtime encounter rows from normal Waydroid gameplay are present in `monster2_db`.
 
 Cold relogin was completed after capture; Town and the quest continuation dialogue loaded. PostgreSQL retains Pet UID 3/template 26 and quest 10008 status 1/progress `[1]`. Continue the discovered quest/map graph; broader content remains incomplete.
+
+## 2026-11-18 implementation follow-up (not yet runtime accepted)
+
+| Check | Result | Evidence |
+|---|---|---|
+| Local recharge catalog | PASS: 14 parsed | Target Lua config schemas decode 12 normal and 2 month-card offers; rewards follow `PayConfig.genRechargeInfoTable` |
+| Recharge transaction/TCP | PASS | `monster2_test_db`; request 90 emits committed wallet notification 473 then ACK 89; duplicate key does not duplicate grant; month-card 10001 stores 30 days and 400 initial diamonds |
+| Recharge safety gate | PASS | Default disabled; explicit `LOCAL_PAYMENT_SANDBOX=1`; configured nonlocal provider rejected |
+| Reconnect callback duplication | CODE + LUA TEST PASS | Pending quest/channel replay checks prevent automatic second request and callback replacement; 96-test suite includes regression |
+| Latest test suite | PASS | 96 tests, no failures/skips, `monster2_test_db`, `/tmp/monster2-full-suite-20261118.log` |
+| Local recharge APK | BUILD/PACKAGE PASS; WAYDROID PENDING | `dist/monster2_local-recharge.apk`, SHA256 `364d275f98101e548758bc7b46ce775b7c9d0f13f830a574d24d2a2df5134e76`; built from `dist/monster2_restoration.apk` (installed-baseline SHA256 `362d724207e8b1da7fe55f8f86e0672f195e9f6b6388d2c7119e56fa1d677448`); patched encrypted Lua matched source and signature matches installed cert. Do not call runtime accepted until actual BUY click is exercised. |
+| Production database/server | UNCHANGED | No production schema write, server restart, or recharge grant in this follow-up |
+| TCP close/root cause | BLOCKED | Client logs show close/reconnect after ACK completion, but there is no synchronized server log for that same connection. Duplicate callback ownership is fixed; transport close initiator remains unproven. |
+
+See [FULL_GAMEPLAY_IMPLEMENTATION.md](FULL_GAMEPLAY_IMPLEMENTATION.md) for the scope, exact limitations, and next executable steps.

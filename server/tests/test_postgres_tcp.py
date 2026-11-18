@@ -71,6 +71,26 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             r = await send(1655, create, 807)
             self.assertEqual((r.i32(), r.string(), r.i32()), (0, "", 0))
             char_id = r.u32(); self.assertNotEqual(char_id, 2)
+            # Exercise the configured local recharge on the real framed TCP
+            # route. Its response is a committed wallet notification followed
+            # by the protocol ACK; repeating the same order cannot grant twice.
+            with patch.dict(os.environ, {"LOCAL_PAYMENT_SANDBOX": "1",
+                                         "PAYMENT_PROVIDER": "local", "GAME_ENV": "test"}):
+                order_key = "local:N2:tcp-test-" + suffix
+                recharge_body = Writer().u32(2).string(order_key).bytes()
+                for _attempt in range(2):
+                    writer.write(frame(90, xor_payload(recharge_body))); await writer.drain()
+                    msg, body, _ = await asyncio.wait_for(receive(), 3)
+                    self.assertEqual(msg, 473)
+                    wallet = json.loads(Reader(body).string())
+                    self.assertEqual(wallet["diamond"], 160)
+                    msg, body, _ = await asyncio.wait_for(receive(), 3)
+                    self.assertEqual((msg, Reader(body).u16()), (89, 0))
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT diamond FROM characters WHERE char_id=$1", char_id), 160)
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT count(*) FROM local_recharge_transactions WHERE char_id=$1 "
+                    "AND order_key=$2 AND simulated", char_id, order_key), 1)
             fashions = await send(2075, b"", 2102)
             self.assertEqual(fashions.u16(), 0)
             fashion_state = json.loads(fashions.string()); fashions.finish()

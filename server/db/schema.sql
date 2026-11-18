@@ -50,6 +50,22 @@ ALTER TABLE characters ADD COLUMN IF NOT EXISTS first_charge_claimed BOOLEAN NOT
 ALTER TABLE characters ADD COLUMN IF NOT EXISTS currencies_json JSONB NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE characters ADD COLUMN IF NOT EXISTS game_values JSONB NOT NULL DEFAULT '{}'::jsonb;
 
+-- Idempotent local-only recharge ledger. The client supplies an order key in
+-- the existing RechargeTestCmd appID field; this ledger is never a payment
+-- provider receipt.
+CREATE TABLE IF NOT EXISTS local_recharge_transactions (
+    transaction_id BIGSERIAL PRIMARY KEY,
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    order_key TEXT NOT NULL,
+    package_kind TEXT NOT NULL CHECK (package_kind IN ('normal','month')),
+    package_id INTEGER NOT NULL,
+    paid_amount BIGINT NOT NULL CHECK (paid_amount >= 0),
+    rewards JSONB NOT NULL,
+    simulated BOOLEAN NOT NULL DEFAULT TRUE CHECK (simulated),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(char_id, order_key)
+);
+
 -- Remove the legacy always-on GM wallet enforcement. Balances are now changed
 -- only by validated transactional gameplay operations. Local payment sandbox
 -- is separately gated by LOCAL_PAYMENT_SANDBOX in the server process.

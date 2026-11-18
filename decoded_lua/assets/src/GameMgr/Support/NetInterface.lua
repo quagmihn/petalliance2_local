@@ -222,15 +222,29 @@ function NetInterface.sendWithBlock(ackName, func, successCallback, errorCallbac
 end
 
 ---断线重连后发送
+function NetInterface.hasPending(ackName)
+    return sendMsgCaches[ackName] ~= nil or noResendMsgCaches[ackName] ~= nil
+end
+
 function NetInterface.resend()
     print("断线重连后，检查补发未发送成功的消息")
+    local resendEntries = {}
     for key, var in pairs(sendMsgCaches) do
+        resendEntries[#resendEntries + 1] = {key, var}
+    end
+    for _, entry in ipairs(resendEntries) do
+        local key, var = entry[1], entry[2]
+        if sendMsgCaches[key] ~= var then
+            -- A callback may have resolved the request while the replay list
+            -- was being prepared. Do not send a stale operation.
+        else
         print("确认补发消息", key)
         if var.type==0 then
             NetInterface.send(key, var.sendFunc, var.sCallback, var.eCallback)
         elseif var.type==1 then
             NetInterface.sendWithBlock(key, var.sendFunc, var.sCallback, var.eCallback,
                 var.waitTime, var.canResend, var.timeoutCallback)
+        end
         end
     end
 
@@ -239,7 +253,7 @@ function NetInterface.resend()
     end
     noResendMsgCaches = {}
 
-    if SceneMgr.currentScene=="MainScene" then
+    if SceneMgr.currentScene=="MainScene" and not NetInterface.hasPending("ZC_QuestList_Ack") then
         NetInterface.sendWithBlock("ZC_QuestList_Ack", function()
             local NewQuestSend = require("src.Net.Send.NewQuestSend")
             NewQuestSend.sendCZ_QuestList_Req()

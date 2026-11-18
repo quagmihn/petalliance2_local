@@ -2,6 +2,7 @@ import unittest
 from types import SimpleNamespace
 import asyncio
 import os
+import secrets
 from unittest.mock import patch
 
 from handlers import economy
@@ -47,6 +48,56 @@ class EconomySafetyTests(unittest.IsolatedAsyncioTestCase):
             session, Writer().u32(2).string("1").bytes())
         self.assertEqual(ack_id, 89)
         self.assertEqual(Reader(payload).u16(), 1)
+
+    async def test_local_recharge_catalog_gate_idempotency_and_month_card(self):
+        dsn = os.getenv("TEST_DATABASE_URL")
+        if not dsn:
+            self.skipTest("TEST_DATABASE_URL required")
+        from db.database import Database
+        db = await Database.connect(dsn)
+        username = "recharge-test-" + secrets.token_hex(8)
+        try:
+            self.assertEqual(await db.pool.fetchval("SELECT current_database()"),
+                             "monster2_test_db")
+            await db.initialize()
+            account_id = await db.pool.fetchval(
+                "INSERT INTO accounts(username,token) VALUES($1,$2) RETURNING user_id",
+                username, secrets.token_hex(16))
+            char_id = await db.pool.fetchval(
+                "INSERT INTO characters(account_id,world_id,name) VALUES($1,1,$2) RETURNING char_id",
+                account_id, username)
+            session = SimpleNamespace(db=db, char_id=char_id, account_id=account_id)
+            order = "local:N2:test-order-" + secrets.token_hex(8)
+            body = Writer().u32(2).string(order).bytes()
+            with patch.dict(os.environ, {"LOCAL_PAYMENT_SANDBOX": "1", "PAYMENT_PROVIDER": "local", "GAME_ENV": "test"}):
+                result = await economy.recharge_test(session, body)
+                self.assertEqual([msg for msg, _ in result], [473, 89])
+                values = __import__("json").loads(Reader(result[0][1]).string())
+                self.assertEqual(values["diamond"], 160)
+                self.assertEqual(values["recharge"]["totalMoney"], 99)
+                self.assertEqual(Reader(result[1][1]).u16(), 0)
+                duplicate = await economy.recharge_test(session, body)
+                self.assertEqual(Reader(duplicate[1][1]).u16(), 0)
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT diamond FROM characters WHERE char_id=$1", char_id), 160)
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT count(*) FROM local_recharge_transactions WHERE char_id=$1 "
+                    "AND simulated AND package_id=2", char_id), 1)
+                month_order = "local:M10001:test-order-" + secrets.token_hex(8)
+                month = await economy.recharge_test(
+                    session, Writer().u32(10001).string(month_order).bytes())
+                self.assertEqual(Reader(month[1][1]).u16(), 0)
+                row = await db.pool.fetchrow(
+                    "SELECT diamond,month_card_until,recharge_total FROM characters WHERE char_id=$1",
+                    char_id)
+                self.assertEqual((row["diamond"], row["recharge_total"]), (560, 598))
+                self.assertIsNotNone(row["month_card_until"])
+            with patch.dict(os.environ, {"LOCAL_PAYMENT_SANDBOX": "0", "PAYMENT_PROVIDER": "local", "GAME_ENV": "test"}):
+                rejected = await economy.recharge_test(session, body)
+                self.assertEqual((rejected[0], Reader(rejected[1]).u16()), (89, 1))
+        finally:
+            await db.pool.execute("DELETE FROM accounts WHERE username=$1", username)
+            await db.close()
 
     async def _request_http_payment(self, sandbox):
         class MemoryWriter:

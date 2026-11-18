@@ -444,22 +444,7 @@ function PurchaseViewMgr.setPurchaseItem()
         end
         
         CSResourceMgr.clickEventBindingByNode(itemNodes[index], function()
-            if device.platform ~= "windows" then 
-                PayConfig.pay(v.id)
-                if device.platform == "ios" then
-                    iOSFunction.BuyItem(scene, v.id)
-                end
-            else
-                NetInterface.sendWithBlock("GC_RechargeTestCmd_Ack", function()
-                    local params = {}
-                    params.payID = v.id
-                    params.appID = XFangCunLogSender.getAppid()
-                    local VipSend = require("src.Net.Send.VipSend")
-                    VipSend.sendCG_RechargeTestCmd_Req(params)
-                end, nil, function(code)
-                    TipsMgr.showError(scene, code)
-                end)
-            end
+            PayConfig.payLocal(v.id, false)
         end,2)
 
         local price = CSResourceMgr.seekNodeByName(itemNodes[index], "price")
@@ -924,22 +909,7 @@ function PurchaseViewMgr.showMoonCardTip(node,MoonInfo)
 
     CSResourceMgr.clickEventBinding(resNameMoon, "buyBtn", function()
         -- StandardTipsMgr.show(1, "recharge30")
-        if device.platform ~= "windows" then 
-            PayConfig.pay(MoonInfo.id)
-            if device.platform == "ios" then
-                iOSFunction.BuyItem(scene, MoonInfo.id)
-            end
-        else
-            NetInterface.sendWithBlock("GC_RechargeTestCmd_Ack", function()
-                local params = {}
-                params.payID = MoonInfo.id
-                params.appID = XFangCunLogSender.getAppid()
-                local VipSend = require("src.Net.Send.VipSend")
-                VipSend.sendCG_RechargeTestCmd_Req(params)
-            end, nil, function(code)
-                TipsMgr.showError(scene, code)
-            end)
-        end
+        PayConfig.payLocal(MoonInfo.id, true)
     end)
 
     CSResourceMgr.clickEventBinding(resNameMoon, "cancelBtn", function()

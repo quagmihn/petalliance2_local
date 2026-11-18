@@ -6,7 +6,10 @@ yet. Return the protocol failure code instead of granting fabricated products.
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
+import os
+import re
 
 from protocol import Reader, Writer, success_code
 
@@ -32,6 +35,8 @@ def wallet_update(row) -> tuple[int, bytes]:
                    "gold": row["gold"], "diamond": row["diamond"],
                    "actionvalue": row["stamina"], "viplevel": row["vip_level"],
                    "vip_points": row["vip_points"]})
+    if "recharge_total" in row.keys():
+        values["recharge"] = {"totalMoney": int(row["recharge_total"])}
     return 473, Writer().string(json.dumps(values, separators=(",", ":"))).bytes()
 
 
@@ -135,9 +140,53 @@ async def buy_gcash(session, payload: bytes):
 
 
 async def recharge_test(session, payload: bytes):
-    r = Reader(payload); _pay_id, _app_id = r.u32(), r.string(); r.finish()
-    log.warning("payment_rejected reason=no_local_idempotency_catalog char_id=%s", session.char_id)
-    return 89, Writer().u16(1).bytes()
+    r = Reader(payload); pay_id, app_id = r.u32(), r.string(); r.finish()
+    failure = (89, Writer().u16(1).bytes())
+    if (os.getenv("LOCAL_PAYMENT_SANDBOX", "0") != "1"
+            or os.getenv("GAME_ENV", "").lower() not in ("test", "play", "production")
+            or os.getenv("PAYMENT_PROVIDER", "local").lower() not in ("", "local", "none")):
+        log.warning("local_recharge_rejected char_id=%s reason=sandbox_disabled", session.char_id)
+        return failure
+    match = re.fullmatch(r"local:([NM])(\d{1,10}):(.{1,160})", app_id)
+    if match is None or session.char_id is None:
+        log.warning("local_recharge_rejected char_id=%s reason=invalid_order_key", session.char_id)
+        return failure
+    kind, package_id_text, order_key = match.groups()
+    package_id = int(package_id_text)
+    if package_id != pay_id:
+        log.warning("local_recharge_rejected char_id=%s reason=package_mismatch", session.char_id)
+        return failure
+    from client_config import table
+    package_kind = "normal" if kind == "N" else "month"
+    catalog_name = "NormalRechargeInfo" if kind == "N" else "MonthCardRechargeInfo"
+    package = table(catalog_name).get(package_id)
+    if package is None:
+        log.warning("local_recharge_rejected char_id=%s package=%s reason=unknown_package",
+                    session.char_id, package_id)
+        return failure
+    diamonds = (int(package["mCash"]) * int(package["bonusRate"])
+                if kind == "N" and int(package["bonusRate"]) != 0
+                else int(package["mCash"]) + int(package.get("giftMCash", 0))
+                if kind == "N" else int(package["initMCash"]))
+    if diamonds <= 0 or int(package["money"]) <= 0:
+        return failure
+    try:
+        result = await session.db.apply_local_recharge(
+            session.char_id, app_id, package_kind, package, diamonds,
+            int(package["money"]))
+    except (ValueError, KeyError, TypeError) as exc:
+        log.warning("local_recharge_rejected char_id=%s package=%s reason=%s",
+                    session.char_id, package_id, exc)
+        return failure
+    if result is None:
+        return failure
+    log.info("local_recharge char_id=%s package_kind=%s package_id=%s simulated=true "
+             "duplicate=%s order_hash=%s diamonds=%s",
+             session.char_id, package_kind, package_id, result["duplicate"],
+             hashlib.sha256(app_id.encode()).hexdigest()[:12], diamonds)
+    # 473 is the client's canonical wallet notification. It must reflect the
+    # committed row before the package callback receives ACK 89.
+    return [wallet_update(result["character"]), (89, Writer().u16(0).bytes())]
 
 
 async def capsule_egg(session, payload: bytes):

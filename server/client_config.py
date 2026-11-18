@@ -30,6 +30,24 @@ def decoders():
             fields = re.findall(r"data\.(\w+)\s*=\s*Proto\.parse(\w+)\(entry(?:,Proto\.parse(\w+))?\)", body)
             if fields:
                 result[name] = fields
+    # These target-client recharge readers are simple, unconditional XDat
+    # records, but their parser functions live beside conditional protocol
+    # types and the generic scanner intentionally skips those blocks.
+    result["NormalRechargeInfo"] = [
+        ("id", "int", None), ("name", "string", None), ("money", "int", None),
+        ("mCash", "int", None), ("giftMCash", "int", None),
+        ("bonusRate", "int", None), ("bonusCD", "int", None),
+        ("orderName", "String", None), ("image", "String", None), ("tag", "String", None),
+    ]
+    result["MonthCardRechargeInfo"] = [
+        ("id", "int", None), ("name", "string", None), ("money", "int", None),
+        ("days", "int", None), ("mCashPerDay", "int", None),
+        ("initMCash", "int", None), ("orderName", "String", None),
+    ]
+    result["FirstRechargeAwardInfo"] = [
+        ("id", "int", None), ("type", "int", None), ("itemID", "int", None),
+        ("itemCount", "int", None), ("mailID", "int", None),
+    ]
     return result
 
 

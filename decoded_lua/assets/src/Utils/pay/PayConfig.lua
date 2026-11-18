@@ -123,6 +123,25 @@ function PayConfig.pay(id)
     end
 end
 
+-- Private-server checkout uses the original RechargeTestCmd protocol only.
+-- The order key is created once per click and reused by any duplicate packet.
+-- Automatic reconnect resend stays disabled for this non-repeatable action.
+-- No SDK or external receipt is involved.
+function PayConfig.payLocal(id, isMonthCard)
+    local kind = isMonthCard and "M" or "N"
+    local params = {payID = id, appID = "local:"..kind..tostring(id)..":"..
+        PayConfig.genOrderNo(kind..tostring(id))}
+    NetInterface.sendWithBlock("GC_RechargeTestCmd_Ack", function()
+        local VipSend = require("src.Net.Send.VipSend")
+        VipSend.sendCG_RechargeTestCmd_Req(params)
+    end, function()
+        PurchaseViewMgr.showTipMsg(2)
+    end, function(code)
+        PurchaseViewMgr.showTipMsg(1)
+        print("Local recharge rejected:", code)
+    end, nil, false)
+end
+
 function PayConfig.onPaySuccess(orderNO,sdkOrderNO)
     --PurchaseViewMgr.showTipMsg(2)
     print("PayConfig.onPaySuccess is:",orderNO,sdkOrderNO,currentPrice)

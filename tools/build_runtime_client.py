@@ -96,6 +96,10 @@ def main():
                 "assets/src/GameMgr/Common/GameGuideMgr1.lua",
                 "assets/src/GameMgr/Map/BattleMapMgr.lua",
                 "assets/src/Net/Process/ChatProcess.lua",
+                "assets/src/GameMgr/Support/NetInterface.lua",
+                "assets/src/Net/Reconnector.lua",
+                "assets/src/Utils/pay/PayConfig.lua",
+                "assets/src/GameMgr/Item/PurchaseViewMgr.lua",
             }:
                 source_path = Path("decoded_lua") / info.filename
                 data = b"XXTEA" + encrypt(source_path.read_bytes(), b"kyopkm")

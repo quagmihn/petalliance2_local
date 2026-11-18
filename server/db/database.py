@@ -226,6 +226,60 @@ class Database:
                 return {"character": updated,
                         "item_id": item_id, "item_count": int(inventory["count"])}
 
+    async def apply_local_recharge(self, char_id: int, order_key: str,
+                                   package_kind: str, package: dict,
+                                   diamonds: int, paid_amount: int):
+        """Apply one catalogued local simulation, idempotently and atomically."""
+        if package_kind not in ("normal", "month") or not order_key:
+            return None
+        package_id = int(package["id"])
+        if package_id <= 0 or diamonds <= 0 or paid_amount <= 0:
+            return None
+        if package_kind == "month" and int(package.get("days", 0)) <= 0:
+            return None
+        rewards = {"diamond": diamonds}
+        if package_kind == "month":
+            rewards.update({"days": int(package["days"]),
+                            "mCashPerDay": int(package["mCashPerDay"])})
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                char = await conn.fetchrow(
+                    "SELECT * FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                if char is None:
+                    return None
+                old = await conn.fetchrow(
+                    "SELECT package_kind,package_id FROM local_recharge_transactions "
+                    "WHERE char_id=$1 AND order_key=$2", char_id, order_key)
+                if old is not None:
+                    if old["package_kind"] != package_kind or int(old["package_id"]) != package_id:
+                        return None
+                    current = await conn.fetchrow(
+                        "SELECT * FROM characters WHERE char_id=$1", char_id)
+                    return {"character": current, "duplicate": True,
+                            "package_kind": package_kind, "package_id": package_id}
+                if package_kind == "normal":
+                    await conn.execute(
+                        "UPDATE characters SET diamond=diamond+$2,recharge_total=recharge_total+$3 "
+                        "WHERE char_id=$1", char_id, diamonds, paid_amount)
+                else:
+                    await conn.execute(
+                        """UPDATE characters SET diamond=diamond+$2,
+                           recharge_total=recharge_total+$3,
+                           month_card_until=greatest(COALESCE(month_card_until,now()),now())
+                               + $4 * interval '1 day'
+                           WHERE char_id=$1""",
+                        char_id, diamonds, paid_amount, int(package["days"]))
+                await conn.execute(
+                    """INSERT INTO local_recharge_transactions
+                       (char_id,order_key,package_kind,package_id,paid_amount,rewards,simulated)
+                       VALUES($1,$2,$3,$4,$5,$6::jsonb,TRUE)""",
+                    char_id, order_key, package_kind, package_id, paid_amount,
+                    json.dumps(rewards, separators=(",", ":")))
+                updated = await conn.fetchrow(
+                    "SELECT * FROM characters WHERE char_id=$1", char_id)
+                return {"character": updated, "duplicate": False,
+                        "package_kind": package_kind, "package_id": package_id}
+
     async def adventure_clears(self, char_id: int):
         return await self.pool.fetch(
             """SELECT adventure_id AS "advID",star_mask AS star

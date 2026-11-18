@@ -49,7 +49,12 @@ function Reconnector.finish()
     LoadingView.hide()
     --TipsMgr.show(SceneMgr.getRunningScene, "重连成功")
     NetMgr.reconnector = nil
-    TownChatMgr.changeSceneChannel()
+    -- NetInterface.resend may already have replayed this channel join. Starting
+    -- a second blocking request with the same ACK ID replaces its callback and
+    -- can leave the login/loading sequence attached to the wrong request.
+    if not NetInterface.hasPending("GC_ChangeChannel_Ack") then
+        TownChatMgr.changeSceneChannel()
+    end
 end
 
 function Reconnector.reconnectImp()

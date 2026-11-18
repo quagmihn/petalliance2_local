@@ -102,6 +102,54 @@ assert(fired == 1)
                                 cwd=ROOT, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_reconnect_does_not_replace_pending_quest_or_channel_callbacks(self):
+        script = r'''
+Proto = {Command={ZC_QuestList_Ack=26, GC_ChangeChannel_Ack=386}, CommandL={}}
+DebugInfoMgr = {}
+LoginMsgMgr = {IsInLoginProgress=false}
+SceneMgr = {currentScene="MainScene"}
+LoadingView = {show=function() end, hide=function() end}
+TOUCH_PIPELINE_DIAGNOSTICS = false
+TeamInfo = {checkTeamStatus=function() end, checkTeamMapStatus=function() end}
+WorldBossInfo = {checkBossMapStatus=function() end}
+local sent, starts = {}, 0
+OvertimeListener = {
+  start=function(startFn) starts=starts+1; startFn() end,
+  cancel=function() end
+}
+package.preload["src.Net.CallbackMgr"] = function()
+  return {registCallFunc=function() end}
+end
+local net = assert(loadfile(arg[0]))()
+net.sendWithBlock("ZC_QuestList_Ack", function() sent[#sent+1]="quest" end)
+net.sendWithBlock("GC_ChangeChannel_Ack", function() sent[#sent+1]="channel" end)
+assert(net.hasPending("ZC_QuestList_Ack"))
+assert(net.hasPending("GC_ChangeChannel_Ack"))
+net.resend()
+assert(#sent == 4 and sent[1] == "quest" and sent[2] == "channel")
+assert(net.hasPending("ZC_QuestList_Ack"))
+assert(net.hasPending("GC_ChangeChannel_Ack"))
+
+local chatJoins = 0
+TownChatMgr = {changeSceneChannel=function() chatJoins=chatJoins+1 end}
+LoadingView = {hide=function() end}
+local reconnectListener = 0
+package.preload["src.Net.NetMgr"] = function()
+  return {reconnector={}, onReconnected=function() reconnectListener=reconnectListener+1 end}
+end
+NetInterface = net
+local reconnector = assert(loadfile(arg[1]))()
+reconnector.init(function() reconnectListener=reconnectListener+1 end)
+reconnector.finish()
+assert(reconnectListener == 1)
+assert(chatJoins == 0)
+'''
+        reconnector = ROOT / "decoded_lua/assets/src/Net/Reconnector.lua"
+        result = subprocess.run([shutil.which("lua"), "-e", script,
+                                str(NET_INTERFACE), str(reconnector)],
+                               cwd=ROOT, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

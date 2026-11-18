@@ -35,7 +35,7 @@ if [[ -z "${DATABASE_URL:+set}" ]]; then
     echo "Set DATABASE_URL for test, or configure server/.env.play for play." >&2
     exit 2
 fi
-export DATABASE_URL MONSTER2_EXPECTED_DB
+export DATABASE_URL MONSTER2_EXPECTED_DB GAME_ENV="$mode"
 export GAME_HOST="${GAME_HOST:-192.168.240.1}"
 default_bind=0.0.0.0
 if [[ "$mode" == production && ( -z "${GAME_BIND:-}" || -z "${HTTP_BIND:-}" ) ]]; then

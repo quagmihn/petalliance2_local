@@ -29,6 +29,19 @@ class CaptureShopClientContractTests(unittest.TestCase):
                 self.assertIn("<1>", value, path.name)
                 self.assertNotIn("100", value, path.name)
 
+    def test_android_recharge_buttons_use_local_ordered_protocol_path(self):
+        pay = (ROOT / "decoded_lua/assets/src/Utils/pay/PayConfig.lua").read_text()
+        purchase = (ROOT / "decoded_lua/assets/src/GameMgr/Item/PurchaseViewMgr.lua").read_text()
+        builder = (ROOT / "tools/build_runtime_client.py").read_text()
+        self.assertIn('function PayConfig.payLocal(id, isMonthCard)', pay)
+        self.assertIn('appID = "local:"..kind..tostring(id)..":"..', pay)
+        self.assertIn('PayConfig.payLocal(v.id, false)', purchase)
+        self.assertIn('PayConfig.payLocal(MoonInfo.id, true)', purchase)
+        self.assertNotIn('PayConfig.pay(v.id)', purchase)
+        self.assertNotIn('iOSFunction.BuyItem(scene, v.id)', purchase)
+        self.assertIn('"assets/src/Utils/pay/PayConfig.lua"', builder)
+        self.assertIn('"assets/src/GameMgr/Item/PurchaseViewMgr.lua"', builder)
+
 
 if __name__ == "__main__":
     unittest.main()
