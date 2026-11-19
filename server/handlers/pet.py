@@ -113,6 +113,14 @@ async def get_army(session, payload: bytes):
     return 1774, Writer().u16(0).string(json.dumps(army, separators=(",", ":"))).bytes()
 
 
+async def get_capsule_egg_info(session, payload: bytes):
+    Reader(payload).finish()
+    # The legacy client asks for wish/dream state after a successful Supreme
+    # draw. These modes are unavailable with local pools, but its blocking
+    # callback must receive the protocol's WORD error response.
+    return 1396, Writer().u16(1).bytes()
+
+
 async def get_capsule_egg_cds(session, payload: bytes):
     from local_draw import cooldowns
 

@@ -210,12 +210,18 @@ async def capsule_egg(session, payload: bytes):
     if session.char_id is None or selection or free not in (0, 1) or choice not in (1, 2):
         return failure
     try:
-        machine = configured_catalog().get(opt_type)
+        catalog = configured_catalog()
     except (OSError, ValueError, KeyError, TypeError) as exc:
         log.error("local_draw_catalog_invalid error=%s", exc)
         return failure
+    if not catalog:
+        log.error("gacha_rejected reason=no_local_catalog char_id=%s mode=%s",
+                  session.char_id, os.getenv("GAME_ENV"))
+        return failure
+    machine = catalog.get(opt_type)
     if machine is None:
-        log.info("gacha_rejected reason=no_local_catalog char_id=%s", session.char_id)
+        log.info("gacha_rejected reason=unsupported_machine char_id=%s machine=%s",
+                 session.char_id, opt_type)
         return failure
     code, result = await execute(session.db, session.char_id, opt_type, machine,
                                  1 if choice == 1 else 10, bool(free), request_key)

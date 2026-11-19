@@ -17,13 +17,14 @@ from protocol import Reader, Writer, frame, xor_payload
 
 
 class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
-    def test_official_catalog_is_identical_in_test_and_play(self):
+    def test_official_catalog_is_identical_in_test_play_and_production(self):
         reports = []
-        for mode, database in (("test", "monster2_test_db"), ("production", "monster2_db")):
+        for mode, database in (("test", "monster2_test_db"), ("play", "monster2_play_db"),
+                               ("production", "monster2_db")):
             with patch.dict(os.environ, {"GAME_ENV": mode, "MONSTER2_EXPECTED_DB": database}):
                 reports.append(catalog_report("config/local_draw.json"))
         for key in ("source", "sha256", "machine_ids", "modes", "rewards", "prize_kinds"):
-            self.assertEqual(reports[0][key], reports[1][key])
+            self.assertEqual([report[key] for report in reports[1:]], [reports[0][key]] * 2)
         self.assertEqual(reports[0]["modes"], {
             1: ["free", "x1", "x10"], 2: ["free", "x1", "x10"], 3: ["x1", "x10"]
         })
@@ -103,6 +104,23 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
                         try:
                             await send(writer, 1684, Writer().i32(char_id).string(token))
                             self.assertEqual((await receive(reader, 773)).i32(), 0)
+                            await send(writer, 324, Writer())
+                            bulletins = await receive(reader, 320)
+                            self.assertEqual((bulletins.u16(), bulletins.u8()), (0, 0))
+                            bulletins.finish()
+                            with patch.dict(os.environ, {"MONSTER2_DRAW_CATALOG": "config/local_draw.json"}):
+                                await send(writer, 1392, Writer().raw(bytes.fromhex("0100010001000000")))
+                                self.assertEqual((await receive(reader, 112)).u8(), 1)
+                                self.assertEqual(json.loads((await receive(reader, 473)).string())["diamond"], 3000)
+                                legacy = await receive(reader, 1561)
+                                self.assertEqual((legacy.u16(), legacy.u8()), (0, 1))
+                                legacy.string()
+                                legacy.finish()
+                                await send(writer, 1392, Writer().raw(bytes.fromhex("0100010001000000")))
+                                self.assertEqual((await receive(reader, 1561)).u16(), 390)
+                            # Isolate the deterministic fixture's inventory and history.
+                            await db.pool.execute("DELETE FROM inventory WHERE char_id=$1", char_id)
+                            await db.pool.execute("DELETE FROM local_draw_history WHERE char_id=$1", char_id)
                             for choice, free, size, inventory, balance in (
                                 (1, 1, 1, 2, 3000), (1, 0, 1, 4, 2712), (2, 0, 10, 24, 124),
                             ):
@@ -118,6 +136,12 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
                                         "elementType": "item", "elementID": 1, "num": 2,
                                     })
                                 ack.finish()
+                                # Real Supreme client sends this blocking
+                                # request after rendering a successful result.
+                                await send(writer, 1519, Writer())
+                                unsupported = await receive(reader, 1396)
+                                self.assertEqual(unsupported.u16(), 1)
+                                unsupported.finish()
                                 if choice == 1 and not free:
                                     # Enough funds to pay twice. A fast retry
                                     # still produces only one paid draw.

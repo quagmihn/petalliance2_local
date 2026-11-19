@@ -11,7 +11,6 @@ local eggtype = {}
 local colorTable = {}
 local colorTable2 = {}
 local outLineColorTable = {}
-local textTable = {}
 local titleTable = {}
 local level1Table = {}
 local level2Table = {}
@@ -53,7 +52,6 @@ local tenAwardAniTable = {}
 local freeEggHandler = nil
 local scheduler = require("src.framework.scheduler")
 local circlePath = {}
-local circlePicPath = {}
 local titlePath = {}
 local stopGachaAnim = false
 local orderString = {}
@@ -74,6 +72,14 @@ local function machineDrawFailed(machine, buttonGroup, code)
     end
 end
 
+local function resultDrawFailed(machine, code)
+    GameGuideMgr.cancelGachaResultWait()
+    if machine and CSResourceMgr.getCsbObj(resNameA) == machine then
+        GachaViewMgr.setVisible(true)
+        showDrawError(code)
+    end
+end
+
 function GachaViewMgr.Init()
     resNameBG = "Pet/Formation/FormationBGNew.csb"
     resName = "Item/Gacha/gachaListView.csb"
@@ -88,7 +94,6 @@ function GachaViewMgr.Init()
     colorTable2 = {{r=67,g=51,b=16,a=255},{r=3,g=70,b=108,a=255},{r=130,g=14,b=130,a=255}}
     descColorTable = {{r=255,g=234,b=158,a=255},{r=143,g=227,b=255,a=255},{r=255,g=197,b=255,a=255}}
     outLineColorTable = {{r=67,g=51,b=16,a=255},{r=11,g=51,b=76,a=255},{r=77,g=14,b=93,a=255}}
-    textTable = {"egg15","egg16","egg17"}
     titleTable = {"egg1","egg5","egg7"}
     level1Table = {"c","a","s"}
     level2Table = {"a","s","2s"}
@@ -123,7 +128,6 @@ function GachaViewMgr.Init()
     isTenChou = false
     tenAwardAniTable = {}
     circlePath = {"UI/CommonFiles/zhutu_chuji.png","UI/CommonFiles/zhutu_gaoji.png","UI/CommonFiles/zhutu_jinengshu.png"}
-    circlePicPath = {"zhutuyu_chuji.png","zhutuyu_gaoji.png","zhutuyu_jinengshu.png"}
     titlePath = {"chujixinyuan.png","gaojixinyuan.png","jinengxinyuan.png"}
     stopGachaAnim = false
     orderString = {
@@ -471,7 +475,7 @@ function GachaViewMgr.setMachine(theEggType)
         CSResourceMgr.setLabelStringByNode(buttonTenDrawLabel, "egg14", {r=29,g=131,b=185,a=255})
 
         CSResourceMgr.getNodeByName(resNameA,"circle"):loadTexture(circlePath[theEggType])
-        CSResourceMgr.getNodeByName(resNameA,"pic"):loadTexture(CocosModuleMgr.getWordImage(circlePicPath[theEggType]))
+        CSResourceMgr.getNodeByName(resNameA,"pic"):setVisible(false)
         CSResourceMgr.getNodeByName(resNameA,"title"):loadTexture(CocosModuleMgr.getWordImage(titlePath[theEggType]))
 
         local timeBack = CSResourceMgr.getNodeByName(resNameA, "timeBack")
@@ -640,8 +644,6 @@ function GachaViewMgr.setOneDrawAward(awardVec)
         CSResourceMgr.clickEventBinding(resNameB, "bg", function()
             --todo
         end)
-        local charCashNum =  theEggType>1 and CharInfo.getMCash() or CharInfo.getGCash()
-        -- local charCashNum = CharInfo.getGCash()
         local capsuleEggInfo = PokemonInfo.getCapsuleEggInfoByID(theEggType)
         local consumeElementInfo = ItemInfo.getConsumeElementInfoById(capsuleEggInfo.OneEggCons)
         local moneyLabel = CSResourceMgr.getNodeByName(resNameB, "moneyNum")
@@ -666,6 +668,8 @@ function GachaViewMgr.setOneDrawAward(awardVec)
 
         CSResourceMgr.clickEventBinding(resNameB, "Button_Again", function()
             GameAudio.playUISound("select1")
+            local machine = CSResourceMgr.getCsbObj(resNameA)
+            local charCashNum = theEggType > 1 and CharInfo.getMCash() or CharInfo.getGCash()
             local bfree = 0
             if theEggType == eggType.gMachine then
                 bfree = isEggGFree
@@ -703,7 +707,11 @@ function GachaViewMgr.setOneDrawAward(awardVec)
                     end,function()
                         -- GachaViewMgr.refreshServerTime()
                     end)
-                end,showDrawError,nil,false)
+                end,function(code)
+                    resultDrawFailed(machine, code)
+                end,nil,false,function()
+                    resultDrawFailed(machine)
+                end)
             else
                 DialogBoxMgr.showSmallDialogBox(scene, 1, unEnoughLabel)
             end
@@ -792,31 +800,10 @@ function GachaViewMgr.setOneDrawAward(awardVec)
             end
         end
 
-        --心愿币
-        if isHopeForce then
-            local getItemMain = CSResourceMgr.getNodeByName(resNameB,"getItemMain")
-            local awardVecMain = {num = PokemonInfo.getCapsuleEggInfoByID(eggType.mMachine).dreamValuePer + CharInfo.getVipInfoByID(CharInfo.getVIPLevel()).dreamCoinAdd,elementID = 9993,elementType = "item"}
-            setAward(getItemMain,awardVecMain)
-            getItemMain:setScale(1)
-        elseif isDreamForce then
-            CSResourceMgr.getNodeByName(resNameB, "getBack"):setVisible(false)
-            CSResourceMgr.setLabelStringByNode(title, "egg19",{r=113,g=66,b=32,a=255})
-        else
-            local getItemMain = CSResourceMgr.getNodeByName(resNameB,"getItemMain")
-            local awardVecMain = ItemInfo.getAwardElementInfoById(capsuleEggInfo.expELem)
-            awardVecMain.num = 1
-            setAward(getItemMain,awardVecMain)
-            getItemMain:setScale(1)
-
-            if theEggType == eggType.mMachine then
-                local getItemMain2 = CSResourceMgr.getNodeByName(resNameB,"getItemMain2")
-                local awardVecMain = {num = 10,elementID = 9992,elementType = "item"}
-                setAward(getItemMain2,awardVecMain)
-                getItemMain2:setScale(1)
-                getItemMain:setPositionX(196)
-                getItemMain2:setPositionX(396)
-            end
-        end
+        -- Local draw results come from ACK 1561. The bundled result
+        -- template also advertises fixed EXP and wish-coin bonuses.
+        CSResourceMgr.getNodeByName(resNameB, "getItemMain"):setVisible(false)
+        CSResourceMgr.getNodeByName(resNameB, "getItemMain2"):setVisible(false)
 
         if isHopeForce or isDreamForce--[[or isHopeForce2]] then
             local againBtn = CSResourceMgr.getNodeByName(resNameB,"Button_Again")
@@ -1208,8 +1195,6 @@ function GachaViewMgr.setTenDrawAward(awardsVec)
             end
             transition.stopTarget(CSResourceMgr.getNodeByName(resNameC, "diban"))
         end)
-        local charCashNum =  theEggType>1 and CharInfo.getMCash() or CharInfo.getGCash()
-        -- local charCashNum =  CharInfo.getGCash()
         local capsuleEggInfo = PokemonInfo.getCapsuleEggInfoByID(theEggType)
         local consumeElementInfo = ItemInfo.getConsumeElementInfoById(capsuleEggInfo.tenEggCons)
 
@@ -1224,6 +1209,8 @@ function GachaViewMgr.setTenDrawAward(awardsVec)
 
         CSResourceMgr.clickEventBinding(resNameC, "Button_Again", function()
             GameAudio.playUISound("select1")
+            local machine = CSResourceMgr.getCsbObj(resNameA)
+            local charCashNum = theEggType > 1 and CharInfo.getMCash() or CharInfo.getGCash()
             stopGachaAnim = false
             if  charCashNum>= consumeElementInfo.num then
                 NetInterface.sendWithBlock("GC_CapsuleEgg_Ack", function()
@@ -1250,7 +1237,11 @@ function GachaViewMgr.setTenDrawAward(awardsVec)
                     --     PetSend.sendCG_CapsuleEggAllInfoCmd_Req()
                     --     end)
                     -- end
-                end,showDrawError,nil,false)
+                end,function(code)
+                    resultDrawFailed(machine, code)
+                end,nil,false,function()
+                    resultDrawFailed(machine)
+                end)
             else
                 DialogBoxMgr.showSmallDialogBox(scene, 1, unEnoughLabel)
             end
@@ -1274,7 +1265,7 @@ function GachaViewMgr.setTenDrawAward(awardsVec)
         CSResourceMgr.setLabelStringByNode(moneyLabel, consumeElementInfo.num,{r=0,g=0,b=0,a=255})
         local serviceLabel = CSResourceMgr.getNodeByName(resNameC, "serviceLabel")
         CSResourceMgr.setLabelColorByNode(serviceLabel, {r=255,g=252,b=0,a=255})
-        CSResourceMgr.setLabelStringByNode(serviceLabel, textTable[theEggType],{r=151,g=48,b=29,a=255})
+        serviceLabel:setString("LOCAL PRIZE POOL")
         local getTitle = CSResourceMgr.getNodeByName(resNameC, "getTitle")
         CSResourceMgr.setLabelColorByNode(getTitle, {r=255,g=255,b=255,a=255})
         CSResourceMgr.setLabelStringByNode(getTitle, "egg19",{r=0,g=0,b=0,a=255},nil,250)
@@ -1367,21 +1358,8 @@ function GachaViewMgr.setTenDrawAward(awardsVec)
             parent:setScale(0)
         end
 
-        local getItemMain = CSResourceMgr.getNodeByName(resNameC,"getItemMain")
-        local awardVecMain = ItemInfo.getAwardElementInfoById(capsuleEggInfo.expELem)
-        awardVecMain.num = 10
-        setAward(getItemMain,awardVecMain)
-        getItemMain:setScale(1)
-
-        --心愿币
-        if theEggType == eggType.mMachine then
-            local getItemMain2 = CSResourceMgr.getNodeByName(resNameC,"getItemMain2")
-            local awardVecMain = {num = 100,elementID = 9992,elementType = "item"}
-            setAward(getItemMain2,awardVecMain)
-            getItemMain2:setScale(1)
-            getItemMain:setPositionX(227)
-            getItemMain2:setPositionX(427)
-        end
+        CSResourceMgr.getNodeByName(resNameC, "getItemMain"):setVisible(false)
+        CSResourceMgr.getNodeByName(resNameC, "getItemMain2"):setVisible(false)
 
         local m = 1
         for k,v in pairs(awardsVec) do

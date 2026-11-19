@@ -25,6 +25,7 @@ EMPTY_STARTUP_ACKS = {
     1074: (1109, lambda: Writer().u16(0).vector_strings([]).string("").bytes()), # explore
     1338: (1433, lambda: Writer().u16(0).string("{}").bytes()),                 # map events
     806: (676, lambda: Writer().u16(0).string("").bytes()),                     # signin
+    324: (320, lambda: Writer().u16(0).u8(0).bytes()),                          # bulletin list
     18: (17, lambda: Writer().u16(0).bytes()),                                   # tower recovery
     55: (54, lambda: Writer().u16(0).u32(0).bytes()),                            # pet wiki
     96: (97, lambda: Writer().u16(0).u8(0).bytes()),                             # wishing trees

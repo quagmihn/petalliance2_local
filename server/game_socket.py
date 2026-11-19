@@ -43,6 +43,7 @@ CMD = {
     "get_server_time": 1214, "get_server_time_ack": 1216,
     "get_explore": 1074, "get_explore_ack": 1109,
     "get_map_events": 1338, "get_map_events_ack": 1433,
+    "get_capsule_info": 1519, "get_capsule_info_ack": 1396,
     "get_capsule_cds": 1573, "get_capsule_cds_ack": 1526,
     "get_signin": 806, "get_signin_ack": 676,
     "recover_tower": 18, "recover_tower_ack": 17,
@@ -115,10 +116,10 @@ EXPECTED_ACKS = {
     1283: (1261,),
     2996: (3080,), 3078: (3081, 1749),
     2998: (3079,),
-    4: (5,), 391: (390,),
+    4: (5,), 324: (320,), 391: (390,),
     90: (473, 89),
     3082: (2995, 473, 1749),
-    15: (112, 3141, 198), 136: (210,), 263: (186,), 1392: (112, 3141, 473, 1561),
+    15: (112, 3141, 198), 136: (210,), 263: (186,), 1392: (112, 3141, 473, 1561), 1519: (1396,),
     516: (526, 112, 3141), 577: (563, 112, 473),
 }
 
@@ -174,6 +175,7 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["use_item"]: return await inventory.use_item(session, payload)
     if msg_id == CMD["update_army"]: return await pet.update_army(session, payload)
     if msg_id == CMD["get_army"]: return await pet.get_army(session, payload)
+    if msg_id == CMD["get_capsule_info"]: return await pet.get_capsule_egg_info(session, payload)
     if msg_id == CMD["get_capsule_cds"]: return await pet.get_capsule_egg_cds(session, payload)
     if msg_id == CMD["get_character_values"]: return await player.get_character_values(session, payload)
     if msg_id == CMD["buy_goods"]: return await economy.buy_goods(session, payload)
