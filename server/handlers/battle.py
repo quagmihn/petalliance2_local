@@ -79,6 +79,7 @@ async def handle(message_id: int, payload: bytes, session):
             adventure = client_table("AdventureInfo").get(adventure_id) if adventure_id else None
             scene = client_table("SceneInfo").get(battle_type_id)
             if (adventure is None or scene is None or scene["number"] not in adventure["scene"]
+                    or not 1 <= scene["floor"] <= adventure["floor"]
                     or scene["eventType"] != 8 or sub_id != 0):
                 log.warning("battle_rejected request_id=136 char_id=%s handler=adventure_trainer_battle "
                             "adventure_id=%s scene_id=%s sub_id=%s rejection_reason=unconfigured_trainer_scene",
@@ -91,6 +92,9 @@ async def handle(message_id: int, payload: bytes, session):
             started = await session.db.start_adventure_battle(
                 session.char_id, session.session_id, adventure_id, battle_type_id, group_id)
             if not started:
+                log.warning("battle_rejected request_id=136 char_id=%s handler=adventure_trainer_battle "
+                            "adventure_id=%s scene_id=%s rejection_reason=active_adventure_changed",
+                            session.char_id, adventure_id, battle_type_id)
                 return 210, Writer().u16(1).bytes()
             session.tutorial_battle_exp = int(group["exp"])
             monstrosities = client_table("MonstrosityInfo")

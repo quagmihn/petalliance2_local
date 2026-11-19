@@ -409,7 +409,14 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await db.pool.fetchval(
                 "SELECT training_stage FROM pets WHERE char_id=$1 AND pet_uid=$2", char_id, pet_uid), 1)
 
+            trainer_request = Writer().u32(3).u32(15).u32(0).bytes()
+            self.assertEqual((await send(136, trainer_request, 210)).u16(), 1)
             await db.start_adventure(char_id, 1)
+            trainer = await send(136, trainer_request, 210)
+            self.assertEqual((trainer.u16(), trainer.u8()), (0, 1))
+            self.assertEqual(json.loads(trainer.string())["mID"], 1)
+            self.assertEqual((trainer.u32(), trainer.u8()), (16, 0)); trainer.finish()
+            self.assertEqual((await send(263, Writer().u16(0).vector_strings([]).bytes(), 186)).u16(), 0)
             event_ack = await send(4, Writer().u32(1).u8(2).u32(5).u32(30).bytes(), 5)
             self.assertEqual(event_ack.u16(), 0); event_ack.finish()
             self.assertEqual(await db.pool.fetchval(

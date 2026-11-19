@@ -940,19 +940,12 @@ class Database:
 
     async def start_adventure_battle(self, char_id: int, session_id: str, adventure_id: int,
                                      scene_id: int, group_id: int) -> bool:
-        from quest_config import load_quests
-        quests = load_quests()
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 active_adventure = await conn.fetchval(
                     """SELECT adventure_id FROM character_adventures
                        WHERE char_id=$1 AND completed_at IS NULL FOR UPDATE""", char_id)
                 if active_adventure != adventure_id:
-                    return False
-                active = await conn.fetch("SELECT quest_id FROM quests WHERE char_id=$1 AND status=0",
-                                          char_id)
-                if not any(any(o.event_type == 2 for o in quests[q["quest_id"]].objectives)
-                           for q in active if q["quest_id"] in quests):
                     return False
                 existing = await conn.fetchrow(
                     """SELECT battle_id,battle_type,battle_type_id,adventure_id
