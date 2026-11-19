@@ -7,6 +7,13 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 
+GACHA_GUIDE_QUEST_ID = 10010
+FORMATION_GUIDE_QUEST_ID = 10011
+# Dialogue 29 and 30 name Panda. GameGuideMgr3.firstSkillPromote looks up
+# pokeID 45, the Grade A template in PokemonInfo and the localized catalog.
+GACHA_GUIDE_PET_ID = 45
+
+
 class QuestConfigError(ValueError):
     pass
 

@@ -11,8 +11,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from db.database import Database
-from game_socket import handle_client
-from local_draw import catalog_audit, catalog_report, execute, load_catalog, startup_catalog, test_catalog
+from game_socket import Session, dispatch, handle_client
+from local_draw import (catalog_audit, catalog_report, cooldowns, execute,
+                        load_catalog, startup_catalog, test_catalog)
 from protocol import Reader, Writer, frame, xor_payload
 
 
@@ -63,6 +64,76 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(test_catalog(), {})
             with self.assertRaisesRegex(ValueError, "invalid local prize"):
                 load_catalog(str(config))
+
+    async def test_tutorial_panda_is_atomic_and_resumes_after_legacy_draw(self):
+        dsn = os.getenv("TEST_DATABASE_URL")
+        if not dsn:
+            self.skipTest("TEST_DATABASE_URL required")
+        db = await Database.connect(dsn)
+        account_id = None
+        try:
+            self.assertEqual(await db.pool.fetchval("SELECT current_database()"), "monster2_test_db")
+            await db.initialize()
+            token = secrets.token_hex(20)
+            account_id = await db.pool.fetchval(
+                "INSERT INTO accounts(username,token) VALUES($1,$1) RETURNING user_id", token)
+            char, starter = await db.create_character_with_pet(account_id, 1, token[:12], 0, 0, 1)
+            char_id = char["char_id"]
+            await db.pool.execute(
+                """INSERT INTO quests(char_id,quest_id,status,progress) VALUES
+                   ($1,10009,0,'[1]'),($1,10010,0,'[0]')""", char_id)
+            session = Session(db)
+            session.char_id = char_id
+            request = bytes.fromhex("0200010001000000")
+            with patch.dict(os.environ, {"GAME_ENV": "test", "MONSTER2_DRAW_CATALOG": "config/local_draw.json"}):
+                self.assertEqual(await dispatch(session, 1392, request), (1561, b"\x01\x00"))
+                await db.pool.execute(
+                    "UPDATE quests SET status=1 WHERE char_id=$1 AND quest_id=10009", char_id)
+                self.assertEqual(await dispatch(session, 1392, request), (1561, b"\x01\x00"))
+                for machine in (1, 2):
+                    await db.pool.execute(
+                        """INSERT INTO local_draw_history
+                           (char_id,machine_id,draw_count,is_free,draw_day,currency,cost,awards,created_at)
+                           VALUES($1,$2,1,true,0,'gold',0,'[]',now())""", char_id, machine)
+                self.assertEqual((await cooldowns(db, char_id))[2], (0, 0))
+                blocked = await dispatch(session, 400, Writer().u32(10010).bytes())
+                self.assertEqual(blocked, (726, b"\x01\x00"))
+                results = await asyncio.gather(*(dispatch(session, 1392, request) for _ in range(2)))
+                draw, replay = sorted(results, key=lambda r: len(r), reverse=True)
+                self.assertEqual(replay, (1561, b"\x01\x00"))
+                self.assertEqual([msg_id for msg_id, _ in draw], [3141, 473, 1561])
+                pet_body = Reader(draw[0][1])
+                uid, pet = pet_body.u64(), json.loads(pet_body.string())
+                pet_body.finish()
+                self.assertEqual((pet["objID"], pet["pokeID"], len(pet["skills"])), (uid, 45, 4))
+                result = Reader(draw[-1][1])
+                self.assertEqual((result.u16(), result.u8()), (0, 1))
+                award = json.loads(result.string())
+                self.assertEqual((award["elementType"], award["elementID"], award["num"]), ("pet", 45, 1))
+                self.assertEqual(json.loads(award["detail"]), pet)
+                result.finish()
+                self.assertGreater((await cooldowns(db, char_id))[2][1], 0)
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT count(*) FROM pets WHERE char_id=$1 AND pet_template_id=45", char_id), 1)
+                self.assertEqual(await db.pool.fetchval(
+                    """SELECT count(*) FROM local_draw_history WHERE char_id=$1 AND is_free AND cost=0
+                       AND awards @> '[{"elementType":"pet","elementID":45}]'""", char_id), 1)
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10010", char_id), "[1]")
+                relogin = Session(db)
+                ack_id, ack = await dispatch(relogin, 1684, Writer().i32(char_id).string(token).bytes())
+                self.assertEqual((ack_id, Reader(ack).i32()), (773, 0))
+                commit = await dispatch(relogin, 400, Writer().u32(10010).bytes())
+                self.assertEqual([msg_id for msg_id, _ in commit], [726, 404])
+                self.assertEqual(await dispatch(relogin, 400, Writer().u32(10011).bytes()),
+                                 (726, b"\x01\x00"))
+                self.assertTrue(await db.update_primary_army(char_id, [starter["pet_uid"], uid], []))
+                formation = await dispatch(relogin, 400, Writer().u32(10011).bytes())
+                self.assertEqual([msg_id for msg_id, _ in formation], [726, 404])
+        finally:
+            if account_id is not None:
+                await db.pool.execute("DELETE FROM accounts WHERE user_id=$1", account_id)
+            await db.close()
 
     async def test_ten_single_and_free_with_cold_relogin(self):
         dsn = os.getenv("TEST_DATABASE_URL")

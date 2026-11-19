@@ -13,6 +13,7 @@ from secrets import randbelow
 from character_values import validate_character_values
 from client_config import table
 from pet_config import gene, pokemon, skill_choices
+from quest_config import GACHA_GUIDE_PET_ID, GACHA_GUIDE_QUEST_ID, load_quests
 from reward_service import grant_rewards
 
 SERVER_ROOT = Path(__file__).resolve().parent
@@ -137,6 +138,7 @@ def startup_catalog(configured_path):
 
 def catalog_report(configured_path):
     path, digest, machines = startup_catalog(configured_path)
+    guide, goal = tutorial_guide()
     return {
         "source": str(path), "sha256": digest,
         "environment": os.getenv("GAME_ENV"), "expected_database": os.getenv("MONSTER2_EXPECTED_DB"),
@@ -144,7 +146,9 @@ def catalog_report(configured_path):
         "rewards": sum(len(machine.prizes) for machine in machines.values()),
         "prize_kinds": sorted({prize[0] for m in machines.values() for prize in m.prizes}),
         "modes": {i: (["free"] if i in (1, 2) else []) + ["x1", "x10"] for i in machines},
-        "missing_references": [], "unsupported": ["wish", "dream", "original guarantee and VIP rules"],
+        "tutorial": {"quest_id": guide.quest_id, "machine_id": 2, "pet_id": GACHA_GUIDE_PET_ID,
+                     "required_progress": goal},
+        "missing_references": [], "unsupported": ["wish", "dream", "ordinary guarantee and VIP rules"],
     }
 
 
@@ -153,6 +157,37 @@ def configured_catalog():
     if path and os.getenv("GAME_ENV") in DATABASES:
         return startup_catalog(path)[2]
     return test_catalog()
+
+
+@cache
+def tutorial_guide():
+    guide = load_quests()[GACHA_GUIDE_QUEST_ID]
+    if (guide.strong_type != "1" or not guide.parent_id
+            or len(guide.objectives) != 1
+            or (guide.objectives[0].event_type, guide.objectives[0].amount) != (2, 1)
+            or guide.first_pokemon_id or pokemon(GACHA_GUIDE_PET_ID)["rare"] != 3):
+        raise ValueError("tutorial Gacha quest or Grade A Panda template does not match the client")
+    _, groups, passive = gene(GACHA_GUIDE_PET_ID)
+    for group in (*groups, *(entry["paSkillID"] for entry in passive)):
+        skill_choices(group)
+    return guide, guide.objectives[0].amount
+
+
+async def _tutorial_draw_pending(conn, char_id):
+    guide, _ = tutorial_guide()
+    # The character row serializes draws and commits. Quest progress is the
+    # one-time entitlement marker and commits with the Pet and ledger entry.
+    return await conn.fetchval(
+        """SELECT EXISTS (
+               SELECT 1 FROM quests q
+               JOIN quests parent ON parent.char_id=q.char_id AND parent.quest_id=$3
+               JOIN characters c ON c.char_id=q.char_id
+               WHERE q.char_id=$1 AND q.quest_id=$2 AND q.status=0 AND q.progress=$4::jsonb
+                 AND parent.status=1 AND current_database()=$5
+                 AND c.game_values->'qa_independent' IS DISTINCT FROM 'true'::jsonb
+           )""",
+        char_id, guide.quest_id, guide.parent_id, json.dumps([0]), DATABASES.get(os.getenv("GAME_ENV")),
+    )
 
 
 async def cooldowns(db, char_id):
@@ -164,7 +199,13 @@ async def cooldowns(db, char_id):
              AND char_id=$1 AND is_free GROUP BY machine_id""",
         char_id, DATABASES.get(os.getenv("GAME_ENV")),
     )
-    return {r["machine_id"]: (r["today"], r["last_draw"]) for r in rows}
+    history = {r["machine_id"]: (r["today"], r["last_draw"]) for r in rows}
+    if os.getenv("MONSTER2_DRAW_CATALOG") and await _tutorial_draw_pending(db.pool, char_id):
+        # The guide resumes using the free timestamps. Old local draws could
+        # grant an item and skip the Panda reveal. Restore that single
+        # tutorial entitlement independently of the ordinary cooldown.
+        history[2] = (0, 0)
+    return history
 
 
 async def execute(db, char_id, machine_id, machine, count, free, request_key=None):
@@ -178,12 +219,22 @@ async def execute(db, char_id, machine_id, machine, count, free, request_key=Non
     async with db.pool.acquire() as conn:
         async with conn.transaction():
             character = await conn.fetchrow(
-                """SELECT * FROM characters
-                   WHERE current_database()=$2 AND char_id=$1
-                     AND (NOT $3::boolean OR game_values->'qa_independent'='true'::jsonb) FOR UPDATE""",
-                char_id, database, environment == "test",
+                """SELECT * FROM characters WHERE current_database()=$2 AND char_id=$1 FOR UPDATE""",
+                char_id, database,
             )
             if character is None:
+                return 1, None
+            values = json.loads(character["game_values"])
+            tutorial = (os.getenv("MONSTER2_DRAW_CATALOG") and not values.get("qa_independent")
+                        and (machine_id == 2 or environment == "test")
+                        and await _tutorial_draw_pending(conn, char_id))
+            if environment == "test" and not values.get("qa_independent") and not tutorial:
+                return 1, None
+            tutorial_prize = tutorial and machine_id == 2 and free
+            if tutorial_prize and not await conn.fetchval(
+                """SELECT EXISTS (SELECT 1 FROM local_draw_history
+                   WHERE char_id=$1 AND machine_id=1 AND is_free)""", char_id,
+            ):
                 return 1, None
             if request_key and await conn.fetchval(
                 "SELECT EXISTS (SELECT FROM local_draw_history WHERE char_id=$1 AND request_key=$2)",
@@ -192,7 +243,7 @@ async def execute(db, char_id, machine_id, machine, count, free, request_key=Non
                 return 1, None
             now = await conn.fetchval("SELECT floor(extract(epoch FROM clock_timestamp()))::bigint")
             day = (now + 3600) // 86400  # 06:00 local in the current UTC+07 game server
-            if free:
+            if free and not tutorial_prize:
                 previous = await conn.fetchrow(
                     """SELECT max(floor(extract(epoch FROM created_at))::bigint) AS last_draw,
                        count(*) FILTER (WHERE draw_day=$3) AS today
@@ -213,7 +264,8 @@ async def execute(db, char_id, machine_id, machine, count, free, request_key=Non
             if character[machine.currency] < cost:
                 return 1, None
 
-            awards = machine.draw(count)
+            awards = ([{"elementType": "pet", "elementID": GACHA_GUIDE_PET_ID, "num": 1}]
+                      if tutorial_prize else machine.draw(count))
             additions = Counter()
             for award in awards:
                 additions[award["elementType"], award["elementID"]] += award["num"]
@@ -221,7 +273,6 @@ async def execute(db, char_id, machine_id, machine, count, free, request_key=Non
             pet_count = sum(amount for (kind, _), amount in additions.items() if kind == "pet")
             inventory = dict(await conn.fetch(
                 "SELECT item_id,count FROM inventory WHERE char_id=$1 AND count>0", char_id))
-            values = json.loads(character["game_values"])
             capacity = validate_character_values(["itemPacketNum", "petPacketNum"], values)
             if item_ids and len(inventory.keys() | set(item_ids)) > capacity["itemPacketNum"]:
                 return 422, None
@@ -248,6 +299,12 @@ async def execute(db, char_id, machine_id, machine, count, free, request_key=Non
             for award in awards:
                 if award["elementType"] == "pet":
                     award["detail"] = pet_details[award["elementID"]].pop()
+            if tutorial_prize:
+                guide, goal = tutorial_guide()
+                await conn.execute(
+                    "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
+                    char_id, guide.quest_id, json.dumps([goal]),
+                )
             await conn.execute(
                 """INSERT INTO local_draw_history
                    (char_id,machine_id,draw_count,is_free,draw_day,currency,cost,awards,created_at,request_key)

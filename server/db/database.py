@@ -9,6 +9,8 @@ from typing import Any
 
 import asyncpg
 
+from quest_config import FORMATION_GUIDE_QUEST_ID, GACHA_GUIDE_PET_ID
+
 @cache
 def _character_exp_thresholds():
     from client_config import table
@@ -1191,6 +1193,15 @@ class Database:
                                 and all(o.event_type == 2 and not o.main_id and not o.sub_id
                                         and not o.final_id for o in objectives))
                 if guide_marker:
+                    progress = [max(value, objective.amount)
+                                for value, objective in zip(progress, objectives)]
+                elif quest.quest_id == FORMATION_GUIDE_QUEST_ID and await conn.fetchval(
+                    """SELECT EXISTS (
+                           SELECT 1 FROM pets WHERE char_id=$1 AND pet_template_id=$2
+                             AND slot_index BETWEEN 0 AND 2
+                       )""",
+                    char_id, GACHA_GUIDE_PET_ID,
+                ):
                     progress = [max(value, objective.amount)
                                 for value, objective in zip(progress, objectives)]
                 elif any(value < objective.amount
