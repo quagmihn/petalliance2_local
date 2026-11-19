@@ -1,6 +1,145 @@
 # Execution checkpoint
 
+## 2026-11-19 · Official Gacha Waydroid acceptance
+
+**WAYDROID_VERIFIED** for all eight local draw actions exposed by the client.
+The official launcher runs `monster2_db` as PostgreSQL role `monster2`.
+
+### Runtime mismatch and repairs
+
+- The earlier `no_local_catalog` came from a test-only feature gate and a
+  machine-2 fixture. The installed client schema in `Proto_Pet.lua` decodes
+  `0100010001000000` as four little-endian WORDs: `optType=1` (Senior),
+  `choice=1` (one draw), `bFree=1`, `choiceEx=0`. Newer APKs append a local
+  idempotency key. The server accepts the original eight-byte body.
+- No official listeners were running at the start of this session. The
+  retrieved TCP trace from the previous official session showed successful
+  draw ACKs followed by unanswered request `1519` and a client disconnect.
+  This request reads the original wish/dream state. The server now answers
+  `1396/code 1`, which the installed client parses and uses to release the
+  blocking callback. A separate cold-login trace found the bulletin request
+  `324` timing out. It now receives `320/code 0` with a full `Proto.Code`
+  header and an empty bulletin vector.
+- Result popups now display the item and Pet awards from ACK `1561`. The
+  client hides the original guaranteed-rarity banner and the ungranted bonus
+  EXP and wish-coin icons. Retry checks the current wallet and restores the
+  machine controls on rejection or timeout. The existing guide cancellation
+  and reconnect cleanup remain exercised by the Lua tests.
+- Source commit `f42e1d55d9512bd294ba9ab808f615587c5ea0b1` completed Gacha
+  response handling, diagnostics, and result rendering. Live source commit
+  `7ceebb116f69b7a2e61b63ac9e85d43a4508e106` corrects the bulletin wire
+  structure. After restart, `server/run_all.sh` logged `dirty=no`. HTTP PID
+  17036 and TCP PID 17037 both ran from the project's `server/` directory
+  and their pools independently verified `monster2_db` / `monster2`.
+  HTTP advertised `192.168.240.1:5568` through port 8080. Both processes
+  had `GAME_ENV=production`, `MONSTER2_DRAW_CATALOG=config/local_draw.json`,
+  `LOCAL_PAYMENT_SANDBOX=1`, and `PAYMENT_PROVIDER=local`.
+  `MONSTER2_TEST_DRAW_CATALOG` was absent from both.
+
+### Catalog and backup
+
+- The official catalog is [server/config/local_draw.json](../../server/config/local_draw.json).
+  The launcher resolves it against `server/` and validates references and
+  normalized weights before opening either port. The TCP process logs the
+  loaded catalog. The test and official launcher logs matched SHA256
+  `c43e24de424c90e99443dcf360a9fe906e8cd583c6347d07aec2c41a2b2c3b45`,
+  with three machines, three local pools, eight reward entries, zero missing
+  references, and the modes below. The APK's original data contains three
+  machines, 17 linked pools, and 27 award entries. The local pools use explicit
+  weights totaling 10,000 per pool and original price and cooldown metadata.
+  Original rarity artwork is still present on the machine selection screen.
+  First-draw, guarantee, wish, dream and VIP rules remain unsupported.
+- The untouched pre-deployment backup is
+  `artifacts/gacha-runtime-20261119/monster2_db-before-gacha-runtime.dump`.
+  SHA256 `b4bbb27fb6e850288da96e53523ee50a6d21d17d5dd76916fa12d744012fcde2`.
+  It restored in one transaction into `monster2_restore_gacha_b4bbb27f`.
+  The restore exited successfully. Data digests matched for all 17 tables,
+  including characters, Pets, quests, inventory, and the Gacha ledger.
+  All 182 constraints were validated. The existing production draw ledger
+  was reused. The owner account's wallet, inventory, Pet slots and draw
+  count matched the pre-deployment snapshot.
+
+### Real client results and persistence
+
+- Waydroid reached Android boot completion and ADB was online after restarting
+  the desktop session and unfreezing its container. The authorized agreement
+  and the draws used Android user 10, a separate device login, and controlled
+  account 64 / character 4. The fixture set level 15, map unlock 5, and a
+  bounded test wallet. It skipped the sequential tutorial, which is a separate
+  acceptance case.
+- Installed package `com.petalliance2.sea` matched the signed release
+  `dist/monster2_local-gacha-runtime.apk`, SHA256
+  `a205db8689de4ccd370c69cac12843192af3e3e25b30d62303b72cccd9153017`.
+  APK certificate SHA256
+  `f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a`.
+  Of 12,655 non-signature archive entries, only the packed
+  `GachaViewMgr.lua` changed from the prior installed APK. The in-place update
+  preserved application data. The encrypted module matches tracked source
+  after decoding.
+
+| Machine | Free | Paid x1 | Paid x10 |
+| --- | --- | --- | --- |
+| Senior (1) | WAYDROID_VERIFIED, five daily chances and 300-second cooldown | WAYDROID_VERIFIED, 10,000 gold | WAYDROID_VERIFIED, 95,000 gold |
+| Supreme (2) | WAYDROID_VERIFIED, 48-hour cooldown | WAYDROID_VERIFIED, 288 diamonds | WAYDROID_VERIFIED, 2,588 diamonds |
+| Skill (3) | — | WAYDROID_VERIFIED, 98 diamonds | WAYDROID_VERIFIED, 898 diamonds |
+
+- The rebuilt APK recorded eight successful `1392 → 1561/code 0` callbacks
+  and displayed the draw results. Supreme's extra `1519 → 1396/code 1`
+  resolved without a callback timeout. During a Senior retry, the QA wallet
+  was temporarily set below the price to simulate a stale client balance.
+  `1561/code 1` displayed the failure, the ledger count remained five,
+  and the next draw worked from the same machine after restoring the test wallet.
+- After both passes, the QA ledger held 11 successful transactions. The ledger
+  totals matched the Bag (item 1 ×39 and item 2 ×45) and the collection (four
+  new Catepii, template 26). The final wallet was 85,000 gold and 540 diamonds
+  from a 200,000 gold and 7,000 diamond test budget. Closing Gacha opened the
+  Bag immediately. After an official server restart and app force-stop, a
+  new login showed the same wallet, Bag counts and five Pets. The PostgreSQL
+  snapshots matched before and after. The final cold login resolved
+  `324 → 320/code 0` and stayed connected during the Bag and Pet checks.
+- **TCP_TESTED** on both `monster2_test_db` and `monster2_db` through the
+  official launcher with the same catalog. A disposable character in each
+  environment exercised free, x1 and x10, checked notification and ACK order,
+  replayed a request key, and verified the rewards on a cold TCP relogin.
+  **UNIT_TESTED / PostgreSQL integration**: all 108 tests passed. Coverage
+  includes startup failure with an incomplete catalog, source/hash/mode
+  parity, original request bytes, cooldown rejection, replay protection,
+  Lua guide cleanup, and the bulletin and Gacha follow-up ACKs.
+- Local evidence under `artifacts/gacha-runtime-20261119/`:
+  `waydroid-final-supreme-paid-x10.png`, `waydroid-final-rejected-retry.png`,
+  `waydroid-final-relogin-bag.png`, `waydroid-final-relogin-pets.png`,
+  `waydroid-final-net.log`, `waydroid-final-relogin.log`, `official.log`,
+  `tests.log`, `restore.txt` and the PostgreSQL snapshots.
+
+### STORE and M-PASS follow-up
+
+- The same QA profile opened STORE and used the already deployed local
+  payment path. Package 2 credited 160 diamonds, and M-PASS package 10001
+  credited 400 diamonds and created a 30-day entitlement. Both sent
+  `90 → 473, 89/code 0` and recorded `simulated=true`. Cold login requested
+  the eligible daily claim using `3102 → 473, 3103/code 0`, credited 160
+  diamonds, and persisted claim day 20776. The wallet moved from 540 to
+  700 to 1,100 to 1,260 diamonds.
+- The daily wallet notification exposed a VIP representation mismatch:
+  PostgreSQL rank 0 was sent as client table ID 0. The login packet uses ID
+  1 for rank 0. Commit `cae7a80f752686d9b2a6af87183c729b96c83bf3` now uses
+  the same mapping for login, character values and wallet notifications.
+  STORE reopened after relogin. A renewal credited 400 diamonds and extended
+  the entitlement by 30 days to 2027-01-18 17:58:06 UTC+07. The claim-day
+  row retained 20776. The VIP progress display and legacy M-PASS perk text
+  still require separate verification against the configured rewards.
+- Evidence: `waydroid-next-local-purchase.png`,
+  `waydroid-next-mpass-purchase.png`, `waydroid-next-mpass-store-reopened.png`,
+  `waydroid-next-mpass-renewal.png` and the purchase snapshots in the same
+  artifact directory. No external checkout was used.
+
+The next runtime cases are an in-game item purchase with gold and consecutive
+Adventure map clears. The original Gacha tutorial sequence is tracked
+separately from the isolated draw fixture.
+
 ## Official local draw deployment
+
+Historical checkpoint for the previous APK and launcher session.
 
 - The reported bytes `0100010001000000` are four little-endian WORDs in the
   shipped writer, `optType=1, choice=1, bFree=1, choiceEx=0`. Machine 1 exists.

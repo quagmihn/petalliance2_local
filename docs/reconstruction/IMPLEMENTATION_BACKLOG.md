@@ -1,27 +1,30 @@
 # Implementation backlog
 
-The official local draw service is deployed. Continue on the controlled
-Waydroid profile once its agreement screen is resolved. Verify one eligible
-free, paid single and paid ten draw, result animation, close, input and cold
-relogin before promoting the Android status. The next independent runtime
-checks are shop purchase, M-PASS claims and Adventure progression using
-separate controlled fixtures.
+The official local Gacha service is **WAYDROID_VERIFIED** for every enabled
+machine and mode. The controlled profile confirmed draw animations, costs,
+rewards, a failed retry, responsive input, and persistence after server
+restart. See [EXECUTION_CHECKPOINT.md](EXECUTION_CHECKPOINT.md) for the
+release and evidence.
 
-The independent fixture now accepts a level 2+ account with selected active
-quests and Adventure prerequisites. The local draw trial has verified
-server-side costs, rewards and relogin. Next run the draw result screen,
-shop and Adventure entry in the Android QA profile. Use separate fresh
-fixtures to verify subsequent battle, Pet, recharge and reward cases.
+The checkout UI, M-PASS entitlement and first daily claim ran on the same
+isolated profile. The VIP ID repair let the client reopen STORE after the
+claim. STORE's VIP progression label and legacy M-PASS perk text still
+need to match the configured benefits.
 
-## Draw rejection and QA checkpoint
-
-The existing client now releases guide state when its draw request fails, times out or closes. PostgreSQL and Lua checks passed. Waydroid QA reached the app agreement in an isolated Android profile, so in-app rejection, purchase and map scenarios are pending. See [EXECUTION_CHECKPOINT.md](EXECUTION_CHECKPOINT.md) for verification, hashes and prerequisites.
-
-Use the [QA fixture](../../server/PLAY.md) for independent resource scenarios. Keep the real sequential tutorial as a separate acceptance path. Successful draw rewards and full sequential progression are still open.
+Next exercise an item purchase through the in-game shop and compare the
+request, ACK, wallet, inventory, and cold login. Run the two Adventure entries
+with separate active quests and verify progression and map rewards. Use the
+[QA fixture](../../server/PLAY.md) for independent starting states. The
+sequential tutorial, original Gacha guarantees, wish and dream modes, and
+full sequential progression remain separate cases.
 
 ## Current deployment status
 
-The specified dump passed full isolated restore verification. The official server now runs the local payment implementation on monster2_db with the two additive ledger/entitlement tables. First priority is resolving the Senior Gacha guide gate evidenced by request 1392 and rejected ACK 1561, then retesting PURCHASE, M-PASS and both Adventure entries in Waydroid. Avoid enabling unrelated gacha rewards without proving the catalog and eligibility contract. M-PASS daily claim already passes PostgreSQL integration. The locally available APK generations preserve the same Secret Path scene. Remaining phase priorities are listed below.
+The specified dump passed full isolated restore verification. The official
+server runs the local payment implementation on monster2_db with the two
+additive ledger and entitlement tables. M-PASS daily claim already passes
+PostgreSQL integration. The locally available APK generations preserve the
+same Secret Path scene.
 
 ## 2026-11-18 checkpoint: Secret Path and local purchase deployment
 

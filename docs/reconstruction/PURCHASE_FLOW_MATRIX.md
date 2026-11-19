@@ -1,6 +1,22 @@
 # Purchase flow matrix
 
+## 2026-11-19 · Official Waydroid runtime
+
+| Flow | Verified state |
+|---|---|
+| Normal local checkout | **WAYDROID_VERIFIED**. Package 2 returned ACK `89/code 0`, credited 160 diamonds and saved a simulated transaction. |
+| M-PASS checkout and renewal | **WAYDROID_VERIFIED** for package 10001. The UI showed recharge success, the wallet received 400 diamonds per purchase, and PostgreSQL recorded two 30-day terms. |
+| M-PASS daily | **WAYDROID_VERIFIED**. Cold login loaded the entitlement and sent `3102`. The resulting `3103/code 0` and wallet notification credited 160 diamonds and persisted the configured game-day marker. |
+| Store reopening | **WAYDROID_VERIFIED** after fixing the VIP table ID in wallet notifications. The legacy product tile still differs from the confirmation and configured reward. The VIP progress view showed 598/80 with rank 0. |
+
+Evidence uses controlled account 64 / character 4 on `monster2_db`.
+See [EXECUTION_CHECKPOINT.md](EXECUTION_CHECKPOINT.md) for runtime and APK
+identity and the local screenshots. All payments used the existing local
+simulation.
+
 ## Deployment update
+
+Historical checkpoint before the 2026-11-19 Waydroid run.
 
 | Flow | Verified state |
 |---|---|
