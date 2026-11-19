@@ -106,7 +106,10 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
                             self.assertEqual((await receive(reader, 773)).i32(), 0)
                             await send(writer, 324, Writer())
                             bulletins = await receive(reader, 320)
-                            self.assertEqual((bulletins.u16(), bulletins.u8()), (0, 0))
+                            self.assertEqual(
+                                (bulletins.i32(), bulletins.string(), bulletins.i32(), bulletins.u8()),
+                                (0, "", 0, 0),
+                            )
                             bulletins.finish()
                             with patch.dict(os.environ, {"MONSTER2_DRAW_CATALOG": "config/local_draw.json"}):
                                 await send(writer, 1392, Writer().raw(bytes.fromhex("0100010001000000")))

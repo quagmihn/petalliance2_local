@@ -46,6 +46,7 @@ CMD = {
     "get_capsule_info": 1519, "get_capsule_info_ack": 1396,
     "get_capsule_cds": 1573, "get_capsule_cds_ack": 1526,
     "get_signin": 806, "get_signin_ack": 676,
+    "list_bulletins": 324, "list_bulletins_ack": 320,
     "recover_tower": 18, "recover_tower_ack": 17,
     "get_pet_wiki": 55, "get_pet_wiki_ack": 54,
     "get_wishing_trees": 96, "get_wishing_trees_ack": 97,
