@@ -112,6 +112,12 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(fashion_state["curFashion"], initial_fashions)
             self.assertTrue(all(fashion_id in group for fashion_id, group in
                                 zip(initial_fashions[1:5], fashion_state["bag"][:4])))
+            profile = await send(1283, Writer().string(str(char_id)).bytes(), 1261)
+            self.assertEqual(profile.u16(), 0)
+            own_profile = json.loads(profile.string())
+            self.assertEqual((own_profile["charID"], own_profile["vipLevel"], own_profile["pets.num"]),
+                             (char_id, 1, 1))
+            profile.finish()
             # ItemInfo 34066 is consumed to own FashionItemInfo 4066. The
             # underlying item ID is not an appearance ID or an equipment UID.
             token_item_id, acquired_fashion_id = 34066, 4066

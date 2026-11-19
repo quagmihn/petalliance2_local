@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
 
+from character_values import vip_info_id
 from protocol import ProtocolDecodeError, Reader, Writer
 
 
@@ -40,13 +42,28 @@ async def change_channel(session, payload: bytes):
 
 
 async def get_friend_detail(session, payload: bytes):
-    """Return the protocol's explicit not-found error until profiles are persisted."""
+    """Return the selected character's profile for the wardrobe entry point."""
     r = Reader(payload)
     friend_id = r.string()
     r.finish()
     if not friend_id:
         raise ProtocolDecodeError("CG_GETFRIENDDETAIL_REQ has an empty friend ID")
-    # The client consumes a detail string only on code=0. Profile composition
-    # is not backed by a complete local data model, so fail cleanly instead of
-    # inventing a profile or leaving the blocking callback pending.
-    return 1261, Writer().u16(1).bytes()
+    error = 1261, Writer().u16(1).bytes()
+    if session.char_id is None or friend_id != str(session.char_id):
+        return error
+    row = await session.db.pool.fetchrow(
+        """SELECT c.name,c.level,c.vip_level,c.game_values,
+                  (SELECT count(*) FROM pets WHERE char_id=c.char_id) AS owned_pets,
+                  (SELECT count(DISTINCT pet_template_id) FROM pets WHERE char_id=c.char_id) AS pet_species
+           FROM characters c WHERE c.char_id=$1""", session.char_id,
+    )
+    if row is None:
+        return error
+    values = json.loads(row["game_values"])
+    detail = {
+        "charID": session.char_id, "nickname": row["name"], "level": row["level"],
+        "vipLevel": vip_info_id(row["vip_level"]), "charSign": values.get("charsign", ""),
+        "pets.num": row["owned_pets"], "diffPets.num": row["pet_species"],
+        "lifeSkill": {"career": values.get("lifeskillcareer", 0), "level": values.get("lifeskilllevel", 0)},
+    }
+    return 1261, Writer().u16(0).string(json.dumps(detail, separators=(",", ":"))).bytes()
