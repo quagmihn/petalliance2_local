@@ -11,6 +11,7 @@ import logging
 import os
 import re
 
+from character_values import vip_info_id
 from protocol import ProtocolDecodeError, Reader, Writer, success_code
 
 log = logging.getLogger("game_socket.economy")
@@ -33,7 +34,7 @@ def wallet_update(row) -> tuple[int, bytes]:
     values = dict(currencies)
     values.update({"g_cash": row["gold"], "m_cash": row["diamond"],
                    "gold": row["gold"], "diamond": row["diamond"],
-                   "actionvalue": row["stamina"], "viplevel": row["vip_level"],
+                   "actionvalue": row["stamina"], "viplevel": vip_info_id(row["vip_level"]),
                    "vip_points": row["vip_points"]})
     if "recharge_total" in row.keys():
         values["recharge"] = {"totalMoney": int(row["recharge_total"])}

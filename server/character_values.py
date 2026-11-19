@@ -35,6 +35,11 @@ gold diamond viplevel vip_level actionvalue stamina vip_points create_time
 NUMERIC_KEYS.add("furniturecomputervalu erate".replace(" ", ""))
 
 
+def vip_info_id(level: int) -> int:
+    """Convert a stored VIP rank to its one-based ID in the client VipInfo table."""
+    return level + 1
+
+
 def _capacity_defaults() -> dict[str, int]:
     """Initial capacities are client-configured, not zero-valued character data."""
     from client_config import table

@@ -1280,7 +1280,7 @@ class Database:
                 "inventory": [dict(r) for r in items], "quests": [dict(r) for r in quests]}
 
     async def character_values(self, char_id: int, keys: list[str]) -> dict[str, Any]:
-        from character_values import validate_character_values
+        from character_values import validate_character_values, vip_info_id
         row = await self.pool.fetchrow(
             "SELECT gold,diamond,vip_level,stamina,vip_points,recharge_total,currencies_json,game_values,created_at,world_id "
             "FROM characters WHERE char_id=$1", char_id,
@@ -1295,7 +1295,8 @@ class Database:
         if isinstance(currencies, str):
             currencies = json.loads(currencies)
         aliases = {
-            "gold": row["gold"], "diamond": row["diamond"], "viplevel": row["vip_level"],
+            "gold": row["gold"], "diamond": row["diamond"],
+            "viplevel": vip_info_id(row["vip_level"]),
             "vip_level": row["vip_level"], "actionvalue": row["stamina"],
             "stamina": row["stamina"], "vip_points": row["vip_points"],
             "map_lock": stored.get("map_lock", "0"),
@@ -1310,6 +1311,8 @@ class Database:
                 recharge = dict(recharge) if isinstance(recharge, dict) else {}
                 recharge["totalMoney"] = int(row["recharge_total"])
                 raw_values[key] = recharge
+            elif normalized in ("viplevel", "vip_level"):
+                raw_values[key] = aliases[normalized]
             elif key in stored:
                 raw_values[key] = stored[key]
             elif normalized in stored:

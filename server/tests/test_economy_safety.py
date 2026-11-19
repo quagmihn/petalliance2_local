@@ -17,7 +17,7 @@ class NoWriteDB:
 
 class EconomySafetyTests(unittest.IsolatedAsyncioTestCase):
     def test_wallet_notification_uses_committed_character_columns(self):
-        row = {"currencies_json": {"diamond": 999999999, "m_cash": 999999999,
+        row = {"currencies_json": {"diamond": 999999999, "m_cash": 999999999, "viplevel": 0,
                                     "g_cash": 999999999, "goldCoin": 7},
                "gold": 30, "diamond": 1200, "stamina": 9,
                "vip_level": 2, "vip_points": 50}
@@ -28,6 +28,8 @@ class EconomySafetyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((values["diamond"], values["m_cash"]), (1200, 1200))
         self.assertEqual((values["gold"], values["g_cash"]), (30, 30))
         self.assertEqual(values["goldCoin"], 7)
+        from client_config import table
+        self.assertEqual(table("VipInfo")[values["viplevel"]]["viplevel"], row["vip_level"])
 
     async def test_unknown_market_catalog_does_not_grant_or_return_success(self):
         session = SimpleNamespace(db=NoWriteDB(), char_id=2)

@@ -6,7 +6,7 @@ import re
 import struct
 import time
 
-from character_values import validate_character_values
+from character_values import validate_character_values, vip_info_id
 from fashion_config import normalize_fashion_ids
 from protocol import Reader, Writer, success_code
 
@@ -17,8 +17,7 @@ def write_char_base(row, username: str) -> bytes:
     now = int(time.time())
     w = Writer().string(username).string(row["name"])
     w.u8(row["gender"]).u8(1)  # gender, country
-    # The client indexes VipInfo by ID: ID 1 represents displayed VIP 0.
-    w.u32(row["gold"]).u32(row["diamond"]).u32(0).u8(row["vip_level"] + 1)
+    w.u32(row["gold"]).u32(row["diamond"]).u32(0).u8(vip_info_id(row["vip_level"]))
     w.u32(0).u32(0).u32(0)  # client flags and achievement totals
     w.u8(1).u16(row["map_id"]).u32(0).u8(0)  # login country, town, team, garden
     w.u8(0).u32(0).u8(0)  # confraternity, char flags, forced location
