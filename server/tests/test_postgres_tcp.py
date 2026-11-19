@@ -112,7 +112,33 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(fashion_state["curFashion"], initial_fashions)
             self.assertTrue(all(fashion_id in group for fashion_id, group in
                                 zip(initial_fashions[1:5], fashion_state["bag"][:4])))
-            changed_fashions = initial_fashions[:-1] + [0]
+            # ItemInfo 34066 is consumed to own FashionItemInfo 4066. The
+            # underlying item ID is not an appearance ID or an equipment UID.
+            token_item_id, acquired_fashion_id = 34066, 4066
+            await db.pool.execute(
+                "INSERT INTO inventory(char_id,item_id,count) VALUES($1,$2,2)",
+                char_id, token_item_id)
+            use = Writer().u32(token_item_id).u32(0).string("").u32(1).bytes()
+            bag_update = await send(516, use, 112)
+            self.assertEqual(bag_update.u8(), 1)
+            self.assertEqual(json.loads(bag_update.string()), {"itemID": token_item_id, "num": 1})
+            bag_update.finish()
+            msg, body, _ = await receive()
+            self.assertEqual(msg, 2105)
+            self.assertIn(acquired_fashion_id, json.loads(Reader(body).string())["bag"][3])
+            msg, body, _ = await receive()
+            self.assertEqual(msg, 526)
+            redeemed = Reader(body)
+            self.assertEqual((redeemed.u16(), redeemed.u32(), redeemed.u32()), (0, token_item_id, 1))
+            self.assertEqual(redeemed.u8(), 0)
+            redeemed.finish()
+            self.assertEqual((await send(516, use, 526)).u16(), 455)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2", char_id, token_item_id), 1)
+            # Keep unrelated Inventory assertions on their original fixture.
+            await db.pool.execute("DELETE FROM inventory WHERE char_id=$1 AND item_id=$2",
+                                  char_id, token_item_id)
+            changed_fashions = [*initial_fashions[:4], acquired_fashion_id, 0]
             set_fashion = Writer().u8(len(changed_fashions))
             for fashion_id in changed_fashions: set_fashion.u32(fashion_id)
             updated = await send(2121, set_fashion.bytes(), 2109)
@@ -303,6 +329,31 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((msg, Reader(body).u16()), (563, 0))
             self.assertEqual(await db.pool.fetchval(
                 "SELECT count FROM inventory WHERE char_id=$1 AND item_id=1", char_id), 1)
+            limit_sku = 178
+            capped_buy = Writer().u32(limit_sku).u32(10).bytes()
+            self.assertEqual((await send(577, capped_buy, 563)).u16(), 1)  # VIP rank too low
+            await db.pool.execute(
+                """UPDATE characters SET vip_level=12,
+                   game_values=game_values || '{"buyMarketItemNum_178":10,"buyMarketItemTime_178":1}'
+                   WHERE char_id=$1""", char_id)
+            limited_items = await send(577, capped_buy, 112)
+            self.assertEqual(limited_items.u8(), 1)
+            self.assertEqual(json.loads(limited_items.string()), {"itemID": 187, "num": 10})
+            msg, body, _ = await receive()
+            self.assertEqual(msg, 473)
+            limited_wallet = json.loads(Reader(body).string())
+            self.assertEqual((limited_wallet["m_cash"], limited_wallet["buyMarketItemNum_178"]),
+                             (9200, 10))
+            self.assertGreater(limited_wallet["buyMarketItemTime_178"], 1)
+            msg, body, _ = await receive()
+            self.assertEqual((msg, Reader(body).u16()), (563, 0))
+            self.assertEqual((await send(577, Writer().u32(limit_sku).u32(1).bytes(), 563)).u16(), 1)
+            forged_counter = Writer().u32(char_id).string("buyMarketItemNum_178").string("0")
+            self.assertEqual((await send(632, forged_counter.bytes(), 630)).u16(), 1)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT diamond FROM characters WHERE char_id=$1", char_id), 9200)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=187", char_id), 10)
 
             # Exercise the real Stage-up protocol against configured costs in the test DB.
             for cost_id in costs:
@@ -444,7 +495,9 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await send(1684, Writer().i32(char_id).string(token).bytes(), 773)).i32(), 0)
             fashions = await send(2075, b"", 2102)
             self.assertEqual(fashions.u16(), 0)
-            self.assertEqual(json.loads(fashions.string())["curFashion"], changed_fashions)
+            fashion_state = json.loads(fashions.string())
+            self.assertEqual(fashion_state["curFashion"], changed_fashions)
+            self.assertIn(acquired_fashion_id, fashion_state["bag"][3])
             fashions.finish()
             values = await send(770, Writer().u8(1).string("curfashion").bytes(), 747)
             self.assertEqual(values.u16(), 0)

@@ -4,6 +4,11 @@ from __future__ import annotations
 from client_config import table
 
 
+def fashion_bag_slot(fashion_id: int) -> int:
+    group = fashion_id // 1000
+    return group - 1 if 1 <= group <= 5 else 5
+
+
 def default_fashion_ids() -> list[int]:
     config = table("GlobalConfigAddInfo")
     selected = []
@@ -39,15 +44,7 @@ def initial_fashion_state(values) -> dict:
     for fashion_id in sorted(set(current)):
         if fashion_id == 0:
             continue
-        catalog = table("FashionItemInfo")[fashion_id]
-        group = fashion_id // 1000
-        index = group - 1 if 1 <= group <= 5 else 5
-        if fashion_id not in bag[index]:
-            bag[index].append(fashion_id)
-        # The client considers IDs 1..9999 category 1 only if the hundreds
-        # block identifies it; use config ordering category to decide below.
-        # Each FashionItemInfo entry belongs to the group encoded in its ID.
-        _ = catalog
+        bag[fashion_bag_slot(fashion_id)].append(fashion_id)
     return {"curFashion": current, "bag": bag, "defaultFashion": list(current)}
 
 

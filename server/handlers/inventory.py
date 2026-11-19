@@ -33,7 +33,7 @@ async def get_items(session, payload: bytes):
 
 
 async def use_item(session, payload: bytes):
-    """Use a configured Pet EXP potion with atomic inventory/Pet persistence."""
+    """Consume a supported configured item and report its committed state."""
     from protocol import Reader
 
     reader = Reader(payload)
@@ -44,6 +44,20 @@ async def use_item(session, payload: bytes):
         return error
     try:
         item = table("ItemInfo").get(item_id)
+        if item is not None and item["itemType"] == 22:
+            fashion_id = item["paramA"]
+            if (pet_uid or use_count != 1 or item["bUse"] != 1
+                    or fashion_id not in table("FashionItemInfo")):
+                return error
+            code, remaining, state = await session.db.redeem_fashion_item(
+                session.char_id, item_id, fashion_id)
+            if code:
+                return 526, Writer().u16(code).bytes()
+            return [
+                item_counts_update([(item_id, remaining)]),
+                (2105, Writer().string(json.dumps(state, separators=(",", ":"))).bytes()),
+                (526, Writer().u16(0).u32(item_id).u32(remaining).vector_strings([]).bytes()),
+            ]
         configured = table("GlobalConfigAddInfo")[9]["values"][:-1]
         if item_id not in configured or item is None or item["itemType"] != 19 or item["bUse"] != 1:
             raise ValueError("item is not a configured Pet EXP potion")
@@ -57,9 +71,6 @@ async def use_item(session, payload: bytes):
         pet_payload = state["pet_json"]
         ack = (Writer().u16(0).u32(item_id).u32(state["remaining"])
                .vector_strings([]).bytes())
-        item_notification = Writer().vector_strings([
-            json.dumps({"itemID": item_id, "num": state["remaining"]}, separators=(",", ":"))
-        ]).bytes()
         pet_notification = Writer().u64(pet_uid).string(pet_payload).bytes()
         log.info("pet_exp_feed account_id=%s char_id=%s pet_uid=%s item_id=%s used=%s remaining=%s level=%s exp=%s",
                  getattr(session, "account_id", None), session.char_id, pet_uid,
@@ -68,8 +79,9 @@ async def use_item(session, payload: bytes):
         # authoritative Pet and bag state first so that callback redraws from
         # the updated PokemonInfo/ItemInfo caches (the previous order let the
         # open feed panel render stale level/EXP until it was reopened).
-        return [(112, item_notification), (3141, pet_notification), (526, ack)]
+        return [item_counts_update([(item_id, state["remaining"])]),
+                (3141, pet_notification), (526, ack)]
     except (KeyError, TypeError, ValueError, IndexError) as exc:
-        log.warning("pet_exp_feed_rejected account_id=%s char_id=%s pet_uid=%s item_id=%s reason=%s",
+        log.warning("item_use_rejected account_id=%s char_id=%s pet_uid=%s item_id=%s reason=%s",
                     getattr(session, "account_id", None), session.char_id, pet_uid, item_id, exc)
         return error

@@ -11,8 +11,8 @@ CONFIG = Path(__file__).resolve().parents[1] / "apk_extracted/assets/res/Config"
 
 
 @functools.cache
-def rows(name):
-    data = Reader((CONFIG / (name + ".dat")).read_bytes())
+def rows(name, config_dir=CONFIG):
+    data = Reader((config_dir / (name + ".dat")).read_bytes())
     result = []
     for _ in range(data.u32()):
         size = data.u32()

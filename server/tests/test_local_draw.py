@@ -65,6 +65,25 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaisesRegex(ValueError, "invalid local prize"):
                 load_catalog(str(config))
 
+    def test_target_draw_uses_the_resolved_normal_config_and_weights(self):
+        from client_config import table
+        from reward_config import resolve_award_element
+
+        _, _, machines = startup_catalog("config/target_draw.json")
+        self.assertEqual(set(machines), set(table("CapsuleEggInfo")))
+        for machine_id, machine in machines.items():
+            group_id = table("CapsuleEggInfo")[machine_id]["normalEggAwardIndex"]
+            entries = table("CapsuleEggAwardInfo")[group_id]["awardInfoVec"]
+            expected = []
+            for entry in entries:
+                reward = resolve_award_element(entry["awardItemIndex"], entry["awardItemNum"])
+                expected.append((reward["kind"], reward["id"], reward["num"], entry["rate"]))
+            self.assertEqual(machine.prizes, tuple(expected))
+            self.assertEqual(sum(prize[3] for prize in machine.prizes), 10000)
+        report = catalog_report("config/target_draw.json")
+        self.assertEqual(report["pool_rules"], "target-normal-independent")
+        self.assertEqual(report["tutorial"]["pet_id"], 45)
+
     async def test_tutorial_panda_is_atomic_and_resumes_after_legacy_draw(self):
         dsn = os.getenv("TEST_DATABASE_URL")
         if not dsn:

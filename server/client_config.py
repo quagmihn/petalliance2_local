@@ -7,7 +7,7 @@ import functools
 import re
 import sys
 from pathlib import Path
-from pet_config import rows
+from pet_config import CONFIG, rows
 from protocol import Reader
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,6 +57,7 @@ def parse(r, kind):
     if kind in ("DWORD", "PetID", "int"): return r.u32()
     if kind in ("QWORD", "TIME_SEC", "CharacterID"): return r.u64()
     if kind in ("String", "string", "LifeNick", "NickName", "UserName"): return r.string()
+    if kind == "FloatString": return float(r.string())
     fields = decoders().get(kind)
     if fields is None:
         raise ValueError(f"unsupported Lua config type {kind}")
@@ -65,9 +66,9 @@ def parse(r, kind):
 
 
 @functools.cache
-def table(name):
+def table(name, config_dir=CONFIG):
     result = {}
-    for raw in rows(name):
+    for raw in rows(name, config_dir):
         r = Reader(raw)
         row = parse(r, name)
         r.finish()

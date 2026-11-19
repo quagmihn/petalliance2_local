@@ -47,6 +47,12 @@ def resolve_reward(reward_id: int, *, draw: int | None = None) -> dict | None:
     amount = amounts[selected]
     if type(amount) is not int or amount <= 0:
         raise RewardConfigError(f"invalid amount in RewardInfo id {reward_id}")
+    return resolve_award_element(element_id, amount)
+
+
+def resolve_award_element(element_id: int, amount: int) -> dict:
+    if type(amount) is not int or amount <= 0:
+        raise RewardConfigError(f"invalid amount for AwardElementInfo id {element_id}")
     element = table("AwardElementInfo").get(element_id)
     if element is None:
         raise RewardConfigError(f"missing AwardElementInfo id {element_id}")

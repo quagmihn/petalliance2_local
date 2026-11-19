@@ -11,14 +11,19 @@ from pathlib import Path
 from secrets import randbelow
 
 from character_values import validate_character_values
-from client_config import table
+from client_config import CONFIG, table
 from pet_config import gene, pokemon, skill_choices
 from quest_config import GACHA_GUIDE_PET_ID, GACHA_GUIDE_QUEST_ID, load_quests
+from reward_config import resolve_award_element
 from reward_service import grant_rewards
 
 SERVER_ROOT = Path(__file__).resolve().parent
 DATABASES = {"production": "monster2_db", "play": "monster2_play_db", "test": "monster2_test_db"}
 LEGACY_RETRY_SECONDS = 8
+TARGET_NORMAL = {"source": "target-normal"}
+DRAW_SOURCE_TABLES = ("CapsuleEggInfo", "CapsuleEggAwardInfo", "AwardElementInfo",
+                      "ConsumeElementInfo", "ItemInfo", "PokemonInfo", "GeneInfo",
+                      "GeneProbabilityInfo")
 
 
 @dataclass(frozen=True)
@@ -64,11 +69,27 @@ def catalog_audit():
             "missing_pools": missing_pools, "missing_elements": missing_elements}
 
 
+@cache
+def _original_pool(pool_id):
+    entries = table("CapsuleEggAwardInfo")[pool_id]["awardInfoVec"]
+    pool = []
+    for entry in entries:
+        reward = resolve_award_element(entry["awardItemIndex"], entry["awardItemNum"])
+        if reward["kind"] not in ("pet", "item"):
+            raise ValueError(f"unsupported original draw reward kind in pool {pool_id}")
+        pool.append({reward["kind"] + "_id": reward["id"], "count": reward["num"],
+                     "weight": entry["rate"]})
+    return pool
+
+
 def parse_catalog(raw, *, complete=False):
     local = json.loads(raw)
+    machines = table("CapsuleEggInfo")
+    if local == TARGET_NORMAL:
+        local = {str(machine_id): _original_pool(machine["normalEggAwardIndex"])
+                 for machine_id, machine in machines.items()}
     if not isinstance(local, dict) or not local or set(local) - {"1", "2", "3"}:
         raise ValueError("expected local draw pools keyed by client machine index")
-    machines = table("CapsuleEggInfo")
     costs = table("ConsumeElementInfo")
     items = table("ItemInfo")
     if complete and set(local) != {str(machine_id) for machine_id in machines}:
@@ -139,6 +160,7 @@ def startup_catalog(configured_path):
 def catalog_report(configured_path):
     path, digest, machines = startup_catalog(configured_path)
     guide, goal = tutorial_guide()
+    target_normal = json.loads(path.read_bytes()) == TARGET_NORMAL
     return {
         "source": str(path), "sha256": digest,
         "environment": os.getenv("GAME_ENV"), "expected_database": os.getenv("MONSTER2_EXPECTED_DB"),
@@ -146,6 +168,9 @@ def catalog_report(configured_path):
         "rewards": sum(len(machine.prizes) for machine in machines.values()),
         "prize_kinds": sorted({prize[0] for m in machines.values() for prize in m.prizes}),
         "modes": {i: (["free"] if i in (1, 2) else []) + ["x1", "x10"] for i in machines},
+        "pool_rules": "target-normal-independent" if target_normal else "local-independent",
+        "source_tables": {name: sha256((CONFIG / f"{name}.dat").read_bytes()).hexdigest()
+                          for name in DRAW_SOURCE_TABLES},
         "tutorial": {"quest_id": guide.quest_id, "machine_id": 2, "pet_id": GACHA_GUIDE_PET_ID,
                      "required_progress": goal},
         "missing_references": [], "unsupported": ["wish", "dream", "ordinary guarantee and VIP rules"],
@@ -170,7 +195,17 @@ def tutorial_guide():
     _, groups, passive = gene(GACHA_GUIDE_PET_ID)
     for group in (*groups, *(entry["paSkillID"] for entry in passive)):
         skill_choices(group)
+    senior_tutorial_prize()
     return guide, guide.objectives[0].amount
+
+
+@cache
+def senior_tutorial_prize():
+    pool_id = table("CapsuleEggInfo")[1]["firstEggAwardIndex"]
+    pool = _original_pool(pool_id)
+    if len(pool) != 1 or "item_id" not in pool[0] or pool[0]["weight"] != 10_000:
+        raise ValueError(f"guide Senior pool {pool_id} must contain its single configured item")
+    return {"elementType": "item", "elementID": pool[0]["item_id"], "num": pool[0]["count"]}
 
 
 async def _tutorial_draw_pending(conn, char_id):
@@ -226,15 +261,17 @@ async def execute(db, char_id, machine_id, machine, count, free, request_key=Non
                 return 1, None
             values = json.loads(character["game_values"])
             tutorial = (os.getenv("MONSTER2_DRAW_CATALOG") and not values.get("qa_independent")
-                        and (machine_id == 2 or environment == "test")
+                        and (free or environment == "test")
                         and await _tutorial_draw_pending(conn, char_id))
             if environment == "test" and not values.get("qa_independent") and not tutorial:
                 return 1, None
-            tutorial_prize = tutorial and machine_id == 2 and free
-            if tutorial_prize and not await conn.fetchval(
+            guided_free = tutorial and free
+            senior_drawn = guided_free and await conn.fetchval(
                 """SELECT EXISTS (SELECT 1 FROM local_draw_history
                    WHERE char_id=$1 AND machine_id=1 AND is_free)""", char_id,
-            ):
+            )
+            tutorial_prize = guided_free and machine_id == 2
+            if tutorial_prize and not senior_drawn:
                 return 1, None
             if request_key and await conn.fetchval(
                 "SELECT EXISTS (SELECT FROM local_draw_history WHERE char_id=$1 AND request_key=$2)",
@@ -264,8 +301,12 @@ async def execute(db, char_id, machine_id, machine, count, free, request_key=Non
             if character[machine.currency] < cost:
                 return 1, None
 
-            awards = ([{"elementType": "pet", "elementID": GACHA_GUIDE_PET_ID, "num": 1}]
-                      if tutorial_prize else machine.draw(count))
+            if tutorial_prize:
+                awards = [{"elementType": "pet", "elementID": GACHA_GUIDE_PET_ID, "num": 1}]
+            elif guided_free and machine_id == 1 and not senior_drawn:
+                awards = [dict(senior_tutorial_prize())]
+            else:
+                awards = machine.draw(count)
             additions = Counter()
             for award in awards:
                 additions[award["elementType"], award["elementID"]] += award["num"]

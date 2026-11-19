@@ -24,7 +24,7 @@ async def get_recharge_cd(session, payload: bytes):
     return 655, success_code().string("{}").bytes()
 
 
-def wallet_update(row) -> tuple[int, bytes]:
+def wallet_update(row, counters=None) -> tuple[int, bytes]:
     currencies = row["currencies_json"] or {}
     if isinstance(currencies, str):
         currencies = json.loads(currencies)
@@ -38,6 +38,8 @@ def wallet_update(row) -> tuple[int, bytes]:
                    "vip_points": row["vip_points"]})
     if "recharge_total" in row.keys():
         values["recharge"] = {"totalMoney": int(row["recharge_total"])}
+    if counters:
+        values.update(counters)
     return 473, Writer().string(json.dumps(values, separators=(",", ":"))).bytes()
 
 
@@ -99,7 +101,7 @@ async def buy_market(session, payload: bytes):
         return ack
     notifications = []
     notifications.append(item_counts_update([(purchase["item_id"], purchase["item_count"])]))
-    notifications.append(wallet_update(purchase["character"]))
+    notifications.append(wallet_update(purchase["character"], purchase["counters"]))
     notifications.append((563, Writer().u16(0).bytes()))
     log.info("market_purchase char_id=%s market_id=%s item_id=%s count=%s cost=%s currency=%s",
              session.char_id, product_id, market["itemID"], count,

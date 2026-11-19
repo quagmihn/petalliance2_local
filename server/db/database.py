@@ -110,6 +110,47 @@ class Database:
         )
         return dict(row)
 
+    async def redeem_fashion_item(self, char_id: int, item_id: int, fashion_id: int):
+        from fashion_config import fashion_bag_slot, initial_fashion_state
+
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                if row is None:
+                    return 1, None, None
+                values = json.loads(row["game_values"])
+                state = values.get("fashion_info")
+                if isinstance(state, str):
+                    state = json.loads(state)
+                if state is None:
+                    current = values.get("curfashion", [])
+                    if isinstance(current, str):
+                        current = json.loads(current)
+                    state = initial_fashion_state(current)
+                bag = state["bag"]
+                if fashion_id in state["curFashion"] or any(fashion_id in group for group in bag):
+                    return 455, None, None
+                remaining = await conn.fetchval(
+                    """UPDATE inventory SET count=count-1
+                       WHERE char_id=$1 AND item_id=$2 AND count>0 RETURNING count""",
+                    char_id, item_id,
+                )
+                if remaining is None:
+                    return 1, None, None
+                if remaining == 0:
+                    await conn.execute(
+                        "DELETE FROM inventory WHERE char_id=$1 AND item_id=$2 AND count=0",
+                        char_id, item_id,
+                    )
+                bag[fashion_bag_slot(fashion_id)].append(fashion_id)
+                values["fashion_info"] = state
+                await conn.execute(
+                    "UPDATE characters SET game_values=$2::jsonb WHERE char_id=$1",
+                    char_id, json.dumps(values),
+                )
+                return 0, remaining, state
+
     async def feed_pet_exp(self, char_id: int, pet_uid: int, item_id: int,
                            item_count: int, exp_per_item: int):
         """Consume configured feed items and persist Pet cumulative EXP atomically."""
@@ -179,14 +220,11 @@ class Database:
                         "pet_json": serialized}
 
     async def buy_market_item(self, char_id: int, market: dict, count: int):
-        """Apply a configured unlimited MarketInfo purchase atomically.
-
-        Finite buyMax products need the game's reset-counter semantics; fail
-        closed for those until that state is implemented rather than bypassing
-        their limits.
-        """
+        """Apply a configured MarketInfo purchase and its weekly counter."""
+        from character_values import validate_character_values
         from client_config import table
-        if count < 1 or count > 99 or int(market["buyMax"]) != 0:
+        limit = int(market["buyMax"])
+        if count < 1 or count > 99 or (limit and market["marketType"] != 4):
             return None
         item_id, quantity = int(market["itemID"]), count
         item = table("ItemInfo").get(item_id)
@@ -200,8 +238,31 @@ class Database:
             async with conn.transaction():
                 char = await conn.fetchrow(
                     "SELECT * FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
-                if char is None:
+                if char is None or char["vip_level"] < market["vip"]:
                     return None
+                values = json.loads(char["game_values"])
+                capacity = validate_character_values(["itemPacketNum"], values)["itemPacketNum"]
+                bag = await conn.fetchrow(
+                    """SELECT count(*) AS occupied, bool_or(item_id=$2) AS has_stack
+                       FROM inventory WHERE char_id=$1 AND count>0""", char_id, item_id)
+                if not bag["has_stack"] and bag["occupied"] >= capacity:
+                    return None
+                counters = {}
+                if limit:
+                    # VipShopViewMgr uses weekday 1 (Monday) and the config
+                    # reset offset in the server's advertised UTC+07 zone.
+                    offset = 25200 - table("GlobalConfigAddInfo")[6900]["values"][0]
+                    now = await conn.fetchval("SELECT floor(extract(epoch FROM now()))::bigint")
+                    num_key = f"buyMarketItemNum_{market['id']}"
+                    time_key = f"buyMarketItemTime_{market['id']}"
+                    last = int(values.get(time_key, 0))
+                    monday_offset = offset - 4 * 86400
+                    period = 7 * 86400
+                    same_week = (last + monday_offset) // period == (now + monday_offset) // period
+                    previous = int(values.get(num_key, 0)) if same_week else 0
+                    if previous + count > limit:
+                        return None
+                    counters.update({num_key: previous + count, time_key: now})
                 currencies = char["currencies_json"] or {}
                 if isinstance(currencies, str):
                     currencies = json.loads(currencies)
@@ -219,6 +280,10 @@ class Database:
                     await conn.execute(
                         f"UPDATE characters SET {currency_column}={currency_column}-$2 WHERE char_id=$1",
                         char_id, price)
+                if counters:
+                    await conn.execute(
+                        "UPDATE characters SET game_values=game_values || $2::jsonb WHERE char_id=$1",
+                        char_id, json.dumps(counters))
                 inventory = await conn.fetchrow(
                     """INSERT INTO inventory(char_id,item_id,count) VALUES($1,$2,$3)
                        ON CONFLICT(char_id,item_id) DO UPDATE SET count=inventory.count+EXCLUDED.count
@@ -226,7 +291,7 @@ class Database:
                 updated = await conn.fetchrow(
                     "SELECT * FROM characters WHERE char_id=$1", char_id)
                 return {"character": updated,
-                        "item_id": item_id, "item_count": int(inventory["count"])}
+                        "item_id": item_id, "item_count": int(inventory["count"]), "counters": counters}
 
     async def apply_local_recharge(self, char_id: int, order_key: str,
                                    package_kind: str, package: dict,
