@@ -85,28 +85,20 @@ class QuestDB:
         self.battles[session_id] = ("started", monster_id, 1)
         return True
 
-    async def finish_tutorial_battle(self, char_id, session_id, won):
+    async def finish_tutorial_battle(self, char_id, session_id, won, reported_fighters=None):
         battle = self.battles.get(session_id)
         if not battle or battle[0] != "started":
-            return False
+            return None
         self.battles[session_id] = ("won" if won else "lost", battle[1], battle[2])
         from battle_group_config import tutorial_requirements
+        from client_config import table
         requirement = tutorial_requirements().get(battle[1])
         if won and requirement:
             self.quests[requirement["quest_id"]]["progress"] = [1]
         elif won and battle[2] == 3 and 10002 in self.quests:
             self.quests[10002]["progress"] = [1]
-        return True
-
-    async def last_tutorial_battle_exp(self, char_id):
-        if not self.battles:
-            return 0
-        _, group_id, battle_type = next(reversed(self.battles.values()))
-        if battle_type == 1:
-            from client_config import table
-            return int(table("MonstrosityInfo")[group_id]["exp"])
-        from client_config import table
-        return int(table("MonsterGroupManInfo")[group_id]["exp"])
+        config = "MonstrosityInfo" if battle[2] == 1 else "MonsterGroupManInfo"
+        return (int(table(config)[battle[1]]["exp"]) if won else 0), []
 
     async def commit_configured_tutorial_quest(self, char_id, quest, all_quests, configured_reward=None):
         row = self.quests.get(quest.quest_id)
@@ -200,7 +192,7 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((monster["mID"], monster["level"], monster["skill1"]), (999996, 1, 371))
         self.assertEqual(r.u32(), 16); self.assertEqual(r.u8(), 0); r.finish()
 
-        ack_id, body = await dispatch(self.session, 263, Writer().u16(1).vector_strings(["1,0"]).bytes())
+        ack_id, body = await dispatch(self.session, 263, Writer().u16(1).vector_strings(["1,10"]).bytes())
         self.assertEqual((ack_id, Reader(body).u16(), self.session.db.quests[10001]["progress"]),
                          (186, 0, [1]))
         result = await dispatch(self.session, 400, Writer().u32(10001).bytes())
@@ -280,7 +272,7 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
                                      "skill3": 0, "hp": 168, "petStage": 0,
                                      "petStar": 0, "skin": 0}])
         self.assertEqual(r.u32(), 16); self.assertEqual(r.u8(), 0); r.finish()
-        end = Writer().u16(1).u8(1).string("{\"turn\":1}").bytes()
+        end = Writer().u16(1).u8(1).string("1,10").bytes()
         end_id, end_body = await dispatch(self.session, 263, end)
         self.assertEqual((end_id, Reader(end_body).u16()), (186, 0))
         self.assertEqual(self.session.db.quests[10002]["progress"], [1])
@@ -336,7 +328,7 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_battle_requires_active_server_issued_encounter(self):
         ack_id, body = await dispatch(self.session, 263,
-                                      Writer().u16(1).vector_strings(["1,0"]).bytes())
+                                      Writer().u16(1).vector_strings(["1,10"]).bytes())
         self.assertEqual((ack_id, Reader(body).u16()), (186, 1))
 
     async def test_configured_second_tutorial_battle_99999_advances_quest_10007(self):
@@ -351,7 +343,7 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
                                  "skill2": 0, "skill3": 0, "hp": 224,
                                  "petStage": 0, "petStar": 0, "skin": 0})
         self.assertEqual(r.u32(), 37); self.assertEqual(r.u8(), 0); r.finish()
-        end = Writer().u16(1).u8(1).string("{\"turn\":1}").bytes()
+        end = Writer().u16(1).u8(1).string("1,10").bytes()
         ack_id, body = await dispatch(self.session, 263, end)
         self.assertEqual((ack_id, Reader(body).u16(), self.session.db.quests[10007]["progress"]),
                          (186, 0, [1]))
@@ -380,7 +372,7 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((enemy["mID"], enemy["level"], enemy["canCatch"]), (999999, 1, True))
         self.assertEqual((enemy["skill1"], enemy["skill2"], enemy["hp"]), (401, 1841, 134))
         self.assertEqual(r.u32(), 8); self.assertEqual(r.u8(), 0); r.finish()
-        result = Writer().u16(1).vector_strings([json.dumps({"turn": 1})]).bytes()
+        result = Writer().u16(1).vector_strings(["1,10"]).bytes()
         ack_id, body = await dispatch(self.session, 263, result)
         self.assertEqual((ack_id, Reader(body).u16()), (186, 0))
         self.assertEqual(self.session.db.quests[10008]["progress"], [0])
@@ -398,7 +390,7 @@ class QuestProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.session.db.quests[10001] = {"status": 0, "progress": [0]}
         await self.session.db.start_tutorial_battle(2, "session-a", 99998)
         ack_id, body = await dispatch(self.session, 263,
-                                      Writer().u16(0).vector_strings(["1,0"]).bytes())
+                                      Writer().u16(0).vector_strings(["1,10"]).bytes())
         self.assertEqual((ack_id, Reader(body).u16()), (186, 0))
         self.assertEqual(self.session.db.quests[10001]["progress"], [0])
 

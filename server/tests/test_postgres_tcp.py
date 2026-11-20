@@ -44,6 +44,22 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 actual, response, _ = await asyncio.wait_for(receive(), 3)
                 self.assertEqual(actual, expected)
                 return Reader(response)
+            async def win_battle(pet_uid, expected_exp):
+                trace = Writer().u16(1).vector_strings([f"{pet_uid},120"]).bytes()
+                writer.write(frame(263, xor_payload(trace)))
+                await writer.drain()
+                updates = []
+                while True:
+                    msg, body, _ = await asyncio.wait_for(receive(), 3)
+                    packet = Reader(body)
+                    if msg == 186:
+                        self.assertEqual((packet.u16(), packet.u32()), (0, expected_exp))
+                        packet.finish()
+                        return updates
+                    self.assertEqual((msg, packet.u64()), (3141, pet_uid))
+                    updates.append(json.loads(packet.string()))
+                    packet.finish()
+
             async def commit_quest(quest_id):
                 writer.write(frame(400, xor_payload(Writer().u32(quest_id).bytes())))
                 await writer.drain()
@@ -235,8 +251,13 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             reader, writer = await asyncio.open_connection("127.0.0.1", port)
             login_after_reconnect = await send(2156, binding, 2183)
             self.assertEqual(login_after_reconnect.i32(), 0)
-            wild_end = await send(263, Writer().u16(1).vector_strings(["{\"turn\":1}"]).bytes(), 186)
-            self.assertEqual((wild_end.u16(), wild_end.u32()), (0, 8)); wild_end.finish()
+            denied = Writer().u16(1).vector_strings([f"{captured_uid},120"]).bytes()
+            self.assertEqual((await send(263, denied, 186)).u16(), 1)
+            updates = await win_battle(pet_uid, 8)
+            self.assertEqual([pet["exp"] for pet in updates], [8])
+            replay = Writer().u16(1).vector_strings([f"{pet_uid},120"]).bytes()
+            self.assertEqual((await send(263, replay, 186)).u16(), 1)
+            self.assertEqual(await db.pool.fetchval("SELECT exp FROM pets WHERE pet_uid=$1", captured_uid), 0)
             self.assertEqual(await db.pool.fetchval(
                 "SELECT state FROM tutorial_battle_sessions WHERE char_id=$1 AND battle_type=1 "
                 "ORDER BY battle_id DESC LIMIT 1", char_id), "won")
@@ -306,7 +327,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             update = Reader(body)
             self.assertEqual((msg, update.u64()), (3141, pet_uid))
             fed_pet = json.loads(update.string()); update.finish()
-            self.assertEqual((fed_pet["level"], fed_pet["exp"]), (2, 100))
+            self.assertEqual((fed_pet["level"], fed_pet["exp"]), (2, 108))
             msg, body, _ = await receive()
             feed = Reader(body)
             self.assertEqual((msg, feed.u16(), feed.u32(), feed.u32()), (526, 0, 10002, 0))
@@ -315,7 +336,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 "SELECT (SELECT count FROM inventory WHERE char_id=$1 AND item_id=10002)", char_id), None)
             pet_state = await db.pool.fetchrow(
                 "SELECT level,exp FROM pets WHERE char_id=$1 AND pet_uid=$2", char_id, pet_uid)
-            self.assertEqual((pet_state["level"], pet_state["exp"]), (2, 100))
+            self.assertEqual((pet_state["level"], pet_state["exp"]), (2, 108))
 
             # Product 201 is configured as one Master Ball for 600 MCash.
             await db.pool.execute("UPDATE characters SET diamond=10000 WHERE char_id=$1", char_id)
@@ -387,7 +408,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(r.u8(), 1)
             upgraded_pet = json.loads(r.string())
             self.assertEqual((upgraded_pet["objID"], upgraded_pet["Stage"],
-                              upgraded_pet["level"], upgraded_pet["exp"]), (pet_uid, 1, 2, 100))
+                              upgraded_pet["level"], upgraded_pet["exp"]), (pet_uid, 1, 2, 108))
             inactive_count = r.u8()
             for _ in range(inactive_count):
                 r.string()
@@ -489,7 +510,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await receive())[0], 404)
             self.assertEqual((await send(136, bytes.fromhex("050000009e86010000000000"), 210)).u16(), 0)
             # Explicit synthetic protocol fixture; never used as runtime proof.
-            self.assertEqual((await send(263, Writer().u16(1).vector_strings(["1,0"]).bytes(), 186)).u16(), 0)
+            await win_battle(pet_uid, 16)
             writer.write(frame(400, xor_payload(Writer().u32(10001).bytes())))
             await writer.drain()
             reward_messages = []
@@ -610,8 +631,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             node_enemy = json.loads(node_battle.string())
             self.assertEqual(node_enemy["mID"], 1001)
             self.assertEqual(node_battle.u32(), 24); node_battle.u8(); node_battle.finish()
-            node_end = await send(263, Writer().u16(1).vector_strings(["{\"turn\":1}"]).bytes(), 186)
-            self.assertEqual((node_end.u16(), node_end.u32()), (0, 24)); node_end.finish()
+            await win_battle(pet_uid, 24)
             node_progress = await db.pool.fetchval(
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=1501", char_id)
             self.assertEqual(json.loads(node_progress) if isinstance(node_progress, str)
@@ -669,8 +689,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(wild_enemy["mID"], 215)
             self.assertNotIn("canCatch", wild_enemy)
             self.assertEqual(wild_battle.u32(), 16); wild_battle.u8(); wild_battle.finish()
-            wild_end = await send(263, Writer().u16(1).vector_strings(["{\"turn\":2}"]).bytes(), 186)
-            self.assertEqual((wild_end.u16(), wild_end.u32()), (0, 16)); wild_end.finish()
+            await win_battle(pet_uid, 16)
             wild_progress = await db.pool.fetchval(
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=1503", char_id)
             self.assertEqual(json.loads(wild_progress) if isinstance(wild_progress, str)
@@ -691,8 +710,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(group_enemy["mID"], 999994)
             self.assertEqual(group_enemy["skill1"], 541)
             self.assertEqual((group_ack.u32(), group_ack.u8()), (37, 0)); group_ack.finish()
-            end_ack = await send(263, Writer().u16(1).vector_strings(["{\"turn\":1}"]).bytes(), 186)
-            self.assertEqual((end_ack.u16(), end_ack.u32()), (0, 37)); end_ack.finish()
+            await win_battle(pet_uid, 37)
             battle_progress = await db.pool.fetchval(
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10007", char_id)
             self.assertEqual(json.loads(battle_progress) if isinstance(battle_progress, str)

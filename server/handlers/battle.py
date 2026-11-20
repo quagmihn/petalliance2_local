@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from protocol import Reader, Writer
 from pet_config import tutorial_monster
@@ -12,6 +13,23 @@ from battle_group_config import (resolve_monster_man_group, resolve_tutorial_gro
                                  resolve_tutorial_wild, resolve_world_map_wild)
 
 log = logging.getLogger("game_socket")
+FIGHTER = re.compile(r"([1-9][0-9]{0,18}),([0-9]{1,15}(?:\.[0-9]{1,12})?)")
+
+
+def winning_fighters(details):
+    """Parse the client combat engine's fighting Pet UID/HP pairs."""
+    if not 1 <= len(details) <= 3:
+        return None
+    fighters = {}
+    for detail in details:
+        match = FIGHTER.fullmatch(detail)
+        if match is None:
+            return None
+        uid, hp = int(match[1]), float(match[2])
+        if uid in fighters or uid > (1 << 63) - 1:
+            return None
+        fighters[uid] = hp
+    return set(fighters) if any(fighters.values()) else None
 
 FIRST_GUIDE_BATTLE = {
     "battle_type": 5,       # Proto.BTT_MONSTER_MAN_GROUP
@@ -47,15 +65,12 @@ async def handle(message_id: int, payload: bytes, session):
                 started = await session.db.start_tutorial_wild_battle(
                     session.char_id, session.session_id, battle_type_id, quest_id,
                     int(client_table("MonstrosityInfo")[battle_type_id]["capture"]))
-                if started:
-                    session.tutorial_battle_exp = exp
             else:
                 world_wild = resolve_world_map_wild(battle_type_id)
                 started = bool(sub_id == 0 and world_wild and await session.db.start_world_map_quest_wild(
                     session.char_id, session.session_id, battle_type_id))
                 if started and world_wild:
                     enemy, exp = world_wild
-                    session.tutorial_battle_exp = exp
                     resolved = (None, enemy, exp)
                 elif world_wild is None:
                     reason = "unconfigured_wild_encounter"
@@ -96,7 +111,6 @@ async def handle(message_id: int, payload: bytes, session):
                             "adventure_id=%s scene_id=%s rejection_reason=active_adventure_changed",
                             session.char_id, adventure_id, battle_type_id)
                 return 210, Writer().u16(1).bytes()
-            session.tutorial_battle_exp = int(group["exp"])
             monstrosities = client_table("MonstrosityInfo")
             monsters = []
             for monster_id in group["pokemons"]:
@@ -132,8 +146,6 @@ async def handle(message_id: int, payload: bytes, session):
                 quest_id, enemies, exp = resolved
                 started = await session.db.start_tutorial_battle(
                     session.char_id, session.session_id, battle_type_id)
-                if started:
-                    session.tutorial_battle_exp = exp
             if not started:
                 # World-map node battles are allowed only when a currently
                 # active event-18 quest resolves this exact configured trainer
@@ -145,7 +157,6 @@ async def handle(message_id: int, payload: bytes, session):
                         session.char_id, session.session_id, battle_type_id)
                     if started:
                         enemies, exp = world_enemies, world_exp
-                        session.tutorial_battle_exp = exp
             if not started:
                 reason = "group_not_authorized_by_active_quest"
             if not started:
@@ -168,23 +179,32 @@ async def handle(message_id: int, payload: bytes, session):
             raise ValueError("PVE battle detail vector too large")
         details = [r.string() for _ in range(count)]
         r.finish()
-        # Combat runs in the client. Require a server-issued encounter bound to
-        # this live session and a non-empty combat trace before accepting win.
-        valid_result = result in (0, 1, 2)
-        won = result == 1 and bool(details)
-        accepted = (valid_result and session.char_id is not None
-                    and await session.db.finish_tutorial_battle(
-                        session.char_id, session.session_id, won))
-        if not accepted:
-            reason = "invalid_result_or_empty_trace" if not valid_result or not details else "no_active_encounter"
+        # Combat runs in the client. Its wire result can be checked against
+        # the issued encounter and fighting UIDs, without replaying combat.
+        won = result == 1
+        fighters = winning_fighters(details) if won else None
+        valid_result = result in (0, 1, 2) and (not won or fighters is not None)
+        accepted = None
+        if valid_result and session.char_id is not None:
+            try:
+                accepted = await session.db.finish_tutorial_battle(
+                    session.char_id, session.session_id, won, fighters)
+            except (KeyError, ValueError) as exc:
+                log.warning("battle_result_rolled_back char_id=%s session_id=%s detail=%s",
+                            session.char_id, session.session_id, exc)
+        if accepted is None:
+            reason = "unmatched_encounter_or_fighters" if valid_result else "invalid_result_or_trace"
             log.warning("battle_rejected request_id=263 char_id=%s handler=pve_battle_end "
                         "result=%s details_count=%d rejection_reason=%s response_id=186 response_code=1",
                         session.char_id, result, len(details), reason)
             return 186, Writer().u16(1).bytes()
-        battle_exp = int(getattr(session, "tutorial_battle_exp", 0))
-        if won and not battle_exp:
-            battle_exp = await session.db.last_tutorial_battle_exp(session.char_id)
-        return 186, Writer().u16(0).u32(battle_exp if won else 0).bytes()
+        battle_exp, pets = accepted
+        ack = (186, Writer().u16(0).u32(battle_exp).bytes())
+        if not pets:
+            return ack
+        log.info("battle_pet_exp char_id=%s session_id=%s configured_exp=%s pet_uids=%s",
+                 session.char_id, session.session_id, battle_exp, [uid for uid, _ in pets])
+        return [(3141, Writer().u64(uid).string(payload).bytes()) for uid, payload in pets] + [ack]
 
     return None
 

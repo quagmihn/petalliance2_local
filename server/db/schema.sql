@@ -225,6 +225,7 @@ ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS adventure_id INTEG
 ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS capture_attempts_remaining INTEGER NOT NULL DEFAULT 0
     CHECK (capture_attempts_remaining >= 0);
 ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS captured_pet_uid BIGINT REFERENCES pets(pet_uid);
+ALTER TABLE tutorial_battle_sessions ADD COLUMN IF NOT EXISTS fighter_uids BIGINT[];
 CREATE INDEX IF NOT EXISTS tutorial_battle_sessions_char_session_idx
     ON tutorial_battle_sessions(char_id, session_id, battle_id DESC);
 

@@ -151,12 +151,43 @@ class Database:
                 )
                 return 0, remaining, state
 
-    async def feed_pet_exp(self, char_id: int, pet_uid: int, item_id: int,
-                           item_count: int, exp_per_item: int):
-        """Consume configured feed items and persist Pet cumulative EXP atomically."""
+    @staticmethod
+    def _pet_exp_progress(char_level, pet, exp_gain, *, allow_capped_gain=False):
+        """Apply the same cumulative thresholds and cap for feeding and battle EXP."""
         from client_config import table
 
         exp_rows = table("ExperienceInfo")
+        template = table("PokemonInfo").get(int(pet["pet_template_id"]))
+        if template is None:
+            raise ValueError(f"unknown Pet template {pet['pet_template_id']}")
+        rare = int(template["rarePoint"])
+        max_level = min(int(char_level), int(template["topLevel"]))
+        if max_level < 1 or rare < 1:
+            raise ValueError("invalid Pet EXP level configuration")
+        thresholds = []
+        for level in range(1, max_level + 1):
+            row = exp_rows.get(level)
+            values = row.get("petExpVec", []) if row else []
+            if len(values) < rare:
+                raise ValueError(f"missing Pet EXP threshold for level {level}, rarity {rare}")
+            thresholds.append(int(values[rare - 1]))
+        old_exp = int(pet["exp"])
+        if old_exp < 0:
+            raise ValueError("negative Pet EXP")
+        current_level = min(max_level, 1 + sum(value <= old_exp for value in thresholds))
+        if current_level >= max_level and not allow_capped_gain:
+            return None
+        next_cap = thresholds[max_level - 1] - 1
+        new_exp = min(old_exp + exp_gain, next_cap)
+        new_level = min(max_level, 1 + sum(value <= new_exp for value in thresholds))
+        if new_exp <= old_exp:
+            return None
+
+        return new_level, new_exp
+
+    async def feed_pet_exp(self, char_id: int, pet_uid: int, item_id: int,
+                           item_count: int, exp_per_item: int):
+        """Consume configured feed items and persist Pet cumulative EXP atomically."""
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 char = await conn.fetchrow(
@@ -174,31 +205,10 @@ class Database:
                 if item is None or int(item["count"]) < item_count:
                     return None
 
-                template = table("PokemonInfo").get(int(pet["pet_template_id"]))
-                if template is None:
-                    raise ValueError(f"unknown Pet template {pet['pet_template_id']}")
-                rare = int(template["rarePoint"])
-                max_level = min(int(char["level"]), int(template["topLevel"]))
-                if max_level < 1 or rare < 1:
-                    raise ValueError("invalid Pet EXP level configuration")
-                thresholds = []
-                for level in range(1, max_level + 1):
-                    row = exp_rows.get(level)
-                    values = row.get("petExpVec", []) if row else []
-                    if len(values) < rare:
-                        raise ValueError(f"missing Pet EXP threshold for level {level}, rarity {rare}")
-                    thresholds.append(int(values[rare - 1]))
-                old_exp = int(pet["exp"])
-                if old_exp < 0:
-                    raise ValueError("negative Pet EXP")
-                current_level = min(max_level, 1 + sum(value <= old_exp for value in thresholds))
-                if current_level >= max_level:
+                progress = self._pet_exp_progress(char["level"], pet, item_count * exp_per_item)
+                if progress is None:
                     return None
-                next_cap = thresholds[max_level - 1] - 1
-                new_exp = min(old_exp + item_count * exp_per_item, next_cap)
-                new_level = min(max_level, 1 + sum(value <= new_exp for value in thresholds))
-                if new_exp <= old_exp:
-                    return None
+                new_level, new_exp = progress
 
                 await conn.execute(
                     "UPDATE inventory SET count=count-$3 WHERE char_id=$1 AND item_id=$2",
@@ -626,6 +636,19 @@ class Database:
                     char_id, quest_id, json.dumps(progress))
                 return True
 
+    @staticmethod
+    async def _insert_pve_battle(conn, char_id, session_id, group_id, battle_type, battle_type_id,
+                                 adventure_id=None, capture_attempts=0):
+        await conn.execute(
+            """INSERT INTO tutorial_battle_sessions
+               (char_id,session_id,group_id,battle_type,battle_type_id,adventure_id,state,
+                capture_attempts_remaining,fighter_uids)
+               VALUES ($1,$2,$3,$4,$5,$6,'started',$7,ARRAY(
+                   SELECT pet_uid FROM pets WHERE char_id=$1 AND slot_index BETWEEN 0 AND 2
+                   ORDER BY slot_index,pet_uid))""",
+            char_id, session_id, group_id, battle_type, battle_type_id, adventure_id, capture_attempts,
+        )
+
     async def start_tutorial_battle(self, char_id: int, session_id: str, group_id: int) -> bool:
         from battle_group_config import tutorial_requirements
         requirement = tutorial_requirements().get(group_id)
@@ -633,6 +656,7 @@ class Database:
             return False
         async with self.pool.acquire() as conn:
             async with conn.transaction():
+                await conn.fetchval("SELECT 1 FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
                 active = await conn.fetchval(
                     "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=$2 AND status=0",
                     char_id, int(requirement["quest_id"]))
@@ -650,9 +674,7 @@ class Database:
                     await conn.execute(
                         "UPDATE tutorial_battle_sessions SET state='lost',finished_at=now() WHERE battle_id=$1",
                         existing["battle_id"])
-                await conn.execute(
-                    "INSERT INTO tutorial_battle_sessions(char_id,session_id,group_id,state) "
-                    "VALUES($1,$2,$3,'started')", char_id, session_id, group_id)
+                await self._insert_pve_battle(conn, char_id, session_id, group_id, 5, group_id)
                 return True
 
     async def start_world_map_quest_battle(self, char_id: int, session_id: str,
@@ -711,10 +733,7 @@ class Database:
                     await conn.execute(
                         "UPDATE tutorial_battle_sessions SET state='lost',finished_at=now() WHERE battle_id=$1",
                         previous["battle_id"])
-                await conn.execute(
-                    """INSERT INTO tutorial_battle_sessions
-                       (char_id,session_id,group_id,battle_type,battle_type_id,state)
-                       VALUES($1,$2,$3,5,$3,'started')""", char_id, session_id, group_id)
+                await self._insert_pve_battle(conn, char_id, session_id, group_id, 5, group_id)
                 return True
 
     async def start_world_map_quest_wild(self, char_id: int, session_id: str,
@@ -767,10 +786,7 @@ class Database:
                     await conn.execute(
                         "UPDATE tutorial_battle_sessions SET state='lost',finished_at=now() WHERE battle_id=$1",
                         previous["battle_id"])
-                await conn.execute(
-                    """INSERT INTO tutorial_battle_sessions
-                       (char_id,session_id,group_id,battle_type,battle_type_id,state)
-                       VALUES($1,$2,$3,1,$3,'started')""", char_id, session_id, monster_id)
+                await self._insert_pve_battle(conn, char_id, session_id, monster_id, 1, monster_id)
                 return True
 
     async def start_tutorial_wild_battle(self, char_id: int, session_id: str,
@@ -782,6 +798,7 @@ class Database:
             return False
         async with self.pool.acquire() as conn:
             async with conn.transaction():
+                await conn.fetchval("SELECT 1 FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
                 active = await conn.fetchval(
                     "SELECT 1 FROM quests WHERE char_id=$1 AND quest_id=$2 AND status=0 FOR UPDATE",
                     char_id, quest_id)
@@ -800,11 +817,8 @@ class Database:
                     await conn.execute(
                         "UPDATE tutorial_battle_sessions SET state='lost',finished_at=now() WHERE battle_id=$1",
                         existing["battle_id"])
-                await conn.execute(
-                    "INSERT INTO tutorial_battle_sessions"
-                    "(char_id,session_id,group_id,battle_type,battle_type_id,state,capture_attempts_remaining) "
-                    "VALUES($1,$2,$3,1,$3,'started',$4)",
-                    char_id, session_id, monster_id, capture_attempts)
+                await self._insert_pve_battle(conn, char_id, session_id, monster_id, 1,
+                                              monster_id, capture_attempts=capture_attempts)
                 return True
 
     async def capture_wild_pet(self, char_id: int, session_id: str, monster_id: int,
@@ -843,6 +857,10 @@ class Database:
             raise ValueError("capture roll outside [0,99]")
         async with self.pool.acquire() as conn:
             async with conn.transaction():
+                owner = await conn.fetchval(
+                    "SELECT char_id FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                if owner is None:
+                    return None
                 # Reconnect establishes a new TCP session ID. Resolve the
                 # encounter from its authenticated owner and lock it once.
                 battle = await conn.fetchrow(
@@ -869,12 +887,10 @@ class Database:
                             "rate_bonus": 0, "duplicate": True}
                 if battle["state"] not in ("started", "won") or int(battle["capture_attempts_remaining"]) <= 0:
                     return None
-                character = await conn.fetchrow(
-                    "SELECT char_id FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
                 inventory = await conn.fetchrow(
                     "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2 FOR UPDATE",
                     char_id, ball_item_id)
-                if character is None or inventory is None or int(inventory["count"]) < 1:
+                if inventory is None or int(inventory["count"]) < 1:
                     return None
                 attempt_no = int(await conn.fetchval(
                     "SELECT count(*) FROM wild_battle_capture_attempts WHERE battle_id=$1",
@@ -947,6 +963,7 @@ class Database:
                        WHERE char_id=$1 AND completed_at IS NULL FOR UPDATE""", char_id)
                 if active_adventure != adventure_id:
                     return False
+                await conn.fetchval("SELECT 1 FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
                 existing = await conn.fetchrow(
                     """SELECT battle_id,battle_type,battle_type_id,adventure_id
                        FROM tutorial_battle_sessions WHERE char_id=$1 AND state='started'
@@ -961,28 +978,41 @@ class Database:
                     await conn.execute(
                         "UPDATE tutorial_battle_sessions SET state='lost',finished_at=now() WHERE battle_id=$1",
                         existing["battle_id"])
-                await conn.execute(
-                    """INSERT INTO tutorial_battle_sessions
-                       (char_id,session_id,group_id,battle_type,battle_type_id,adventure_id,state)
-                       VALUES($1,$2,$3,3,$4,$5,'started')""",
-                    char_id, session_id, group_id, scene_id, adventure_id)
+                await self._insert_pve_battle(conn, char_id, session_id, group_id, 3, scene_id,
+                                              adventure_id)
                 return True
 
-    async def finish_tutorial_battle(self, char_id: int, session_id: str, won: bool) -> bool:
+    async def finish_tutorial_battle(self, char_id: int, session_id: str, won: bool,
+                                     reported_fighters: set[int] | None = None):
         async with self.pool.acquire() as conn:
             async with conn.transaction():
+                level = await conn.fetchval("SELECT level FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
                 # After reconnect, a fresh authenticated TCP session must be
                 # able to finish the character's active server-issued battle.
                 # The locked state transition still makes the end request one-use.
                 battle = await conn.fetchrow(
-                    """SELECT battle_id,group_id,battle_type FROM tutorial_battle_sessions
+                    """SELECT battle_id,group_id,battle_type,fighter_uids FROM tutorial_battle_sessions
                        WHERE char_id=$1 AND state='started'
                        ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""", char_id)
-                if battle is None:
-                    return False
+                if battle is None or level is None:
+                    return None
+                fighters = battle["fighter_uids"]
+                if won and reported_fighters is not None and fighters is not None:
+                    if not fighters or set(fighters) != reported_fighters:
+                        return None
+                exp = 0
+                updated_pets = []
+                if won:
+                    from client_config import table
+
+                    config = "MonstrosityInfo" if battle["battle_type"] == 1 else "MonsterGroupManInfo"
+                    group = table(config).get(battle["group_id"])
+                    exp = int(group["exp"]) if group else 0
+                    if exp and fighters and reported_fighters is not None:
+                        updated_pets = await self._grant_battle_pet_exp(conn, char_id, level, fighters, exp)
                 await conn.execute(
-                    "UPDATE tutorial_battle_sessions SET state=$2,finished_at=now() WHERE battle_id=$1",
-                    battle["battle_id"], "won" if won else "lost")
+                    """UPDATE tutorial_battle_sessions SET state=$2,finished_at=now(),session_id=$3
+                       WHERE battle_id=$1""", battle["battle_id"], "won" if won else "lost", session_id)
                 if won:
                     from battle_group_config import tutorial_requirements
                     requirement = tutorial_requirements().get(battle["group_id"])
@@ -1007,7 +1037,25 @@ class Database:
                     elif battle["battle_type"] == 1:
                         await self._advance_world_map_wild_objectives(
                             conn, char_id, int(battle["group_id"]))
-                return True
+                return exp, updated_pets
+
+    async def _grant_battle_pet_exp(self, conn, char_id, level, fighters, exp):
+        from handlers.pet import pet_json
+
+        pets = await conn.fetch(
+            """SELECT * FROM pets WHERE char_id=$1 AND pet_uid=ANY($2::bigint[])
+               ORDER BY pet_uid FOR UPDATE""", char_id, fighters)
+        updated = []
+        for pet in pets:
+            progress = self._pet_exp_progress(level, pet, exp, allow_capped_gain=True)
+            if progress is None:
+                continue
+            pet_level, pet_exp = progress
+            row = await conn.fetchrow(
+                "UPDATE pets SET level=$2, exp=$3 WHERE pet_uid=$1 RETURNING *",
+                pet["pet_uid"], pet_level, pet_exp)
+            updated.append((pet["pet_uid"], pet_json(row)))
+        return updated
 
     @staticmethod
     async def _advance_world_map_trainer_objectives(conn, char_id: int, group_id: int) -> None:
@@ -1081,21 +1129,6 @@ class Database:
             await conn.execute(
                 "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
                 char_id, quest.quest_id, json.dumps(values))
-
-    async def last_tutorial_battle_exp(self, char_id: int) -> int:
-        """Recompute configured battle EXP after a reconnect lost session memory."""
-        battle = await self.pool.fetchrow(
-            """SELECT group_id,battle_type FROM tutorial_battle_sessions
-               WHERE char_id=$1 AND state='won' ORDER BY battle_id DESC LIMIT 1""", char_id)
-        if battle is None:
-            return 0
-        from client_config import table
-        group_id = int(battle["group_id"])
-        if int(battle["battle_type"]) == 1:
-            row = table("MonstrosityInfo").get(group_id)
-            return int(row["exp"]) if row else 0
-        row = table("MonsterGroupManInfo").get(group_id)
-        return int(row["exp"]) if row else 0
 
     async def advance_pet_training_stage(self, char_id: int, pet_uid: int) -> int | None:
         """Atomically charge and persist one configured Pet Stage increase."""
