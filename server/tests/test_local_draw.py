@@ -109,11 +109,21 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
                 await db.pool.execute(
                     "UPDATE quests SET status=1 WHERE char_id=$1 AND quest_id=10009", char_id)
                 self.assertEqual(await dispatch(session, 1392, request), (1561, b"\x01\x00"))
+                await db.start_adventure(char_id, 1)
+                self.assertTrue(await db.start_adventure_battle(
+                    char_id, "guide-isolation", 1, 15, 1))
+                self.assertTrue(await db.finish_tutorial_battle(char_id, "guide-isolation", True))
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10010", char_id), "[0]")
                 for machine in (1, 2):
                     await db.pool.execute(
                         """INSERT INTO local_draw_history
                            (char_id,machine_id,draw_count,is_free,draw_day,currency,cost,awards,created_at)
                            VALUES($1,$2,1,true,0,'gold',0,'[]',now())""", char_id, machine)
+                # A legacy battle could already have written a completed-looking
+                # vector without a corresponding draw. The guide must recover.
+                await db.pool.execute(
+                    "UPDATE quests SET progress='[1]' WHERE char_id=$1 AND quest_id=10010", char_id)
                 self.assertEqual((await cooldowns(db, char_id))[2], (0, 0))
                 blocked = await dispatch(session, 400, Writer().u32(10010).bytes())
                 self.assertEqual(blocked, (726, b"\x01\x00"))
@@ -144,6 +154,13 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((ack_id, Reader(ack).i32()), (773, 0))
                 commit = await dispatch(relogin, 400, Writer().u32(10010).bytes())
                 self.assertEqual([msg_id for msg_id, _ in commit], [726, 404])
+                self.assertTrue(await db.start_adventure_battle(
+                    char_id, "formation-isolation", 1, 15, 1))
+                self.assertTrue(await db.finish_tutorial_battle(char_id, "formation-isolation", True))
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=10011", char_id), "[0]")
+                await db.pool.execute(
+                    "UPDATE quests SET progress='[1]' WHERE char_id=$1 AND quest_id=10011", char_id)
                 self.assertEqual(await dispatch(relogin, 400, Writer().u32(10011).bytes()),
                                  (726, b"\x01\x00"))
                 self.assertTrue(await db.update_primary_army(char_id, [starter["pet_uid"], uid], []))

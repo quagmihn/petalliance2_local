@@ -16,6 +16,20 @@ class NoWriteDB:
 
 
 class EconomySafetyTests(unittest.IsolatedAsyncioTestCase):
+    def test_enabled_market_offers_resolve_and_fail_closed(self):
+        from client_config import table
+        from market_config import enabled_offers, validate_offers
+
+        products = table("MarketInfo")
+        offers = enabled_offers()
+        self.assertEqual(set(offers), set(products))
+        self.assertGreater(len(offers), 0)
+        sample = next(iter(offers.values()))
+        with self.assertRaisesRegex(ValueError, "missing item"):
+            validate_offers({sample["id"]: dict(sample, itemID=0)}, table("ItemInfo"))
+        with self.assertRaisesRegex(ValueError, "positive price"):
+            validate_offers({sample["id"]: dict(sample, num=0)}, table("ItemInfo"))
+
     def test_wallet_notification_uses_committed_character_columns(self):
         row = {"currencies_json": {"diamond": 999999999, "m_cash": 999999999, "viplevel": 0,
                                     "g_cash": 999999999, "goldCoin": 7},

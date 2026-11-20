@@ -9,7 +9,7 @@ from typing import Any
 
 import asyncpg
 
-from quest_config import FORMATION_GUIDE_QUEST_ID, GACHA_GUIDE_PET_ID
+from quest_config import FORMATION_GUIDE_QUEST_ID, GACHA_GUIDE_PET_ID, GACHA_GUIDE_QUEST_ID
 
 @cache
 def _character_exp_thresholds():
@@ -1176,6 +1176,10 @@ class Database:
         active = await conn.fetch(
             "SELECT quest_id,progress FROM quests WHERE char_id=$1 AND status=0 FOR UPDATE", char_id)
         for row in active:
+            if row["quest_id"] in (GACHA_GUIDE_QUEST_ID, FORMATION_GUIDE_QUEST_ID):
+                # These guides share the marker value used by Adventure battles.
+                # Their own handlers verify the draw or active formation instead.
+                continue
             quest = config.get(row["quest_id"])
             if quest is None or not quest.objectives or not any(
                     objective.event_type == 2 for objective in quest.objectives):
@@ -1250,16 +1254,25 @@ class Database:
                 guide_marker = (quest.client_commit_marker and quest.strong_type == "1" and bool(objectives)
                                 and all(o.event_type == 2 and not o.main_id and not o.sub_id
                                         and not o.final_id for o in objectives))
-                if guide_marker:
+                if quest.quest_id == GACHA_GUIDE_QUEST_ID:
+                    from local_draw import has_tutorial_draw_receipt
+
+                    if not await has_tutorial_draw_receipt(conn, char_id):
+                        return False, [], [], []
                     progress = [max(value, objective.amount)
                                 for value, objective in zip(progress, objectives)]
-                elif quest.quest_id == FORMATION_GUIDE_QUEST_ID and await conn.fetchval(
-                    """SELECT EXISTS (
-                           SELECT 1 FROM pets WHERE char_id=$1 AND pet_template_id=$2
-                             AND slot_index BETWEEN 0 AND 2
-                       )""",
-                    char_id, GACHA_GUIDE_PET_ID,
-                ):
+                elif quest.quest_id == FORMATION_GUIDE_QUEST_ID:
+                    if not await conn.fetchval(
+                        """SELECT EXISTS (
+                               SELECT 1 FROM pets WHERE char_id=$1 AND pet_template_id=$2
+                                 AND slot_index BETWEEN 0 AND 2
+                           )""",
+                        char_id, GACHA_GUIDE_PET_ID,
+                    ):
+                        return False, [], [], []
+                    progress = [max(value, objective.amount)
+                                for value, objective in zip(progress, objectives)]
+                elif guide_marker:
                     progress = [max(value, objective.amount)
                                 for value, objective in zip(progress, objectives)]
                 elif any(value < objective.amount

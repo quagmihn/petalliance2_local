@@ -80,13 +80,13 @@ async def buy_product(session, payload: bytes):
 
 async def buy_market(session, payload: bytes):
     from handlers.inventory import item_counts_update
+    from market_config import enabled_offers
 
     r = Reader(payload); product_id, count = r.u32(), r.u32(); r.finish()
     ack = (563, Writer().u16(1).bytes())
     if session.char_id is None or not 1 <= count <= 99:
         return ack
-    from client_config import table
-    market = table("MarketInfo").get(product_id)
+    market = enabled_offers().get(product_id)
     if market is None:
         return ack
     # MarketInfo coinType follows BuyInfoMgr: 1 gold, 2 diamonds, 3 silver

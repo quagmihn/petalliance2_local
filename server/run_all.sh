@@ -76,6 +76,7 @@ import json
 import os
 from db.database import Database
 from local_draw import catalog_report
+from market_config import enabled_offers
 
 async def main():
     db = await Database.connect()
@@ -86,6 +87,11 @@ try:
     print("gacha_catalog=" + json.dumps(catalog_report(path), sort_keys=True), flush=True)
 except (OSError, ValueError, KeyError, TypeError) as exc:
     raise SystemExit(f"Invalid Gacha catalog {path!r}: {exc}. Correct MONSTER2_DRAW_CATALOG before starting.") from None
+
+try:
+    print("market_catalog=" + json.dumps({"enabled_offers": len(enabled_offers())}), flush=True)
+except (OSError, ValueError, KeyError, TypeError) as exc:
+    raise SystemExit(f"Invalid enabled Market catalog: {exc}") from None
 
 try:
     asyncio.run(main())

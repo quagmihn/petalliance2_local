@@ -208,21 +208,33 @@ def senior_tutorial_prize():
     return {"elementType": "item", "elementID": pool[0]["item_id"], "num": pool[0]["count"]}
 
 
+async def has_tutorial_draw_receipt(conn, char_id):
+    return await conn.fetchval(
+        """SELECT EXISTS (
+               SELECT 1 FROM local_draw_history
+               WHERE char_id=$1 AND machine_id=2 AND draw_count=1 AND is_free AND cost=0
+                 AND awards @> $2::jsonb
+           )""",
+        char_id, json.dumps([{"elementType": "pet", "elementID": GACHA_GUIDE_PET_ID}]),
+    )
+
+
 async def _tutorial_draw_pending(conn, char_id):
     guide, _ = tutorial_guide()
     # The character row serializes draws and commits. Quest progress is the
-    # one-time entitlement marker and commits with the Pet and ledger entry.
-    return await conn.fetchval(
+    # UI projection. The draw receipt records whether the entitlement was used.
+    active = await conn.fetchval(
         """SELECT EXISTS (
                SELECT 1 FROM quests q
                JOIN quests parent ON parent.char_id=q.char_id AND parent.quest_id=$3
                JOIN characters c ON c.char_id=q.char_id
-               WHERE q.char_id=$1 AND q.quest_id=$2 AND q.status=0 AND q.progress=$4::jsonb
-                 AND parent.status=1 AND current_database()=$5
+               WHERE q.char_id=$1 AND q.quest_id=$2 AND q.status=0
+                 AND parent.status=1 AND current_database()=$4
                  AND c.game_values->'qa_independent' IS DISTINCT FROM 'true'::jsonb
            )""",
-        char_id, guide.quest_id, guide.parent_id, json.dumps([0]), DATABASES.get(os.getenv("GAME_ENV")),
+        char_id, guide.quest_id, guide.parent_id, DATABASES.get(os.getenv("GAME_ENV")),
     )
+    return active and not await has_tutorial_draw_receipt(conn, char_id)
 
 
 async def cooldowns(db, char_id):
