@@ -723,6 +723,30 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             child_ntf.finish(); self.assertEqual(spawned, [10008])
             self.assertEqual(await db.pool.fetchval(
                 "SELECT status FROM quests WHERE char_id=$1 AND quest_id=10007", char_id), 1)
+
+            # Consecutive clear protocol with synthetic star masks. Android
+            # evidence is recorded separately from this persistence fixture.
+            before_maps = await db.pool.fetchval("SELECT exp FROM characters WHERE char_id=$1", char_id)
+            for adv_id, cells, exp, item, amount in (
+                    (1, 30, 60, 10002, 1), (2, 30, 62, 2, 1), (3, 60, 64, 2, 2)):
+                entered = await send(2996, Writer().u32(adv_id).bytes(), 3080)
+                self.assertEqual((entered.u16(), entered.u32()), (0, adv_id))
+                self.assertEqual(len(json.loads(entered.string())["events"]), cells)
+                entered.finish()
+                if adv_id == 2:
+                    self.assertEqual((await send(136, trainer_request, 210)).u16(), 1)
+                cleared = await send(3082, Writer().u16(8).bytes(), 2995)
+                self.assertEqual((cleared.u16(), cleared.u8()), (0, 2))
+                self.assertEqual(json.loads(cleared.string()),
+                                 {"elementType": "exp", "elementID": 0, "num": exp})
+                self.assertEqual(json.loads(cleared.string()),
+                                 {"elementType": "item", "elementID": item, "num": amount})
+                cleared.finish()
+                self.assertEqual([(await receive())[0], (await receive())[0]], [473, 1749])
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT exp FROM characters WHERE char_id=$1", char_id), before_maps + 186)
+            self.assertEqual([tuple(r) for r in await db.adventure_clears(char_id)],
+                             [(1, 12), (2, 8), (3, 8)])
         finally:
             if writer:
                 writer.close(); await writer.wait_closed()

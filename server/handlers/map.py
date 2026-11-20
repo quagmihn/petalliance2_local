@@ -5,6 +5,7 @@ import logging
 import random
 import time
 from client_config import table as client_table
+from adventure_config import scene_cells
 
 from protocol import Reader, Writer
 from quest_config import load_quests
@@ -64,26 +65,17 @@ async def create_adventure(session, payload: bytes):
     r = Reader(payload)
     adventure_id = r.u32()
     r.finish()
-    adventures = client_table("AdventureInfo")
-    adventure = adventures.get(adventure_id)
-    if adventure is None:
+    cells = scene_cells(adventure_id)
+    if not cells:
         return 3080, Writer().u16(1).bytes()
-    scene_ids = set(adventure["scene"])
-    scenes = client_table("SceneInfo")
-    events = []
-    for scene in scenes.values():
-        if scene["number"] not in scene_ids:
-            continue
-        if scene["floor"] > adventure["floor"]:
-            continue
-        events.append({
+    events = [
+        {
             "sceneID": scene["id"], "flo": scene["floor"],
             "eventID": scene["event"], "x": scene["eventX"],
             "y": scene["eventY"], "type": scene["eventType"],
-        })
-    if not events:
-        raise ValueError(f"configured adventure {adventure_id} has no SceneInfo cells")
-    events.sort(key=lambda event: (event["flo"], event["sceneID"]))
+        }
+        for scene in cells
+    ]
     state = json.dumps({"advID": adventure_id, "events": events, "npcShop": []},
                        ensure_ascii=False, separators=(",", ":"))
     session.current_adventure_id = adventure_id
@@ -101,12 +93,8 @@ async def get_adventure_award(session, payload: bytes):
         adventure_id = await session.db.current_adventure_id(session.char_id)
     if session.char_id is None or adventure_id is None:
         return 3079, Writer().u16(1).bytes()
-    adventure = client_table("AdventureInfo").get(adventure_id)
-    if adventure is None:
-        return 3079, Writer().u16(1).bytes()
-    scene_ids = set(adventure["scene"])
-    scene = next((entry for entry in client_table("SceneInfo").values()
-                  if entry["number"] in scene_ids and entry["floor"] == floor
+    scene = next((entry for entry in scene_cells(adventure_id)
+                  if entry["floor"] == floor
                   # Client convertToCoord returns (row, col), then serializes
                   # field=col,row=row; SceneInfo stores eventX as row, eventY as col.
                   and entry["eventX"] == row and entry["eventY"] == col), None)
@@ -168,14 +156,8 @@ async def fire_adventure_events(session, payload: bytes):
     r.finish()
     if session.char_id is None or adventure_id <= 0 or not event_ids:
         return 5, Writer().u16(1).bytes()
-    adventure = client_table("AdventureInfo").get(adventure_id)
-    if adventure is None:
-        return 5, Writer().u16(1).bytes()
-    scene_ids = set(adventure["scene"])
     known_events = {
-        int(scene["event"]) for scene in client_table("SceneInfo").values()
-        if scene["number"] in scene_ids and scene["floor"] <= adventure["floor"]
-        and int(scene["event"]) != 0
+        int(scene["event"]) for scene in scene_cells(adventure_id) if int(scene["event"]) != 0
     }
     if any(event_id not in known_events for event_id in event_ids):
         return 5, Writer().u16(1).bytes()

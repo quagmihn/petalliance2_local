@@ -6,6 +6,7 @@ import logging
 import re
 
 from protocol import Reader, Writer
+from adventure_config import scene_cells
 from pet_config import tutorial_monster
 from client_config import table as client_table
 from pet_config import untrained_hp
@@ -91,11 +92,8 @@ async def handle(message_id: int, payload: bytes, session):
             if session.char_id is None:
                 return 210, Writer().u16(1).bytes()
             adventure_id = await session.db.current_adventure_id(session.char_id)
-            adventure = client_table("AdventureInfo").get(adventure_id) if adventure_id else None
-            scene = client_table("SceneInfo").get(battle_type_id)
-            if (adventure is None or scene is None or scene["number"] not in adventure["scene"]
-                    or not 1 <= scene["floor"] <= adventure["floor"]
-                    or scene["eventType"] != 8 or sub_id != 0):
+            scene = next((cell for cell in scene_cells(adventure_id) if cell["id"] == battle_type_id), None)
+            if scene is None or scene["eventType"] != 8 or sub_id != 0:
                 log.warning("battle_rejected request_id=136 char_id=%s handler=adventure_trainer_battle "
                             "adventure_id=%s scene_id=%s sub_id=%s rejection_reason=unconfigured_trainer_scene",
                             session.char_id, adventure_id, battle_type_id, sub_id)

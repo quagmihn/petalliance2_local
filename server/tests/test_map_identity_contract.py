@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from game_socket import dispatch
+from adventure_config import scene_cells
 from client_config import table, text_table
 from protocol import Reader, Writer
 
@@ -28,20 +29,24 @@ class MapIdentityContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(names["fbname1"], "LOST FOREST")
         self.assertEqual(names["fbname2"], "SECRET PATH")
 
-    def test_original_config_reuses_scene_template_but_keeps_adventure_identity(self):
+    def test_shared_field_type_keeps_distinct_authored_cells(self):
         adventures = table("AdventureInfo")
-        scenes = table("SceneInfo")
         self.assertEqual(adventures[1]["scene"], [1])
         self.assertEqual(adventures[2]["scene"], [1])
-        def rows(adventure_id):
-            a = adventures[adventure_id]
-            return sorted((s for s in scenes.values()
-                           if s["number"] in set(a["scene"]) and s["floor"] <= a["floor"]),
-                          key=lambda s: (s["floor"], s["id"]))
-        self.assertEqual(rows(1), rows(2))
+        first, second, third = (scene_cells(key) for key in (1, 2, 3))
+        self.assertEqual((len(first), len(second), len(third)), (30, 30, 60))
+        self.assertEqual({cell["floor"] for cell in third}, {1, 2})
+        self.assertEqual([(cell["id"], cell["event"]) for cell in second if cell["eventType"] == 8],
+                         [(44, 2)])
         self.assertNotEqual(adventures[1]["target"], adventures[2]["target"])
         self.assertNotEqual(adventures[1]["rewards"], adventures[2]["rewards"])
         self.assertNotEqual(adventures[1]["prepose"], adventures[2]["prepose"])
+
+    def test_authored_grid_coverage_for_entire_target_catalog(self):
+        adventures = table("AdventureInfo")
+        rejected = {key for key in adventures if not scene_cells(key)}
+        self.assertEqual(rejected, {offset + key for offset in (0, 10000, 20000)
+                                   for key in range(98, 103)})
 
     async def test_adventure_response_preserves_requested_map_id(self):
         class DB:
@@ -51,7 +56,7 @@ class MapIdentityContractTests(unittest.IsolatedAsyncioTestCase):
                 self.current[char_id] = adventure_id
 
         session = SimpleNamespace(db=DB(), char_id=2, current_adventure_id=None)
-        for adventure_id in (1, 2):
+        for adventure_id, count in ((1, 30), (2, 30), (3, 60)):
             ack, body = await dispatch(session, 2996, Writer().u32(adventure_id).bytes())
             self.assertEqual(ack, 3080)
             r = Reader(body)
@@ -61,7 +66,12 @@ class MapIdentityContractTests(unittest.IsolatedAsyncioTestCase):
             r.finish()
             self.assertEqual(state["advID"], adventure_id)
             self.assertEqual(session.db.current[2], adventure_id)
-            self.assertEqual(len(state["events"]), 30)
+            self.assertEqual(len(state["events"]), count)
+            self.assertEqual({table("SceneInfo")[event["sceneID"]]["number"]
+                              for event in state["events"]}, {adventure_id})
+        ack, body = await dispatch(session, 2996, Writer().u32(98).bytes())
+        self.assertEqual((ack, Reader(body).u16()), (3080, 1))
+        self.assertEqual(session.db.current[2], 3)
 
 
 if __name__ == "__main__":
