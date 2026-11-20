@@ -708,11 +708,23 @@ function GameGuideMgr.firstBuff()
         print("####新手引导17，BUFF技能")
         BattleCCSB.stopQuitBattle()
         local function guideFunc()
+            local wonOnServer, returnedToMap = false, false
+            local function finishIfReady()
+                if wonOnServer and returnedToMap then
+                    GameGuideMgr.finishProcess()
+                end
+            end
             CocosModuleMgr.setScreenTouch(false)
             local eventBtn = EmbeddedMapMgr.addEvent({
                 type=1,
                 emoji=1,
                 param=2003,
+                battleCallback=function(detail)
+                    BattleMapMgr.sendGameOver(detail.result, detail.me, function()
+                        wonOnServer = detail.result == PLAYER_WIN
+                        finishIfReady()
+                    end)
+                end,
             })
             eventBtn:performWithDelay(function()
                 CocosModuleMgr.setScreenTouch(true)
@@ -809,13 +821,10 @@ function GameGuideMgr.firstBuff()
                         BattleGuide.funcs[GUIDE_SECOND] = nil
                     end
 
-                    local function guideOver() 
-                        GameGuideMgr.finishProcess()
-                    end
                     local function outBattle()
-                        guideOver()
-                        --MapSeekerMgr.setSeekFunc(guideOver)
-                    end 
+                        returnedToMap = true
+                        finishIfReady()
+                    end
                     BattleUIMgr.firstBattle = 1 
                     BattleGuide.funcs[GUIDE_FIRST]  = nil
                     BattleGuide.funcs[GUIDE_SECOND] = changePet

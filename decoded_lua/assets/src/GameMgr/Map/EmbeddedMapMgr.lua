@@ -526,7 +526,7 @@ function EmbeddedMapMgr.addEvent(params)
     local tagC = eventTagC
     local eventMoveDiff = 270
     
-    local completeFunc = nil
+    local completeFunc = params.battleCallback
     if params.mapid and params.pid then
         completeFunc = function(detail)
             print("Map Event Result:", detail.result)

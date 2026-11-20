@@ -544,7 +544,7 @@ function BattleMapMgr.showBattleDialogs(dialogs,callback)
 
 end
 
-function BattleMapMgr.sendGameOver(state,sendPets)
+function BattleMapMgr.sendGameOver(state,sendPets,onCommitted)
     local pets = {}
     
     if sendPets then
@@ -567,6 +567,9 @@ function BattleMapMgr.sendGameOver(state,sendPets)
                 BattleMapMgr.cleanPVPInfo()
                 BattlePVPMgr.cleanPVPInfo()
                 BattleMapMgr.setCanCatchPet(catchPetID)
+            end
+            if onCommitted then
+                onCommitted()
             end
         end, function(code)
             

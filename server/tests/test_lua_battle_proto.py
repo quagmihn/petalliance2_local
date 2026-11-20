@@ -8,6 +8,11 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @unittest.skipUnless(shutil.which("lua"), "Lua interpreter is unavailable")
 class LuaBattleProtocolContractTests(unittest.TestCase):
+    def test_buff_guide_waits_for_battle_ack_and_exit(self):
+        result = subprocess.run(["lua", "server/tests/fixtures/lua_guide_battle_commit_harness.lua"],
+                                cwd=ROOT, text=True, capture_output=True, check=True)
+        self.assertIn("LUA_GUIDE_BATTLE_COMMIT_OK", result.stdout)
+
     def test_saved_formation_reaches_each_normal_battle_without_relogin(self):
         result = subprocess.run(["lua", "server/tests/fixtures/lua_formation_harness.lua"],
                                 cwd=ROOT, text=True, capture_output=True, check=True)
