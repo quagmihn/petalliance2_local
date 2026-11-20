@@ -63,18 +63,38 @@ def skill_choices(group):
     raise ValueError(f"unknown skill probability group {group}")
 
 
-def starting_skills(template_id):
+@functools.cache
+def skill_ids():
+    return frozenset(struct.unpack_from("<I", raw)[0] for raw in rows("PetSkillInfo"))
+
+
+@functools.cache
+def acquisition_skill_pools(template_id):
+    """Resolve and validate every possible skill before a Pet can be granted."""
+    pokemon(template_id)
     _, groups, passive = gene(template_id)
-    def choose(group):
-        choices = skill_choices(group)
+    pools = []
+    for index, group in enumerate((*groups, *(entry["paSkillID"] for entry in passive))):
+        choices = tuple((weight, skill) for weight, skill in skill_choices(group) if weight > 0)
+        if not choices or any((skill == 0 and index == 0) or
+                              (skill != 0 and skill not in skill_ids()) for _, skill in choices):
+            raise ValueError(f"Pet template {template_id} has invalid starting skill group {group}")
+        pools.append(choices)
+    return tuple(pools[:len(groups)]), tuple(
+        (entry["paSkillType"], choices) for entry, choices in zip(passive, pools[len(groups):]))
+
+
+def starting_skills(template_id):
+    active, passive = acquisition_skill_pools(template_id)
+
+    def choose(choices):
         draw = secrets.randbelow(sum(weight for weight, _ in choices))
         for weight, skill_id in choices:
             if draw < weight:
                 return skill_id
             draw -= weight
-    return [choose(group) for group in groups], [
-        {"paSkillType": item["paSkillType"], "paSkillID": choose(item["paSkillID"])}
-        for item in passive]
+    return [choose(pool) for pool in active], [
+        {"paSkillType": skill_type, "paSkillID": choose(pool)} for skill_type, pool in passive]
 
 
 def json_value(value):
@@ -92,9 +112,9 @@ def validate_pet(pet):
         raise ValueError("pet Stage exceeds configuration")
     if not isinstance(pet["skills"], list) or len(pet["skills"]) != 4:
         raise ValueError("pet requires four numeric skill slots")
-    skill_ids = {struct.unpack_from("<I", raw)[0] for raw in rows("PetSkillInfo")}
+    known_skills = skill_ids()
     for skill in pet["skills"]:
-        if type(skill) is not int or (skill != 0 and skill not in skill_ids):
+        if type(skill) is not int or (skill != 0 and skill not in known_skills):
             raise ValueError(f"invalid pet skill {skill}")
     if not pet["skills"][0]:
         raise ValueError("pet has no basic attack")
@@ -103,7 +123,7 @@ def validate_pet(pet):
     for passive in pet["paSkills"]:
         if (not isinstance(passive, dict) or type(passive.get("paSkillType")) is not int
                 or type(passive.get("paSkillID")) is not int
-                or (passive["paSkillID"] != 0 and passive["paSkillID"] not in skill_ids)):
+                or (passive["paSkillID"] != 0 and passive["paSkillID"] not in known_skills)):
             raise ValueError("invalid passive skill")
     if pet["hp"] <= 0 or pet["hp"] > pet["hpmax"]:
         raise ValueError("invalid pet HP")

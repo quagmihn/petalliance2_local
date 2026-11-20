@@ -10,7 +10,7 @@ from __future__ import annotations
 import secrets
 
 from client_config import table
-from pet_config import pokemon
+from pet_config import acquisition_skill_pools
 
 
 class RewardConfigError(ValueError):
@@ -67,5 +67,8 @@ def resolve_award_element(element_id: int, amount: int) -> dict:
         if target <= 0 or table("ItemInfo").get(target) is None:
             raise RewardConfigError(f"unknown reward item id {target}")
     elif kind == "pet":
-        pokemon(target)  # raises for an unknown template
+        try:
+            acquisition_skill_pools(target)
+        except ValueError as exc:
+            raise RewardConfigError(f"invalid Pet reward template {target}: {exc}") from exc
     return {"kind": kind, "id": target, "num": amount}

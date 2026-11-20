@@ -84,6 +84,12 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report["pool_rules"], "target-normal-independent")
         self.assertEqual(report["tutorial"]["pet_id"], 45)
 
+    def test_draw_catalog_rejects_templates_without_a_basic_attack(self):
+        from local_draw import parse_catalog
+
+        with self.assertRaisesRegex(ValueError, "Pet template 119 has invalid starting skill"):
+            parse_catalog('{"1":[{"pet_id":119,"count":1,"weight":10000}]}')
+
     async def test_tutorial_panda_is_atomic_and_resumes_after_legacy_draw(self):
         dsn = os.getenv("TEST_DATABASE_URL")
         if not dsn:
@@ -163,7 +169,19 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
                     "UPDATE quests SET progress='[1]' WHERE char_id=$1 AND quest_id=10011", char_id)
                 self.assertEqual(await dispatch(relogin, 400, Writer().u32(10011).bytes()),
                                  (726, b"\x01\x00"))
-                self.assertTrue(await db.update_primary_army(char_id, [starter["pet_uid"], uid], []))
+                members = [starter["pet_uid"], uid]
+                save = Writer().u8(1).u32(1).u8(2).u32(members[0]).u32(members[1]).u8(0)
+                self.assertEqual(await dispatch(relogin, 1755, save.bytes()), (1756, b"\x00\x00"))
+                self.assertEqual(await db.pool.fetchval(
+                    "SELECT slot_index FROM pets WHERE char_id=$1 AND pet_uid=$2", char_id, uid), 1)
+                cold = Session(db)
+                ack_id, ack = await dispatch(cold, 1684, Writer().i32(char_id).string(token).bytes())
+                self.assertEqual((ack_id, Reader(ack).i32()), (773, 0))
+                ack_id, ack = await dispatch(cold, 1760, b"")
+                saved = Reader(ack)
+                self.assertEqual((ack_id, saved.u16()), (1774, 0))
+                self.assertEqual(json.loads(saved.string()), {"1": members, "1h": []})
+                saved.finish()
                 formation = await dispatch(relogin, 400, Writer().u32(10011).bytes())
                 self.assertEqual([msg_id for msg_id, _ in formation], [726, 404])
         finally:

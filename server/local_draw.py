@@ -12,7 +12,7 @@ from secrets import randbelow
 
 from character_values import validate_character_values
 from client_config import CONFIG, table
-from pet_config import gene, pokemon, skill_choices
+from pet_config import acquisition_skill_pools, pokemon
 from quest_config import GACHA_GUIDE_PET_ID, GACHA_GUIDE_QUEST_ID, load_quests
 from reward_config import resolve_award_element
 from reward_service import grant_rewards
@@ -122,11 +122,7 @@ def parse_catalog(raw, *, complete=False):
             if kind == "pet":
                 if amount != 1:
                     raise ValueError(f"machine {machine_id}: each Pet prize must grant one Pet")
-                pokemon(element_id)
-                _, skill_groups, _ = gene(element_id)
-                for group in skill_groups:
-                    if group:
-                        skill_choices(group)
+                acquisition_skill_pools(element_id)
             prizes.append((kind, element_id, amount, weight))
         if complete and sum(prize[3] for prize in prizes) != 10_000:
             raise ValueError(f"machine {machine_id}: weights must sum to 10000")
@@ -192,9 +188,7 @@ def tutorial_guide():
             or (guide.objectives[0].event_type, guide.objectives[0].amount) != (2, 1)
             or guide.first_pokemon_id or pokemon(GACHA_GUIDE_PET_ID)["rare"] != 3):
         raise ValueError("tutorial Gacha quest or Grade A Panda template does not match the client")
-    _, groups, passive = gene(GACHA_GUIDE_PET_ID)
-    for group in (*groups, *(entry["paSkillID"] for entry in passive)):
-        skill_choices(group)
+    acquisition_skill_pools(GACHA_GUIDE_PET_ID)
     senior_tutorial_prize()
     return guide, guide.objectives[0].amount
 
