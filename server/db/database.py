@@ -1433,11 +1433,16 @@ class Database:
         )
 
     async def claim_adventure_cell(self, char_id: int, adventure_id: int, floor: int,
-                                  map_col: int, map_row: int, rewards: list[dict]) -> list[str]:
+                                  map_col: int, map_row: int, rewards: list[dict]) -> list[str] | None:
         """Atomically grant a configured map-cell reward once and retain its ACK payload."""
         encoded = [json.dumps(reward, separators=(",", ":")) for reward in rewards]
         async with self.pool.acquire() as conn:
             async with conn.transaction():
+                active = await conn.fetchval(
+                    "SELECT adventure_id FROM character_adventures "
+                    "WHERE char_id=$1 AND completed_at IS NULL FOR UPDATE", char_id)
+                if active != adventure_id:
+                    return None
                 claim = await conn.fetchrow(
                     """INSERT INTO adventure_cell_claims
                        (char_id,adventure_id,floor,map_col,map_row,awards)
@@ -1512,7 +1517,7 @@ class Database:
                         char_id, adventure_id, event_id)
                 return True
 
-    async def finish_adventure(self, char_id: int, star: int,
+    async def finish_adventure(self, char_id: int, adventure_id: int, star: int,
                                rewards: list[dict]) -> list[str] | None:
         """Complete an adventure once, grant its configured rewards, and retain ACK data."""
         encoded = [json.dumps(reward, separators=(",", ":")) for reward in rewards]
@@ -1521,7 +1526,7 @@ class Database:
                 row = await conn.fetchrow(
                     """SELECT adventure_id,completed_at,completion_star,completion_awards_json
                        FROM character_adventures WHERE char_id=$1 FOR UPDATE""", char_id)
-                if row is None:
+                if row is None or row["adventure_id"] != adventure_id:
                     return None
                 if row["completed_at"] is not None:
                     previous = row["completion_awards_json"] or []

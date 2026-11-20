@@ -411,7 +411,10 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
 
             trainer_request = Writer().u32(3).u32(15).u32(0).bytes()
             self.assertEqual((await send(136, trainer_request, 210)).u16(), 1)
-            await db.start_adventure(char_id, 1)
+            entered = await send(2996, Writer().u32(1).bytes(), 3080)
+            self.assertEqual((entered.u16(), entered.u32()), (0, 1))
+            self.assertEqual(json.loads(entered.string())["advID"], 1)
+            entered.finish()
             trainer = await send(136, trainer_request, 210)
             self.assertEqual((trainer.u16(), trainer.u8()), (0, 1))
             self.assertEqual(json.loads(trainer.string())["mID"], 1)
@@ -454,6 +457,13 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             await verify_clear_notifications()
             # Starting another run must preserve previously earned stars.
             await db.start_adventure(char_id, 2)
+            stale_cell = await send(2998, Writer().u32(1).u32(5).u32(6).bytes(), 3079)
+            self.assertEqual(stale_cell.u16(), 1); stale_cell.finish()
+            stale_clear = await send(3082, Writer().u16(12).bytes(), 2995)
+            self.assertEqual(stale_clear.u16(), 1); stale_clear.finish()
+            self.assertEqual(await db.current_adventure_id(char_id), 2)
+            self.assertFalse(await db.pool.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM adventure_cell_claims WHERE char_id=$1)", char_id))
             finished = await send(3078, b"", 3081)
             self.assertEqual((finished.u16(), finished.u32()), (0, 1))
             finished.finish()

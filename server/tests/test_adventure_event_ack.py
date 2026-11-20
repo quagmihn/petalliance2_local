@@ -56,8 +56,8 @@ class AdventureEventProtocolTests(unittest.IsolatedAsyncioTestCase):
         response.finish()
 
     async def test_zero_star_exit_returns_no_award_vector(self):
-        async def finish(char_id, star, rewards):
-            self.assertEqual((char_id, star, rewards), (22, 0, []))
+        async def finish(char_id, adventure_id, star, rewards):
+            self.assertEqual((char_id, adventure_id, star, rewards), (22, 1, 0, []))
             return []
         session = SimpleNamespace(db=SimpleNamespace(finish_adventure=finish), char_id=22,
                                   current_adventure_id=1)
@@ -69,7 +69,8 @@ class AdventureEventProtocolTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_clear_uses_configured_reward_and_persists_ack_payload(self):
         stored = []
-        async def finish(char_id, star, rewards):
+        async def finish(char_id, adventure_id, star, rewards):
+            self.assertEqual(adventure_id, 1)
             stored.extend(rewards)
             return ['{"kind":"exp","id":0,"num":60}',
                     '{"kind":"item","id":10002,"num":1}']

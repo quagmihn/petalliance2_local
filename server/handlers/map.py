@@ -146,6 +146,8 @@ async def get_adventure_award(session, payload: bytes):
               "num": int(counts[selected])}
     result = await session.db.claim_adventure_cell(
         session.char_id, adventure_id, floor, col, row, [reward])
+    if result is None:
+        return 3079, Writer().u16(1).bytes()
     awards = []
     for encoded in result:
         value = json.loads(encoded) if isinstance(encoded, str) else encoded
@@ -247,7 +249,7 @@ async def finish_adventure(session, payload: bytes):
             return 2995, Writer().u16(1).bytes()
         rewards.append({"kind": kind, "id": int(element["elementID"]),
                         "num": int(vectors[1][selected])})
-    encoded = await session.db.finish_adventure(session.char_id, star, rewards)
+    encoded = await session.db.finish_adventure(session.char_id, adventure_id, star, rewards)
     if encoded is None:
         return 2995, Writer().u16(1).bytes()
     awards = []
