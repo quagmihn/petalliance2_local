@@ -395,8 +395,10 @@ function PokemonInfo.refreshPet(objId, jsStr)
     end
 
     local maxPetCount = PetFormationMgr.getMaxPetCount()
-    local petArmy = PokemonInfo.getPetArmy(1)
-    local petHelpArmy = PokemonInfo.getPetHelpArmy()
+    local petArmy = clone(PokemonInfo.getPetArmy(1))
+    local petHelpArmy = clone(PokemonInfo.getPetHelpArmy())
+    local isNew = unactivePets[objId] == nil
+    unactivePets[objId] = tbl
 
     local isRepeat = false
     for k,v in pairs(petArmy) do
@@ -410,7 +412,7 @@ function PokemonInfo.refreshPet(objId, jsStr)
         end
     end
     if not isRepeat then
-        if not unactivePets[objId] and #petArmy + #petHelpArmy < maxPetCount then
+        if isNew and #petArmy + #petHelpArmy < maxPetCount then
             if #petArmy < 3 then
                 table.insert(petArmy, objId)
             else
@@ -420,15 +422,12 @@ function PokemonInfo.refreshPet(objId, jsStr)
                 local PetSend = require("src.Net.Send.PetSend")
                 PetSend.sendCG_UpdatePetArmys_Req({petArmys={{armyIndex=1, armyMembers=petArmy,helpArmyMembers = petHelpArmy}}})
             end, function()
-                PokemonInfo.setPetArmyByIdx(1,petArmy)
-                PokemonInfo.setHelpArmy(petHelpArmy)
+                PokemonInfo.applyPrimaryArmy(petArmy, petHelpArmy)
             end, function(code)
                 TipsMgr.showError(nil, code)
             end)
         end
     end
-    unactivePets[objId] = tbl
-
     BasicMenuMgr.setPetEductionRedPoint()
 end
 
@@ -636,6 +635,44 @@ end
 
 function PokemonInfo.getUnactivePetsByObjID(idx)
     return unactivePets[idx]
+end
+
+-- Apply exactly the UIDs sent in a successful formation request. The
+-- battle, formation editor and Pet collection share the same Pet objects.
+function PokemonInfo.applyPrimaryArmy(members, helpers)
+    local owned = {}
+    for uid, pet in pairs(unactivePets) do
+        owned[uid] = pet
+    end
+    for _, slots in ipairs({activePets, activeHelperPets}) do
+        for _, pet in ipairs(slots) do
+            owned[pet.objID] = pet
+        end
+    end
+    local function assign(ids)
+        local pets = {}
+        for slot, uid in ipairs(ids) do
+            local pet = owned[uid]
+            if not pet then
+                print("[FORMATION] cannot apply unknown or repeated UID", uid)
+                return nil
+            end
+            pets[slot] = pet
+            owned[uid] = nil
+        end
+        return pets
+    end
+
+    local nextActive = assign(members)
+    local nextHelpers = assign(helpers)
+    if not nextActive or not nextHelpers or #nextActive == 0 then
+        return false
+    end
+    petArmy[1], petHelpArmy = members, helpers
+    activePets, activeHelperPets, unactivePets = nextActive, nextHelpers, owned
+    PokemonInfo.setFollowPokemon(activePets[1].pokeID, activePets[1].skin)
+    StatusBarMgr.refreshFightPower(PetFormationMgr.getCurTab())
+    return true
 end
 
 function PokemonInfo.setPetArmy(val)

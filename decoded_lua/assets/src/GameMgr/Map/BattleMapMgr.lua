@@ -245,6 +245,11 @@ function BattleMapMgr.createBattleScene(scene)
             enemyPets[inPets] = {}
         end
 
+        for _, group in ipairs({outPets, inPets}) do
+            for slot, pet in ipairs(myPets[group] or {}) do
+                print("[BATTLE_FORMATION]", SceneMgr.previousScene, group, slot, pet.objID, pet.pokeID)
+            end
+        end
         petInfo = BattleGetPetInfo.new(myPets,enemyPets,battleScene)
         potentialSkills = AchievementListMgr.getAttackSkillIDs() 
     else    

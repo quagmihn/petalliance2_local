@@ -1125,8 +1125,8 @@ function PetFormationMgr.addPetArmy(level)
             end
         end
     end
-    local petArmy = PokemonInfo.getPetArmy(1)
-    local petHelpVec = PokemonInfo.getPetHelpArmy()
+    local petArmy = clone(PokemonInfo.getPetArmy(1))
+    local petHelpVec = clone(PokemonInfo.getPetHelpArmy())
     local count = PetFormationMgr.getMaxPetCount()
     local unactivePets = PokemonInfo.getUnactivePets()
     local petTable = {}
@@ -1170,13 +1170,7 @@ function PetFormationMgr.addPetArmy(level)
             local PetSend = require("src.Net.Send.PetSend")
             PetSend.sendCG_UpdatePetArmys_Req({petArmys={{armyIndex=1, armyMembers=petArmy,helpArmyMembers = petHelpVec}}})
         end, function()
-            PokemonInfo.setPetArmyByIdx(1,petArmy)
-            for k,v in pairs(petHelpVec) do
-                table.filter(unactivePets, function(v, k)
-                   return v.objID ~= petHelpVec
-                end)
-            end
-            PokemonInfo.setHelpArmy(petHelpVec)
+            PokemonInfo.applyPrimaryArmy(petArmy, petHelpVec)
         end, function(code)
             TipsMgr.showError(nil, code)
         end)

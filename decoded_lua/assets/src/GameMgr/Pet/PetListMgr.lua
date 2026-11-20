@@ -2049,28 +2049,8 @@ function PetListMgr.savePetTeam(isClose)
             local PetSend = require("src.Net.Send.PetSend")
             PetSend.sendCG_UpdatePetArmys_Req({petArmys=amryVec})
         end, function()
-            local unactivePets = PokemonInfo.getUnactivePets()
-            local armyVecObjID = {}
-            local helpVecObjID = {}
-            for var=1, PetFormationMgr.TEAM_NUM do
-                local objidVec = {}
-                for i=1, #selPet[var] do
-                    objidVec[i] = selPet[var][i].objID
-                end
-                armyVecObjID[var] = objidVec
-                PokemonInfo.setPetArmy(armyVecObjID)
-                if #helpPet[var] > 0 then
-                    local helpidVec = {}
-                    for i=1, #helpPet[var] do
-                        helpidVec[i] = helpPet[var][i].objID
-                        table.filter(unactivePets, function(v, k)
-                           return v.objID ~= helpPet[var][i].objID
-                        end)
-                    end
-                    helpVecObjID = helpidVec
-                end
-                PokemonInfo.setHelpArmy(helpVecObjID)
-            end
+            local saved = amryVec[1]
+            PokemonInfo.applyPrimaryArmy(saved.armyMembers, saved.helpArmyMembers)
             if not isClose then
                 local myPets = PokemonInfo.getAllPets(nil, PetListMgr.isShowYokePets())
                 local petVec = PetListMgr.sortPetList(myPets)

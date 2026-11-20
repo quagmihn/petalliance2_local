@@ -41,6 +41,7 @@ function AdvPetsMgr.Init()
     injury_damages = {}
     curr_pet_hp = 0
     AdvPetsMgr.advArmy = {}
+    AdvPetsMgr.advHelpArmy = {}
 end
 
 function AdvPetsMgr.reset()
@@ -57,14 +58,8 @@ end
 
 function AdvPetsMgr.setCurrTeam(team_num)
     curr_team = team_num
-    local army = PokemonInfo.getPetArmy(curr_team)
-    local helpArmy = PokemonInfo.getPetHelpArmy()
-    for k,objid in pairs(army) do
-        AdvPetsMgr.advArmy[k] = objid
-    end
-    for k,objid in pairs(helpArmy) do
-        AdvPetsMgr.advHelpArmy[k] = objid
-    end
+    AdvPetsMgr.advArmy = clone(PokemonInfo.getPetArmy(curr_team))
+    AdvPetsMgr.advHelpArmy = clone(PokemonInfo.getPetHelpArmy())
 end
 function AdvPetsMgr.getCurrTeam()
 	return curr_team
