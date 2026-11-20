@@ -1,5 +1,26 @@
 # Implementation backlog
 
+## Next acceptance cases after formation and trainer progress
+
+1. Repeat the normal encounter after swapping a reserve Pet into the
+   main team through the Android editor. Waydroid reordered two owned
+   Pets and used that order in the Secret Path battle. The Lua
+   regression covers replacing a reserve Pet.
+2. Trace battle EXP application. Group 2003 in this run showed +24 in
+   the summary, while the database left both fighters at EXP 0. Determine
+   the client evidence for eligible members and persistence before adding
+   an award rule.
+3. Establish a supported Senior Pet pool compatible with the requested
+   tier 4 cap and a broader Supreme pool with independently validated
+   eligibility and odds. The current Senior group is outside that policy.
+4. Resume Adventure acceptance through the existing QA fixture. Check
+   separately named runs, goals, rewards and route state before testing
+   repeated or concurrent requests. Audit unsupported equipment/shop
+   references and gameplay before exposing additional products.
+
+See [content coverage](CONTENT_COVERAGE.md) and
+[deployed confirmation](EXECUTION_CHECKPOINT.md).
+
 ## Next acceptance cases after the 2026-11-20 integrity fix
 
 1. Resume fresh sequential QA character 6 at active quest 10002 and exercise

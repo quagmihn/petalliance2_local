@@ -1,5 +1,70 @@
 # Execution checkpoint
 
+## 2026-11-20 · Saved formation, trainer progress and content validation
+
+- The owner trace showed 1755 saved Panda UID 27 in place of Catepii UID 3,
+  then group 2003 launched successfully. The Lua success callback updated the
+  editor's UID lists. BattleScene still read the previous active-object list.
+  The repaired callback applies the saved main, support and reserve state
+  together. New Adventure entries replace the previous expedition slots.
+  [Formation trace](FORMATION_BATTLE_TRACE.md)
+- An independent Waydroid replay on QA account 75 / character 7 used
+  UID 17 / template 7 and UID 18 / template 45. The first run revealed a
+  missing battle-end callback specific to this guide. The final APK
+  replayed group 2003, switched to Panda, and won using real combat input.
+  In session `6eedfc1f8c74`, requests 136, 263 and 400 received ACKs
+  210, 186 and 726 with code 0 and quest notification 404. PostgreSQL
+  recorded battle 24 as won and quest 10032 as completed at progress
+  `[1]`. Selina's post-battle dialogue appeared. The client summary showed
+  +24 Pet EXP, while both persisted Pet EXP values stayed at 0. Battle
+  EXP persistence is a separate outstanding case from the battle result.
+- In the same Waydroid session, the editor saved Panda in slot 0 and Zupedo
+  in slot 1. After ACK 1756, Panda became the follower and the Secret Path
+  preview put it first. The normal trainer encounter used the saved UID
+  order 18/17 and finished via 263/186. The portal cleared Adventure 2
+  via 3082/2995 with mask 12. PostgreSQL stored 62 character EXP and
+  item 2 ×1. See `qa-after-editor-save.tsv`, `qa-secret-path-cleared.tsv`
+  and the Secret Path screenshots. No costume or checkout mutation was
+  needed for this test.
+- Cold Waydroid login in session `be3b0ee3fad9` returned the saved
+  formation `[18,17]` through 1774 and Adventure 2 / mask 12 through 1749.
+  The preview showed Panda first and the earned star. PostgreSQL output
+  in `qa-after-cold-relogin.tsv` matched the snapshot from immediately
+  after the clear. A second Secret Path trainer battle after relogin
+  used order `[18,17]` and finished with another 186/code 0.
+- The creation, Gacha, capture and reward paths share the Pet skill
+  initializer. Its reference validation identifies 194 of 252 templates
+  with usable starting skills. The other 58 lack a configured basic
+  attack. The rarity audit found that the current Senior pool's sole Pet
+  is tier 5 (orange), above the requested Gold tier 4 cap. Supreme's
+  ordinary pool has no Pet. The active catalog is still the target-normal
+  catalog with its previous weights and SHA256
+  `75ada34ad42be2bf79667c87a8e15f10ab3e5ee828b76653eea51f11e0bc5795`.
+  [Content registry](COMPLETE_CONTENT_REGISTRY.md)
+- Map pickup and clear transactions now check their Adventure ID against
+  the locked active run. An integration test enters Adventure 1, switches
+  to Adventure 2 from another connection, then verifies the stale
+  requests cannot award a cell pickup or close Adventure 2.
+  [Map generation and identity](MAP_GENERATION_ANALYSIS.md)
+- **114 tests PASS** with the separate `monster2_test_db`. Source commits
+  are `64c215b` (formation), `7bc70f7` (acquisition validation), `003a8b7`
+  (map identity guards) and `5435176` (guided result). The official service
+  launched with `5435176b06689c0aeceb5d906c6f6e79a5a5cbdb`, HTTP PID
+  38215 and TCP PID 38216. Both connections verified `monster2_db` as
+  role `monster2`. Existing local-only checkout settings remain active.
+- The backup `artifacts/formation-content-20261120/monster2_db-predeploy.dump`
+  has SHA256 `cea50a295928074facdba7e8baae332fccbbe5c9a2df665c7fe2a1da58df2406`.
+  A private socket-only PostgreSQL restore ran in one transaction using
+  a non-superuser and returned five characters and 33 Pets. The changes
+  require no schema migration. The owner character was read-only during QA.
+- Installed APK `dist/monster2_local-formation-runtime.apk` verified
+  SHA256 `5e4360f91bc2d88a9aa3a978c4da357f115b4f6f8ceba85e9a9ed98d541b83a6`.
+  The in-place install retained app data and the baseline signing
+  certificate. Seven Lua entries changed. The earlier verified
+  `dist/monster2_local-gacha-runtime.apk` is the APK rollback candidate.
+  Local evidence includes `official.log`, `replay-android.log`,
+  `qa-before-replay.tsv`, `qa-after-replay.tsv` and the battle screenshots.
+
 ## 2026-11-20 · Tutorial progression integrity and Market preflight
 
 - Adventure trainer victories previously incremented every active objective

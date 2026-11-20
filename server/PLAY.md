@@ -65,6 +65,9 @@ isolated account fixture for ordinary test draws. The patched runtime APK
 sends a replay key. Identical legacy paid requests without a key are rejected
 for eight seconds after a draw.
 
-The verified gameplay APK is `dist/monster2_gameplay.apk`, SHA256
-`2957196b52dc2d86e87e1df8a5ab878aa0bf8f66c91407e17f2bff00af70f90f`.
+The formation and guided-trainer release is
+`dist/monster2_local-formation-runtime.apk`, SHA256
+`5e4360f91bc2d88a9aa3a978c4da357f115b4f6f8ceba85e9a9ed98d541b83a6`.
+See the [runtime checkpoint](../docs/reconstruction/EXECUTION_CHECKPOINT.md)
+for the matching official server commit and Android acceptance.
 Keep signed APKs and database backups outside Git.
