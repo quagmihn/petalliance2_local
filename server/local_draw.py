@@ -20,6 +20,7 @@ from reward_service import grant_rewards
 SERVER_ROOT = Path(__file__).resolve().parent
 DATABASES = {"production": "monster2_db", "play": "monster2_play_db", "test": "monster2_test_db"}
 LEGACY_RETRY_SECONDS = 8
+SENIOR_MAX_PET_RARITY = 4
 TARGET_NORMAL = {"source": "target-normal"}
 DRAW_SOURCE_TABLES = ("CapsuleEggInfo", "CapsuleEggAwardInfo", "AwardElementInfo",
                       "ConsumeElementInfo", "ItemInfo", "PokemonInfo", "GeneInfo",
@@ -126,6 +127,13 @@ def parse_catalog(raw, *, complete=False):
             prizes.append((kind, element_id, amount, weight))
         if complete and sum(prize[3] for prize in prizes) != 10_000:
             raise ValueError(f"machine {machine_id}: weights must sum to 10000")
+        if machine_id == 1:
+            # The local Senior policy retains the relative weights of all
+            # eligible entries. DrawMachine uses their effective weight sum.
+            prizes = [prize for prize in prizes if prize[0] != "pet"
+                      or pokemon(prize[1])["rare"] <= SENIOR_MAX_PET_RARITY]
+            if not prizes:
+                raise ValueError("Senior draw has no prizes eligible under the Gold rarity cap")
         # Local rules use the cooldown already displayed by the client. Machine 1
         # has a daily cap, machine 2 uses cooldown alone, and 3 is paid only.
         catalog[machine_id] = DrawMachine(
@@ -163,6 +171,9 @@ def catalog_report(configured_path):
         "machine_ids": sorted(machines), "machines": len(machines), "pools": len(machines),
         "rewards": sum(len(machine.prizes) for machine in machines.values()),
         "prize_kinds": sorted({prize[0] for m in machines.values() for prize in m.prizes}),
+        "senior_max_pet_rarity": SENIOR_MAX_PET_RARITY,
+        "effective_weight_sums": {i: sum(prize[3] for prize in machine.prizes)
+                                  for i, machine in machines.items()},
         "modes": {i: (["free"] if i in (1, 2) else []) + ["x1", "x10"] for i in machines},
         "pool_rules": "target-normal-independent" if target_normal else "local-independent",
         "source_tables": {name: sha256((CONFIG / f"{name}.dat").read_bytes()).hexdigest()

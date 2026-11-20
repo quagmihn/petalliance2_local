@@ -67,6 +67,7 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
 
     def test_target_draw_uses_the_resolved_normal_config_and_weights(self):
         from client_config import table
+        from pet_config import pokemon
         from reward_config import resolve_award_element
 
         _, _, machines = startup_catalog("config/target_draw.json")
@@ -77,9 +78,12 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
             expected = []
             for entry in entries:
                 reward = resolve_award_element(entry["awardItemIndex"], entry["awardItemNum"])
+                if machine_id == 1 and reward["kind"] == "pet" and pokemon(reward["id"])["rare"] > 4:
+                    continue
                 expected.append((reward["kind"], reward["id"], reward["num"], entry["rate"]))
             self.assertEqual(machine.prizes, tuple(expected))
-            self.assertEqual(sum(prize[3] for prize in machine.prizes), 10000)
+            self.assertEqual(sum(prize[3] for prize in machine.prizes),
+                             5800 if machine_id == 1 else 10000)
         report = catalog_report("config/target_draw.json")
         self.assertEqual(report["pool_rules"], "target-normal-independent")
         self.assertEqual(report["tutorial"]["pet_id"], 45)
@@ -89,6 +93,36 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaisesRegex(ValueError, "Pet template 119 has invalid starting skill"):
             parse_catalog('{"1":[{"pet_id":119,"count":1,"weight":10000}]}')
+
+    def test_local_rarity_bounds_apply_to_each_draw_in_x1_and_x10(self):
+        from client_config import table
+        from local_draw import parse_catalog
+        from pet_config import acquisition_skill_pools
+
+        templates = {}
+        for row in table("PokemonInfo").values():
+            rarity = row["rarePoint"]
+            if rarity not in (4, 5, 6) or rarity in templates:
+                continue
+            try:
+                acquisition_skill_pools(row["id"])
+            except ValueError:
+                continue
+            templates[rarity] = row["id"]
+        pool = [{"pet_id": templates[rarity], "count": 1, "weight": weight}
+                for rarity, weight in ((4, 2000), (5, 3000), (6, 5000))]
+        catalog = parse_catalog(json.dumps({"1": pool, "2": pool}))
+        for count in (1, 10):
+            with patch("local_draw.randbelow", return_value=1999) as roll:
+                self.assertEqual([entry["elementID"] for entry in catalog[1].draw(count)],
+                                 [templates[4]] * count)
+                roll.assert_called_with(2000)
+            with patch("local_draw.randbelow", return_value=9999) as roll:
+                self.assertEqual([entry["elementID"] for entry in catalog[2].draw(count)],
+                                 [templates[6]] * count)
+                roll.assert_called_with(10000)
+        with self.assertRaisesRegex(ValueError, "Gold rarity cap"):
+            parse_catalog(json.dumps({"1": pool[1:]}))
 
     async def test_tutorial_panda_is_atomic_and_resumes_after_legacy_draw(self):
         dsn = os.getenv("TEST_DATABASE_URL")
