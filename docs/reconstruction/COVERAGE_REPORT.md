@@ -1,5 +1,21 @@
 # Coverage report
 
+## 2026-11-20 · Content integrity
+
+| Scope | Tested or evidenced | Open |
+| --- | --- | --- |
+| Guided draw and formation | PostgreSQL and framed TCP prove Adventure victories and stale counters cannot complete 10010 or 10011. Current Waydroid cold login restores the QA profile with the prior staged guide award. | Fresh sequential Android path from character creation to 10010. |
+| Ordinary Gacha | Three active machines and nine normal award entries resolve at launch. Existing target audit resolved 17 linked pools and 27 source entries. Prior Waydroid evidence covers staged free/x1/x10. | Original sequence precedence, counters, Wish, Dream and membership modifiers. |
+| Items, Pets and fashion | Existing audit parsed 1,776 items, 252 Pet templates, 3,730 skill rows, 88 evolution rows and 300 appearances. Prior Android evidence covers voucher and equip/relogin. | Equipment-instance lifecycle, unsupported item operations and broader inventory/fashion paths. |
+| Shop | All 90 enabled Market offers share a startup and request-time reference/pricing check. Current Waydroid STORE opens and preserves the VIP purchase gate. | Eligible BUY on current deployment remains pending. The OrderMan purchase references missing Market SKU 203. |
+| Lost Forest and Secret Path | Distinct Adventure IDs 1 and 2 share source scene 1, with separate goals, rewards and progression. Lost Forest reached its NPC and encounter on the prior Android run. | Both full clears, independent progress/cold login and floor transitions where configured. |
+| Quest dependencies | 747 parsed rows in the existing graph. 367 reward links are unresolved across 291 IDs. | Resolve dangling references and remaining objective types before enabling affected content. |
+
+See [content reference audit](CONTENT_REFERENCE_MATRIX.md) and
+[current runtime evidence](EXECUTION_CHECKPOINT.md) for the source snapshots
+and limits. Historical results below refer to their own launch and catalog
+snapshots.
+
 The opt-in draw adapter decodes three machine configurations and audits 17
 original pool references. A separate local catalog passed free, x1 and x10
 trials through the official test launcher with a disposable fixture. Committed

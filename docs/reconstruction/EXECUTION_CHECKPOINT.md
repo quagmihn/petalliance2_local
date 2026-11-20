@@ -1,5 +1,72 @@
 # Execution checkpoint
 
+## 2026-11-20 · Tutorial progression integrity and Market preflight
+
+- Adventure trainer victories previously incremented every active objective
+  marked event type 2. The client uses the same marker for quests 10010
+  and 10011, so a battle could make the Gacha quest look complete before
+  the award and could bypass the formation check. The Gacha commit now
+  requires a matching committed draw receipt. A pending guide with stale
+  progress still has its remaining free draw. The formation commit checks
+  that the required Pet is in fighting slots 0–2.
+- The target Lua opens Senior free x1, then Supreme free x1. Dialogue 29/30
+  identifies Grade A Panda, and `GameGuideMgr3.firstSkillPromote` checks
+  template 45. The packaged Supreme first pool references item 34066.
+  The existing one-time Pet award is a local compatibility rule for the
+  scripted guide, with the draw cost, Pet and quest progress committed
+  together. For normal draws, the backend uses the active catalog.
+  [Gacha evidence](GACHA_CONTENT_MATRIX.md)
+- The Market startup check validates that each of the 90 enabled offers
+  has a known item and a positive price. The purchase handler uses the same
+  validated offers. This milestone required zero schema migrations.
+- Source commit `d26c4819b73abe8cffdfb316ce81e877d7eae3a6` is live from
+  `server/run_all.sh production`. HTTP PID 10461 on 8080 and TCP PID 10462
+  on 5568 verified `monster2_db` as role `monster2`.
+  `LOCAL_PAYMENT_SANDBOX=1` and `PAYMENT_PROVIDER=local` retain their prior
+  values. The active catalog is `server/config/target_draw.json`, SHA256
+  `75ada34ad42be2bf79667c87a8e15f10ab3e5ee828b76653eea51f11e0bc5795`,
+  with three machines and nine enabled normal awards. The existing
+  `local_draw.json` is an older replacement catalog.
+- The pre-deployment dump `artifacts/content-integrity-20261120/monster2_db-predeploy.dump`
+  has SHA256 `8ba1c1675acbc2149a7ae5f147303aae4789fef11935239187bd7f282e2a5938`.
+  It restored in one transaction in an isolated, socket-only cluster.
+  The restore log records the non-superuser restore identity, five
+  characters and 25 public tables. The owner account was excluded from QA
+  actions. Rollback of this code uses the previous commit `95b2b48`.
+- **POSTGRESQL + TCP PASS**. 111 tests passed with `monster2_test_db`,
+  including a real Adventure battle, rejection of forged guide progress,
+  one grant under concurrent requests, cold framed login, formation
+  validation, and invalid Market catalog references.
+- **WAYDROID PASS for cold relogin** on Android user 12 and QA account 75 /
+  character 7. TCP session `07ae25773cc9` returned QueryPets `3140 → 3139`
+  and QuestList `785 → 26/404`. Waydroid opened the Town guide for the next
+  step. A read-only PostgreSQL snapshot matched the earlier guide capture:
+  Pet UID 18 / template 45 in fighting slot 1, two committed guide draws
+  and completed quests 10010/10011. The installed
+  `com.petalliance2.sea` SHA256 was
+  `a205db8689de4ccd370c69cac12843192af3e3e25b30d62303b72cccd9153017`.
+  Evidence is in `artifacts/content-integrity-20261120/`, including
+  `official.log`, `tests.log`, `qa-relogin-state.tsv` and
+  `waydroid-qa-town-cold-login.png`.
+- Prior Android captures in `artifacts/content-restoration-20261119/`
+  show the staged tutorial result and formation, ordinary free/x1/x10 and
+  outfit equip/relogin. The separate fresh character reached quest 10002
+  active after 10001. A fresh sequential run through 10010, equipment
+  ownership and full Lost Forest/Secret Path clears remain open.
+  [Next acceptance tasks](IMPLEMENTATION_BACKLOG.md)
+- The current APK passed signature verification. A second Waydroid cold
+  login as the independent account 64 / character 4 rendered the equipped
+  helmet in Town. STORE reopened and its VIP tab displayed the configured
+  level restriction. The selected offer required VIP 12, while the profile
+  was VIP 0. The click left the wallet at 2,454 diamonds and sent no 577.
+  The eligible Market purchase on this deployment remains pending. See
+  `waydroid-qa-outfit-cold-login.png` and `waydroid-vip-eligibility.png`.
+- Static shop dependency check found that
+  `OrderManUIMgr:buyOrderItems` dereferences Market SKU 203 for item 9986
+  while 203 is absent from the target MarketInfo. The password product
+  purchase is blocked by the missing SKU and price. Market SKU 202 for a
+  separate caller exists and has a valid item reference.
+
 ## 2026-11-19 · Official Gacha Waydroid acceptance
 
 **WAYDROID_VERIFIED** for all eight local draw actions exposed by the client.

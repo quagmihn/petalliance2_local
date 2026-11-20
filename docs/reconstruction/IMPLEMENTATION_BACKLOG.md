@@ -1,5 +1,24 @@
 # Implementation backlog
 
+## Next acceptance cases after the 2026-11-20 integrity fix
+
+1. Resume fresh sequential QA character 6 at active quest 10002 and exercise
+   normal actions through 10009/10010. Capture both draw ACKs, Pet UID, quest
+   commits, formation and cold-login state. Keep owner character 2 out of
+   QA writes.
+2. Reuse the isolated Adventure fixture for two real map clears. Compare
+   the wire Adventure ID, goal and encounter state, earned rewards and
+   independent relogin state. The indexed scene source is shared.
+3. Run the existing Market purchase and wardrobe flows from their
+   isolated QA profiles, checking the Bag and the equipped appearance
+   after relogin. Audit the other shop families against missing references
+   before enabling offers.
+4. Resolve the pending quest dependency references and confirm equipped
+   item instance and slot contracts against the client. Keep unsupported
+   mechanics at their current acceptance status.
+
+See [latest deployed source and evidence](EXECUTION_CHECKPOINT.md).
+
 The official local Gacha service is **WAYDROID_VERIFIED** for every enabled
 machine and mode. The controlled profile confirmed draw animations, costs,
 rewards, a failed retry, responsive input, and persistence after server
