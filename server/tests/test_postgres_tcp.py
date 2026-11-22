@@ -760,6 +760,18 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await db.pool.fetchval(
                 "SELECT status FROM quests WHERE char_id=$1 AND quest_id=10007", char_id), 1)
 
+            guided_wild = Writer().u32(1).u32(999997).u32(0).bytes()
+            supply = await send(136, guided_wild, 112)
+            self.assertEqual((supply.u8(), json.loads(supply.string())), (1, {"itemID": 2, "num": 3}))
+            supply.finish()
+            battle_start, battle_data, _ = await receive()
+            self.assertEqual((battle_start, Reader(battle_data).u16()), (210, 0))
+            retry = await send(136, guided_wild, 210)
+            self.assertEqual(retry.u16(), 0)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=2", char_id), 3)
+            self.assertEqual((await send(263, Writer().u16(0).vector_strings([]).bytes(), 186)).u16(), 0)
+
             # Consecutive clear protocol with synthetic star masks. Android
             # evidence is recorded separately from this persistence fixture.
             before_maps = await db.pool.fetchval("SELECT exp FROM characters WHERE char_id=$1", char_id)

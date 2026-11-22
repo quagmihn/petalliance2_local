@@ -85,6 +85,9 @@ class QuestDB:
         self.battles[session_id] = ("started", monster_id, 1)
         return True
 
+    async def supply_tutorial_capture_balls(self, char_id, quest_id, attempts):
+        return None
+
     async def finish_tutorial_battle(self, char_id, session_id, won, reported_fighters=None):
         battle = self.battles.get(session_id)
         if not battle or battle[0] != "started":

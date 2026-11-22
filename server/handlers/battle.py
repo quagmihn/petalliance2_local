@@ -59,13 +59,16 @@ async def handle(message_id: int, payload: bytes, session):
         reason = None
         if battle_type == 1:
             resolved = resolve_tutorial_wild(battle_type_id)
+            supply = None
             if session.char_id is None:
                 return 210, Writer().u16(1).bytes()
             if resolved is not None:
                 quest_id, enemy, exp = resolved
+                attempts = int(client_table("MonstrosityInfo")[battle_type_id]["capture"])
                 started = await session.db.start_tutorial_wild_battle(
-                    session.char_id, session.session_id, battle_type_id, quest_id,
-                    int(client_table("MonstrosityInfo")[battle_type_id]["capture"]))
+                    session.char_id, session.session_id, battle_type_id, quest_id, attempts)
+                if started:
+                    supply = await session.db.supply_tutorial_capture_balls(session.char_id, quest_id, attempts)
             else:
                 world_wild = resolve_world_map_wild(battle_type_id)
                 started = bool(sub_id == 0 and world_wild and await session.db.start_world_map_quest_wild(
@@ -86,6 +89,10 @@ async def handle(message_id: int, payload: bytes, session):
             body = (Writer().u16(0).vector_strings([
                 json.dumps(enemy, separators=(",", ":"))
             ]).u32(exp).vector_strings([]).bytes())
+            if supply is not None:
+                from handlers.inventory import item_counts_update
+
+                return [item_counts_update([supply]), (210, body)]
             return 210, body
 
         if battle_type == 3:

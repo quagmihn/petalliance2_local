@@ -821,6 +821,44 @@ class Database:
                                               monster_id, capture_attempts=capture_attempts)
                 return True
 
+    async def supply_tutorial_capture_balls(self, char_id: int, quest_id: int, attempts: int):
+        """Supply the ball the capture guide highlights, once per character."""
+        from client_config import table
+
+        item_id = 2  # BattleCCSB.ballOrder[1], highlighted by the tutorial.
+        item = table("ItemInfo").get(item_id)
+        if (quest_id != 10008 or attempts <= 0 or item is None or item["itemType"] != 9
+                or item_id not in table("PokemonBallInfo")):
+            return None
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.fetchval("SELECT 1 FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                claim = await conn.fetchval(
+                    """SELECT r.awards FROM quest_reward_claims r
+                       JOIN quests q ON q.char_id=r.char_id AND q.quest_id=$2 AND q.status=0
+                       WHERE r.char_id=$1 AND r.quest_id=10007
+                         AND NOT (r.awards ? 'tutorial_capture_supplied') FOR UPDATE OF r""",
+                    char_id, quest_id,
+                )
+                if claim is None:
+                    return None
+                claim = json.loads(claim) if isinstance(claim, str) else dict(claim)
+                count = await conn.fetchval(
+                    "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2 FOR UPDATE", char_id, item_id)
+                missing = max(0, attempts - (count or 0))
+                if missing:
+                    from reward_service import grant_rewards
+
+                    award = {"kind": "item", "id": item_id, "num": missing}
+                    await grant_rewards(conn, char_id, [award], self._grant_character_exp)
+                    claim["tutorial_capture_supplied"] = award
+                else:
+                    claim["tutorial_capture_supplied"] = True
+                await conn.execute(
+                    "UPDATE quest_reward_claims SET awards=$2::jsonb WHERE char_id=$1 AND quest_id=10007",
+                    char_id, json.dumps(claim))
+                return (item_id, attempts) if missing else None
+
     async def capture_wild_pet(self, char_id: int, session_id: str, monster_id: int,
                                ball_item_id: int, roll: int | None = None):
         """Consume a configured ball for the live encounter's Pet template ID.
