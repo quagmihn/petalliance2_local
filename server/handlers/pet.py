@@ -147,11 +147,21 @@ async def advance_stage(session, payload: bytes):
     if session.char_id is None:
         return 1032, Writer().u16(1).bytes()
     try:
-        stage = await session.db.advance_pet_training_stage(session.char_id, pet_uid)
+        result = await session.db.advance_pet_training_stage(session.char_id, pet_uid)
     except (ValueError, KeyError, TypeError, IndexError) as exc:
         log.warning("pet_stage_rejected account_id=%s char_id=%s pet_uid=%s reason=%s",
                     getattr(session, "account_id", None), session.char_id, pet_uid, str(exc))
         return 1032, Writer().u16(1).bytes()
-    if stage is None:
+    if result is None:
         return 1032, Writer().u16(1).bytes()
-    return 1032, Writer().u16(0).u32(pet_uid).u16(stage).bytes()
+    from handlers.economy import wallet_update
+    from handlers.inventory import item_counts_update
+
+    stage, wallet, item_counts = result
+    responses = []
+    if item_counts:
+        responses.append(item_counts_update(item_counts))
+    if wallet is not None:
+        responses.append(wallet_update(wallet))
+    responses.append((1032, Writer().u16(0).u32(pet_uid).u16(stage).bytes()))
+    return responses

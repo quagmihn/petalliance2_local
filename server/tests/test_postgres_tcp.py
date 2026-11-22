@@ -392,7 +392,16 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                         char_id, cost["elementID"], cost["num"])
             before_costs = await db.pool.fetchrow(
                 "SELECT gold,diamond FROM characters WHERE char_id=$1", char_id)
-            stage_ack = await send(1038, Writer().u32(pet_uid).bytes(), 1032)
+            stage_items = await send(1038, Writer().u32(pet_uid).bytes(), 112)
+            self.assertEqual((stage_items.u8(), json.loads(stage_items.string())),
+                             (1, {"itemID": 154, "num": 0}))
+            stage_items.finish()
+            wallet_id, wallet_body, _ = await receive()
+            self.assertEqual(wallet_id, 473)
+            self.assertEqual(json.loads(Reader(wallet_body).string())["g_cash"], before_costs["gold"] - 100)
+            stage_id, stage_body, _ = await receive()
+            self.assertEqual(stage_id, 1032)
+            stage_ack = Reader(stage_body)
             self.assertEqual((stage_ack.u16(), stage_ack.u32(), stage_ack.u16()), (0, pet_uid, 1))
             stage_ack.finish()
             self.assertEqual(await db.pool.fetchval(

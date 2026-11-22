@@ -1130,14 +1130,15 @@ class Database:
                 "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
                 char_id, quest.quest_id, json.dumps(values))
 
-    async def advance_pet_training_stage(self, char_id: int, pet_uid: int) -> int | None:
+    async def advance_pet_training_stage(self, char_id: int, pet_uid: int):
         """Atomically charge and persist one configured Pet Stage increase."""
         from client_config import table
         from pet_config import stage_costs
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 char = await conn.fetchrow(
-                    "SELECT level,gold,diamond FROM characters WHERE char_id=$1 FOR UPDATE",
+                    """SELECT gold,diamond,stamina,vip_level,vip_points,currencies_json
+                       FROM characters WHERE char_id=$1 FOR UPDATE""",
                     char_id)
                 pet = await conn.fetchrow(
                     "SELECT pet_uid,pet_template_id,level,training_stage FROM pets "
@@ -1172,24 +1173,29 @@ class Database:
                             char_id, item_id)
                         if item is None or int(item["count"]) < amount:
                             raise ValueError(f"insufficient item {item_id}")
+                item_counts = []
+                wallet_changed = False
+                wallet = dict(char)
                 for (kind, item_id), amount in requirements.items():
                     if kind in ("gold", "diamond"):
                         await conn.execute(
                             f"UPDATE characters SET {kind}={kind}-$2 WHERE char_id=$1",
                             char_id, amount)
-                        char = dict(char)
-                        char[kind] = int(char[kind]) - amount
+                        wallet[kind] -= amount
+                        wallet_changed = True
                     else:
-                        await conn.execute(
-                            "UPDATE inventory SET count=count-$3 WHERE char_id=$1 AND item_id=$2",
+                        remaining = await conn.fetchval(
+                            """UPDATE inventory SET count=count-$3 WHERE char_id=$1 AND item_id=$2
+                               RETURNING count""",
                             char_id, item_id, amount)
                         await conn.execute(
                             "DELETE FROM inventory WHERE char_id=$1 AND item_id=$2 AND count=0",
                             char_id, item_id)
+                        item_counts.append((item_id, remaining))
                 await conn.execute(
                     "UPDATE pets SET training_stage=$3 WHERE char_id=$1 AND pet_uid=$2",
                     char_id, pet_uid, new_stage)
-                return new_stage
+                return new_stage, wallet if wallet_changed else None, item_counts
 
     @staticmethod
     async def _advance_configured_battle_objectives(conn, char_id: int) -> None:
