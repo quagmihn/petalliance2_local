@@ -1133,6 +1133,7 @@ class Database:
     async def advance_pet_training_stage(self, char_id: int, pet_uid: int) -> int | None:
         """Atomically charge and persist one configured Pet Stage increase."""
         from client_config import table
+        from pet_config import stage_costs
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 char = await conn.fetchrow(
@@ -1150,20 +1151,8 @@ class Database:
                 max_stage = int(pokemon["topLevel"]) // 2
                 if new_stage > max_stage or int(pet["level"]) < new_stage * 2:
                     raise ValueError("Pet level requirement or maximum Stage not met")
-                advance = table("PetAdvanceInfo").get(new_stage)
-                if advance is None:
-                    raise ValueError("missing configured PetAdvanceInfo row")
-                rarity_index = int(pokemon["elementAtt1"]) - 1
-                stage_cons = advance["stageCons"]
-                if not 0 <= rarity_index < len(stage_cons):
-                    raise ValueError("Pet rarity has no configured Stage costs")
-                consume_ids = stage_cons[rarity_index]["costs"]
-                consume_table = table("ConsumeElementInfo")
                 requirements: dict[tuple[str, int], int] = {}
-                for consume_id in consume_ids:
-                    consume = consume_table.get(int(consume_id))
-                    if consume is None:
-                        raise ValueError(f"missing ConsumeElementInfo {consume_id}")
+                for consume in stage_costs(pet["pet_template_id"], new_stage):
                     element_type, element_id, amount = (int(consume["elementType"]),
                                                         int(consume["elementID"]),
                                                         int(consume["num"]))
@@ -1307,7 +1296,7 @@ class Database:
                                 for value, objective in zip(progress, objectives)]
                 elif quest.quest_id in (10005, 10006):
                     starter = await conn.fetchrow(
-                        "SELECT level,training_stage FROM pets WHERE char_id=$1 ORDER BY pet_uid LIMIT 1",
+                        "SELECT pet_template_id,level,training_stage FROM pets WHERE char_id=$1 ORDER BY pet_uid LIMIT 1",
                         char_id,
                     )
                     if starter is None:
@@ -1351,9 +1340,17 @@ class Database:
                     awards.append({"kind": "exp", "id": 0, "num": exp})
                 if configured_reward is not None:
                     awards.append(dict(configured_reward))
+                claim = {"awards": awards}
+                if quest.quest_id == 10005 and starter["training_stage"] == 0:
+                    material = await self._starter_training_material(conn, char_id, starter["pet_template_id"])
+                    if material is not None:
+                        if material["num"]:
+                            awards.append(material)
+                        claim["starter_training_supplied"] = True
                 from reward_service import grant_rewards
                 grant_result = await grant_rewards(conn, char_id, awards, self._grant_character_exp)
                 pet_payloads = grant_result["pets"]
+                claim["pets"] = pet_payloads
                 values = char["game_values"] or {}
                 if isinstance(values, str): values = json.loads(values)
                 map_lock = _merge_map_unlock(
@@ -1368,8 +1365,60 @@ class Database:
                     """INSERT INTO quest_reward_claims(char_id,quest_id,awards)
                        VALUES($1,$2,$3::jsonb) ON CONFLICT(char_id,quest_id) DO NOTHING""",
                     char_id, quest.quest_id,
-                    json.dumps({"awards": awards, "pets": pet_payloads}, separators=(",", ":")))
+                    json.dumps(claim, separators=(",", ":")))
                 return True, new_children, awards, pet_payloads
+
+    @staticmethod
+    async def _starter_training_material(conn, char_id, template_id):
+        """Resolve the one-time guide supply from the first map preview and Stage 1 cost."""
+        from client_config import table
+        from pet_config import stage_costs
+
+        if template_id not in (1, 4, 7) or not await conn.fetchval(
+            """SELECT 1 FROM character_adventure_clears
+               WHERE char_id=$1 AND adventure_id=1 AND star_mask & 8 <> 0""", char_id
+        ):
+            return None
+        item_id = 154  # The Bag guide shows this item after Lost Forest.
+        preview = table("AdventureInfo")[1]["rewards_Icon"].split(",")
+        if str(item_id) not in preview or item_id not in table("ItemInfo"):
+            return None
+        needed = sum(row["num"] for row in stage_costs(template_id, 1)
+                     if row["elementType"] == 3 and row["elementID"] == item_id)
+        count = await conn.fetchval(
+            "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2 FOR UPDATE", char_id, item_id)
+        return {"kind": "item", "id": item_id, "num": max(0, needed - (count or 0))}
+
+    async def reconcile_starter_training(self, char_id):
+        """Supply the same guide material on login for existing affected saves."""
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.fetchval("SELECT 1 FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                claim = await conn.fetchval(
+                    """SELECT r.awards FROM quest_reward_claims r
+                       JOIN quests q ON q.char_id=r.char_id AND q.quest_id=10006 AND q.status=0
+                       WHERE r.char_id=$1 AND r.quest_id=10005
+                         AND NOT (r.awards ? 'starter_training_supplied') FOR UPDATE OF r""", char_id)
+                if claim is None:
+                    return
+                starter = await conn.fetchrow(
+                    "SELECT pet_template_id,training_stage FROM pets WHERE char_id=$1 ORDER BY pet_uid LIMIT 1",
+                    char_id)
+                if starter is None or starter["training_stage"] != 0:
+                    return
+                material = await self._starter_training_material(conn, char_id, starter["pet_template_id"])
+                if material is None:
+                    return
+                claim = json.loads(claim) if isinstance(claim, str) else dict(claim)
+                if material["num"]:
+                    from reward_service import grant_rewards
+
+                    await grant_rewards(conn, char_id, [material], self._grant_character_exp)
+                    claim.setdefault("awards", []).append(material)
+                claim["starter_training_supplied"] = True
+                await conn.execute(
+                    "UPDATE quest_reward_claims SET awards=$2::jsonb WHERE char_id=$1 AND quest_id=10005",
+                    char_id, json.dumps(claim))
 
     async def repair_completed_quest_unlocks(self, char_id: int, all_quests: dict[int, Any]) -> None:
         """Reconcile only unlocks implied by already-completed configured quests."""

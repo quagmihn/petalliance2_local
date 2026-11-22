@@ -18,6 +18,7 @@ def item_counts_update(counts):
 async def get_items(session, payload: bytes):
     rows = []
     if session.char_id is not None:
+        await session.db.reconcile_starter_training(session.char_id)
         rows = await session.db.pool.fetch(
             "SELECT item_id,count FROM inventory WHERE char_id=$1 ORDER BY item_id", session.char_id
         )

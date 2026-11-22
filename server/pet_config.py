@@ -145,6 +145,18 @@ def untrained_hp(template_id, level, stage, star=0):
     return math.floor((race + race / 12 * level + race * 3 / 40 * stage) * (1 + star * star_percent() / 100) * (2.5 + 4.5 * level / 50))
 
 
+def stage_costs(template_id, stage):
+    from client_config import table
+
+    pokemon = table("PokemonInfo")[template_id]
+    costs = table("PetAdvanceInfo")[stage]["stageCons"]
+    element_index = int(pokemon["elementAtt1"]) - 1
+    if not 0 <= element_index < len(costs):
+        raise ValueError("Pet element has no configured Stage costs")
+    consume = table("ConsumeElementInfo")
+    return [consume[cost_id] for cost_id in costs[element_index]["costs"]]
+
+
 @functools.cache
 def tutorial_monster():
     for raw in rows("MonstrosityInfo"):

@@ -709,9 +709,25 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             await db.pool.execute("UPDATE pets SET level=1,training_stage=0 WHERE pet_uid=$1", pet_uid)
             self.assertEqual((await commit_quest(10005))[0].u16(), 1)
             await db.pool.execute("UPDATE pets SET level=2 WHERE pet_uid=$1", pet_uid)
-            self.assertEqual((await commit_quest(10005))[0].u16(), 0)
+            feed_commit, feed_notifications = await commit_quest(10005)
+            self.assertEqual((feed_commit.u16(), feed_notifications), (0, [112]))
             self.assertEqual((await receive())[0], 404)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=154", char_id), 3)
+            replay_feed, _ = await commit_quest(10005)
+            self.assertEqual(replay_feed.u16(), 0)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=154", char_id), 3)
             self.assertEqual((await commit_quest(10006))[0].u16(), 1)
+            # Simulate a legacy save with an existing single cookie and no
+            # supply receipt. Two concurrent login repairs top up once.
+            await db.pool.execute("UPDATE inventory SET count=1 WHERE char_id=$1 AND item_id=154", char_id)
+            await db.pool.execute(
+                """UPDATE quest_reward_claims SET awards='{"awards":[],"pets":[]}'
+                   WHERE char_id=$1 AND quest_id=10005""", char_id)
+            await asyncio.gather(db.reconcile_starter_training(char_id), db.reconcile_starter_training(char_id))
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=154", char_id), 3)
             await db.pool.execute("UPDATE pets SET training_stage=1 WHERE pet_uid=$1", pet_uid)
             self.assertEqual((await commit_quest(10006))[0].u16(), 0)
             self.assertEqual((await receive())[0], 404)
