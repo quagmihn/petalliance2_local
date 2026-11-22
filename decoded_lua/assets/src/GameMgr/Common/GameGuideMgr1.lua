@@ -362,9 +362,23 @@ function GameGuideMgr.guideFeedAfterSendProcess()
         GameGuideMgr.finishProcess()
     end, 1)
 end
+local function getStarterPet()
+    local starter
+    for _, petInfo in ipairs(PokemonInfo.getAllPets()) do
+        if not starter or petInfo.objID < starter.objID then
+            starter = petInfo
+        end
+    end
+    return starter
+end
+
 function GameGuideMgr.firstFeed()
     print("####新手引导6，喂食")
-    local petInfo = PokemonInfo.getPetInfoByObjID(1)
+    local petInfo = getStarterPet()
+    if not petInfo then
+        GameGuideMgr.interruptProcess(10005)
+        return
+    end
     if petInfo.level > 1 then
         GameGuideMgr.finishProcess()
         return
@@ -376,8 +390,7 @@ function GameGuideMgr.firstFeed()
             CocosModuleMgr.setScreenTouch(false)
             UnblockLoader.addCallback("PetListMgr-reset", function ()
                 CocosModuleMgr.setScreenTouch(true)
-                local petList = PokemonInfo.getAllPets()
-                local btnNode = PetListMgr.getPetListNode(1).node
+                local btnNode = PetListMgr.getPetListNode(petInfo.objID).node
                 CocosModuleMgr.setButtonGuide(btnNode, 3.5, function ()
                     CocosModuleMgr.setScreenTouch(false)
                     UnblockLoader.addCallback("PetEducationMgr", function ()
@@ -410,12 +423,15 @@ end
 
 function GameGuideMgr.firstStrength()
     print("####新手引导6，强化")
-    local petInfo = PokemonInfo.getPetInfoByObjID(1)
+    local petInfo = getStarterPet()
+    if not petInfo then
+        GameGuideMgr.interruptProcess(10006)
+        return
+    end
     if petInfo.Stage >= 1 then
         GameGuideMgr.finishProcess()
         return
     end
-    local petList = PokemonInfo.getAllPets()
     local isCsbCreate = CSResourceMgr.getCsbObj("Pet/Education/PetsEducationNew.csb")
     if isCsbCreate then
         local btnStrengthPage = CSResourceMgr.getNodeByName("Pet/Education/PetsEducationNew.csb", "tab2")
@@ -439,13 +455,12 @@ function GameGuideMgr.firstStrength()
             end, 1)
         end)
     else
-        if petList[1].Stage > 0 then GameGuideMgr.finishProcess() end
         local btnPetList = CSResourceMgr.getNodeByName("Charactor/Menu/MainMenu.csb", "b1")
         CocosModuleMgr.setButtonGuide(btnPetList, 1.5, function ()
             CocosModuleMgr.setScreenTouch(false)
             UnblockLoader.addCallback("PetListMgr-reset", function ()
                 CocosModuleMgr.setScreenTouch(true)
-                local btnNode = PetListMgr.getPetListNode(petList[1].objID).node
+                local btnNode = PetListMgr.getPetListNode(petInfo.objID).node
                 CocosModuleMgr.setButtonGuide(btnNode, 3.5, function ()
                     CocosModuleMgr.setScreenTouch(false)
                     UnblockLoader.addCallback("PetEducationMgr", function ()

@@ -1305,6 +1305,18 @@ class Database:
                         return False, [], [], []
                     progress = [max(value, objective.amount)
                                 for value, objective in zip(progress, objectives)]
+                elif quest.quest_id in (10005, 10006):
+                    starter = await conn.fetchrow(
+                        "SELECT level,training_stage FROM pets WHERE char_id=$1 ORDER BY pet_uid LIMIT 1",
+                        char_id,
+                    )
+                    if starter is None:
+                        return False, [], [], []
+                    qualified = starter["level"] >= 2 if quest.quest_id == 10005 else starter["training_stage"] >= 1
+                    if not qualified:
+                        return False, [], [], []
+                    progress = [max(value, objective.amount)
+                                for value, objective in zip(progress, objectives)]
                 elif guide_marker:
                     progress = [max(value, objective.amount)
                                 for value, objective in zip(progress, objectives)]

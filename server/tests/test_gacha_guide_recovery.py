@@ -9,6 +9,27 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @unittest.skipUnless(shutil.which("lua"), "Lua interpreter is not installed")
 class GachaGuideRecoveryTests(unittest.TestCase):
+    def test_starter_guides_use_the_owned_starter_and_saved_state(self):
+        script = r'''
+GameGuideMgr = {}
+local ended = 0
+local interrupted
+function GameGuideMgr.finishProcess() ended = ended + 1 end
+function GameGuideMgr.interruptProcess(quest) interrupted = quest end
+dofile("decoded_lua/assets/src/GameMgr/Common/GameGuideMgr1.lua")
+local pets = {{objID=97, level=12, Stage=4}, {objID=15, level=2, Stage=1}}
+PokemonInfo = {getAllPets=function() return pets end}
+GameGuideMgr.firstFeed()
+GameGuideMgr.firstStrength()
+assert(ended == 2)
+pets = {}
+GameGuideMgr.firstFeed()
+assert(interrupted == 10005 and ended == 2)
+GameGuideMgr.firstStrength()
+assert(interrupted == 10006 and ended == 2)
+'''
+        subprocess.run(["lua", "-"], input=script, text=True, cwd=ROOT, check=True)
+
     def test_reconnect_and_timeout_clear_pending_draw_and_ignore_late_results(self):
         script = r'''
 local dir = "decoded_lua/assets/src/"

@@ -704,12 +704,17 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((wild_commit.u16(), wild_commit.u32(), wild_commit.u8()), (0, 1503, 0))
             wild_commit.finish()
 
-            await db.pool.execute(
-                """INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,10006,1,'[1]')
-                   ON CONFLICT(char_id,quest_id) DO UPDATE SET status=1,progress='[1]'""", char_id)
-            await db.pool.execute(
-                """INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,10007,0,'[0]')
-                   ON CONFLICT(char_id,quest_id) DO UPDATE SET status=0,progress='[0]'""", char_id)
+            # The starter's owned UID is assigned by PostgreSQL. The guide
+            # commits depend on the saved Pet level and training stage.
+            await db.pool.execute("UPDATE pets SET level=1,training_stage=0 WHERE pet_uid=$1", pet_uid)
+            self.assertEqual((await commit_quest(10005))[0].u16(), 1)
+            await db.pool.execute("UPDATE pets SET level=2 WHERE pet_uid=$1", pet_uid)
+            self.assertEqual((await commit_quest(10005))[0].u16(), 0)
+            self.assertEqual((await receive())[0], 404)
+            self.assertEqual((await commit_quest(10006))[0].u16(), 1)
+            await db.pool.execute("UPDATE pets SET training_stage=1 WHERE pet_uid=$1", pet_uid)
+            self.assertEqual((await commit_quest(10006))[0].u16(), 0)
+            self.assertEqual((await receive())[0], 404)
             group_ack = await send(136, Writer().u32(5).u32(99999).u32(0).bytes(), 210)
             self.assertEqual(group_ack.u16(), 0); self.assertEqual(group_ack.u8(), 1)
             group_enemy = json.loads(group_ack.string())
