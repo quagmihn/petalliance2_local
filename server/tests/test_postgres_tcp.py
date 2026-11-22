@@ -779,7 +779,18 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((result_id, capture_retry.u16(), capture_retry.u16()), (198, 0, 2))
                 self.assertEqual((capture_retry.string(), capture_retry.u32()), ("", 0))
                 capture_retry.finish()
+            with patch("secrets.randbelow", return_value=0):
+                self.assertEqual((await send(15, Writer().u32(26).u32(2).bytes(), 112)).u8(), 1)
+                self.assertEqual((await receive())[0], 3141)
+                capture_id, capture_body, _ = await receive()
+                capture = Reader(capture_body)
+                self.assertEqual((capture_id, capture.u16(), capture.u16()), (198, 0, 1))
             self.assertEqual((await send(263, Writer().u16(0).vector_strings([]).bytes(), 186)).u16(), 0)
+            self.assertEqual((await commit_quest(10008))[0].u16(), 0)
+            self.assertEqual((await receive())[0], 404)
+            self.assertEqual((await commit_quest(29999))[0].u16(), 0)
+            self.assertEqual((await receive())[0], 404)
+            self.assertEqual((await commit_quest(10009))[0].u16(), 1)
 
             # Consecutive clear protocol with synthetic star masks. Android
             # evidence is recorded separately from this persistence fixture.
@@ -799,10 +810,11 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(json.loads(cleared.string()),
                                  {"elementType": "item", "elementID": item, "num": amount})
                 cleared.finish()
-                if adv_id == 3:
+                if adv_id in (2, 3):
                     quest_notice, quest_body, _ = await receive()
                     quest = Reader(quest_body)
-                    self.assertEqual((quest_notice, quest.u8(), quest.u32(), quest.u8()), (404, 1, 4, 0))
+                    quest_id = 20000 if adv_id == 2 else 4
+                    self.assertEqual((quest_notice, quest.u8(), quest.u32(), quest.u8()), (404, 1, quest_id, 0))
                     quest.u64()
                     self.assertEqual((quest.u8(), quest.u32()), (1, 1))
                     quest.finish()
@@ -811,6 +823,9 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 "SELECT exp FROM characters WHERE char_id=$1", char_id), before_maps + 186)
             self.assertEqual([tuple(r) for r in await db.adventure_clears(char_id)],
                              [(1, 12), (2, 8), (3, 8)])
+            self.assertEqual((await commit_quest(10009))[0].u16(), 0)
+            gacha_unlocked = Reader((await receive())[1])
+            self.assertEqual((gacha_unlocked.u8(), gacha_unlocked.u32()), (1, 10010))
         finally:
             if writer:
                 writer.close(); await writer.wait_closed()

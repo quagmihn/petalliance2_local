@@ -1350,6 +1350,14 @@ class Database:
                         return False, [], [], []
                     progress = [max(value, objective.amount)
                                 for value, objective in zip(progress, objectives)]
+                elif quest.quest_id == 10009:
+                    if not await conn.fetchval(
+                        """SELECT 1 FROM character_adventure_clears
+                           WHERE char_id=$1 AND adventure_id=2 AND star_mask & 8 <> 0""", char_id
+                    ):
+                        return False, [], [], []
+                    progress = [max(value, objective.amount)
+                                for value, objective in zip(progress, objectives)]
                 elif guide_marker:
                     progress = [max(value, objective.amount)
                                 for value, objective in zip(progress, objectives)]
