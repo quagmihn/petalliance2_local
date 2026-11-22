@@ -240,7 +240,9 @@ async def capture_pokemon(session, payload: bytes):
                    separators=(",", ":"))]).bytes())]
     if result["caught"] and not result["duplicate"]:
         notifications.append((3141, Writer().u64(result["pet_uid"]).string(result["pet_json"]).bytes()))
-    notifications.append((198, Writer().u16(0).u16(1 if result["caught"] else 0)
+    # Lua keeps the capture UI open for result 2 while attempts remain.
+    capture_state = 1 if result["caught"] else (2 if result["remaining"] else 0)
+    notifications.append((198, Writer().u16(0).u16(capture_state)
                           .string(result["pet_json"]).u32(result["rate_bonus"]).bytes()))
     log.info("wild_capture char_id=%s session_id=%s monster_id=%s ball_item_id=%s caught=%s remaining=%s duplicate=%s",
              session.char_id, session.session_id, monster_id, ball_item_id,

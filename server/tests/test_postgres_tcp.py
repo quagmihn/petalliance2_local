@@ -770,6 +770,15 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(retry.u16(), 0)
             self.assertEqual(await db.pool.fetchval(
                 "SELECT count FROM inventory WHERE char_id=$1 AND item_id=2", char_id), 3)
+            with patch("secrets.randbelow", return_value=91):
+                spent = await send(15, Writer().u32(26).u32(2).bytes(), 112)
+                self.assertEqual((spent.u8(), json.loads(spent.string())), (1, {"itemID": 2, "num": 2}))
+                spent.finish()
+                result_id, result_body, _ = await receive()
+                capture_retry = Reader(result_body)
+                self.assertEqual((result_id, capture_retry.u16(), capture_retry.u16()), (198, 0, 2))
+                self.assertEqual((capture_retry.string(), capture_retry.u32()), ("", 0))
+                capture_retry.finish()
             self.assertEqual((await send(263, Writer().u16(0).vector_strings([]).bytes(), 186)).u16(), 0)
 
             # Consecutive clear protocol with synthetic star masks. Android
