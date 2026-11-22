@@ -1551,9 +1551,10 @@ class Database:
                 return True
 
     async def finish_adventure(self, char_id: int, adventure_id: int, star: int,
-                               rewards: list[dict]) -> list[str] | None:
+                               rewards: list[dict]) -> tuple[list[str], list[tuple[int, int, list[int]]]] | None:
         """Complete an adventure once, grant its configured rewards, and retain ACK data."""
         encoded = [json.dumps(reward, separators=(",", ":")) for reward in rewards]
+        quest_updates = []
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 row = await conn.fetchrow(
@@ -1565,7 +1566,7 @@ class Database:
                     previous = row["completion_awards_json"] or []
                     if isinstance(previous, str):
                         previous = json.loads(previous)
-                    return list(previous)
+                    return list(previous), quest_updates
                 if star == 0:
                     encoded = []
                 for reward in rewards if star else []:
@@ -1636,7 +1637,8 @@ class Database:
                             await conn.execute(
                                 "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
                                 char_id, quest.quest_id, json.dumps(progress))
-        return encoded
+                            quest_updates.append((quest.quest_id, 0, progress))
+        return encoded, quest_updates
 
     async def grant_pet(self, char_id: int, template_id: int) -> asyncpg.Record | None:
         if template_id <= 0:

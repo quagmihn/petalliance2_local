@@ -58,7 +58,7 @@ class AdventureEventProtocolTests(unittest.IsolatedAsyncioTestCase):
     async def test_zero_star_exit_returns_no_award_vector(self):
         async def finish(char_id, adventure_id, star, rewards):
             self.assertEqual((char_id, adventure_id, star, rewards), (22, 1, 0, []))
-            return []
+            return [], []
         session = SimpleNamespace(db=SimpleNamespace(finish_adventure=finish), char_id=22,
                                   current_adventure_id=1)
         ack, body = await dispatch(session, 3082, Writer().u16(0).bytes())
@@ -73,7 +73,7 @@ class AdventureEventProtocolTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(adventure_id, 1)
             stored.extend(rewards)
             return ['{"kind":"exp","id":0,"num":60}',
-                    '{"kind":"item","id":10002,"num":1}']
+                    '{"kind":"item","id":10002,"num":1}'], []
         tables = {
             "AdventureInfo": {1: {"Exp_rewards": 60, "rewards": 1}},
             "RewardInfo": {1: {"element": [5], "nReward": [1], "probability": [100]}},

@@ -14,6 +14,7 @@ from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "server"))
+from adventure_config import scene_cells
 from client_config import CONFIG, table, text_table
 from quest_config import GACHA_GUIDE_PET_ID, GACHA_GUIDE_QUEST_ID, load_quests
 
@@ -169,13 +170,13 @@ def adventure_index(parsed):
              for row in text_table("Fbmb.txt")[1:] if row[0].isdigit()}
     index = {}
     for adventure_id, adventure in parsed["AdventureInfo"].items():
-        floor_cells = [cell for number in adventure["scene"] for cell in cells[number]
-                       if cell["floor"] <= adventure["floor"]]
+        floor_cells = sorted(cells[adventure_id], key=lambda cell: (cell["floor"], cell["id"]))
         grouped = defaultdict(list)
         for cell in floor_cells:
             grouped[cell["floor"]].append(cell["id"])
         index[adventure_id] = {
             "config": adventure, "cells_by_floor": dict(grouped),
+            "exact_authored_grid": bool(scene_cells(adventure_id)),
             "fixed_scene_events": sorted({(cell["eventType"], cell["event"]) for cell in floor_cells
                                           if cell["event"]}),
             "cell_reward_ids": sorted({cell["award"] for cell in floor_cells if cell["award"]}),

@@ -564,6 +564,12 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await send(2996, Writer().u32(1).bytes(), 3080)).u16(), 0)
             # The second configured map clear advances event-19 story progress.
             self.assertEqual((await send(3082, Writer().u16(12).bytes(), 2995)).u16(), 0)
+            progress_id, progress_body, _ = await receive()
+            notice = Reader(progress_body)
+            self.assertEqual((progress_id, notice.u8(), notice.u32(), notice.u8()), (404, 1, 2, 0))
+            notice.u64()
+            self.assertEqual((notice.u8(), notice.u32()), (1, 1))
+            notice.finish()
             self.assertEqual((await receive())[0], 473)
             self.assertEqual((await receive())[0], 1749)
             story_progress = await db.pool.fetchval(
@@ -742,6 +748,13 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(json.loads(cleared.string()),
                                  {"elementType": "item", "elementID": item, "num": amount})
                 cleared.finish()
+                if adv_id == 3:
+                    quest_notice, quest_body, _ = await receive()
+                    quest = Reader(quest_body)
+                    self.assertEqual((quest_notice, quest.u8(), quest.u32(), quest.u8()), (404, 1, 4, 0))
+                    quest.u64()
+                    self.assertEqual((quest.u8(), quest.u32()), (1, 1))
+                    quest.finish()
                 self.assertEqual([(await receive())[0], (await receive())[0]], [473, 1749])
             self.assertEqual(await db.pool.fetchval(
                 "SELECT exp FROM characters WHERE char_id=$1", char_id), before_maps + 186)

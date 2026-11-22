@@ -231,16 +231,30 @@ async def finish_adventure(session, payload: bytes):
             return 2995, Writer().u16(1).bytes()
         rewards.append({"kind": kind, "id": int(element["elementID"]),
                         "num": int(vectors[1][selected])})
-    encoded = await session.db.finish_adventure(session.char_id, adventure_id, star, rewards)
-    if encoded is None:
+    completed = await session.db.finish_adventure(session.char_id, adventure_id, star, rewards)
+    if completed is None:
         return 2995, Writer().u16(1).bytes()
+    encoded, quest_updates = completed
     awards = []
     for value in encoded:
         reward = json.loads(value) if isinstance(value, str) else value
         awards.append(json.dumps({"elementType": reward["kind"],
                                   "elementID": reward["id"], "num": reward["num"]},
                                  separators=(",", ":")))
-    return 2995, Writer().u16(0).vector_strings(awards).bytes()
+    ack = 2995, Writer().u16(0).vector_strings(awards).bytes()
+    return [ack, *quest_notifications(quest_updates)] if quest_updates else ack
+
+
+def quest_notifications(entries):
+    now = int(time.time())
+    for start in range(0, len(entries) or 1, 255):
+        batch = entries[start:start + 255]
+        ntf = Writer().u8(len(batch))
+        for quest_id, status, progress in batch:
+            ntf.u32(quest_id).u8(status).u64(now).u8(len(progress))
+            for value in progress:
+                ntf.u32(int(value))
+        yield 404, ntf.bytes()
 
 
 async def get_quests(session, payload: bytes):
@@ -252,21 +266,15 @@ async def get_quests(session, payload: bytes):
             "SELECT quest_id,status,progress FROM quests WHERE char_id=$1 ORDER BY quest_id",
             session.char_id,
         )
-    ack = Writer().u16(0).u32(len(rows)).bytes()
-    responses = [(26, ack)]
-    for start in range(0, len(rows) or 1, 255):
-        batch = rows[start:start + 255]
-        ntf = Writer().u8(len(batch))
-        for row in batch:
-            progress = row["progress"]
-            if isinstance(progress, str): progress = json.loads(progress)
-            if isinstance(progress, dict): progress = progress.get("progressList", [])
-            if not isinstance(progress, list): progress = []
-            ntf.u32(row["quest_id"]).u8(row["status"]).u64(int(time.time()))
-            ntf.u8(len(progress))
-            for value in progress: ntf.u32(int(value))
-        responses.append((404, ntf.bytes()))
-    return responses
+    entries = []
+    for row in rows:
+        progress = row["progress"]
+        if isinstance(progress, str): progress = json.loads(progress)
+        if isinstance(progress, dict): progress = progress.get("progressList", [])
+        if not isinstance(progress, list): progress = []
+        entries.append((row["quest_id"], row["status"], progress))
+    ack = Writer().u16(0).u32(len(entries)).bytes()
+    return [(26, ack), *quest_notifications(entries)]
 
 
 async def get_home(session, payload: bytes):
@@ -340,14 +348,9 @@ async def commit_quest(session, payload: bytes):
     ack = Writer().u16(0).u32(quest_id).vector_strings(wire_awards).bytes()
     responses.append((726, ack))
     if children:
-        ntf = Writer().u8(len(children))
-        for child_id in children:
-            child = config[child_id]
-            ntf.u32(child_id).u8(0).u64(int(time.time()))
-            ntf.u8(len(child.objectives))
-            for _ in child.objectives:
-                ntf.u32(0)
-        responses.append((404, ntf.bytes()))
+        responses.extend(quest_notifications([
+            (child_id, 0, [0] * len(config[child_id].objectives)) for child_id in children
+        ]))
     return responses
 
 
