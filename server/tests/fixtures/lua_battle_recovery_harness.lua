@@ -22,6 +22,7 @@ Proto = {Command={GC_CREATEPVEBATTLE_ACK=210}, Error={ERROR_OK=0},
 SceneMgr = {currentScene="SearchingScene"}
 SearchingMapMgr = {battlePos=15}
 SearchingMgr = {onbattle=true, canMove=false, eventStateInfoTable={[15]=2}}
+AdvCharMgr = dofile("decoded_lua/assets/src/GameMgr/Searching/AdvCharMgr.lua")
 MsgPrinter = {rcvMsg=function() end}
 StandardTipsMgr = {show=function() noticeCount=noticeCount+1 end}
 

@@ -827,9 +827,37 @@ function AdvCharMgr.stepToBlock(char, i, movetime)
 end
 
 ---检查trainer视野范围内是否有玩家经过，返回boolean
-function AdvCharMgr.check(char, checkPos)
+function AdvCharMgr.approachTile(char, playerPos)
+    local pos = char.info.pos
+    if SearchingMgr.mapInfoTable[pos] ~= 0 or SearchingMgr.eventStateInfoTable[pos] ~= 1 then
+        return nil
+    end
+    local col, row = LtMapOption.convertToCoord(pos)
+    local direction = char.info.direction
+    if not direction or (char.info.vision or 0) < 2 then
+        return nil
+    end
+    if char.info.rejectedPosition then
+        if playerPos == char.info.rejectedPosition then return nil end
+        char.info.rejectedPosition = nil
+    end
+    if LtMapOption.convertToIndex(col + 2 * direction.c, row + 2 * direction.r) ~= playerPos then
+        return nil
+    end
+    local nextCol, nextRow = col + direction.c, row + direction.r
+    local step = LtMapOption.convertToIndex(nextCol, nextRow)
+    if not step or not LtMapOption.isReachable(nextCol, nextRow)
+        or SearchingMgr.eventInfoTable[step] ~= LtEventOption.EVENT_VOID or TRAINERS[step] then
+        return nil
+    end
+    return step
+end
 
+function AdvCharMgr.check(char, checkPos)
     checkPos = checkPos or SearchingMgr.playerCurrPosition
+    if LtMapOption.getMapType() == "ADVENTURE" then
+        return not SearchingMgr.onbattle and AdvCharMgr.approachTile(char, checkPos) ~= nil
+    end
     if SearchingMgr.eventStateInfoTable[char.info.pos] == 3 then   --挑战完成，不再挑战
         return false
     end
@@ -928,7 +956,7 @@ end
 function AdvCharMgr.activateTrainersWhileNoBattle(char)
     local isDisappear = SearchingMgr.itemTypeTable[char.info.pos].disappear
     if isDisappear == 1 then
-        SceneMgr.getRunningScene:performWithDelay(function()
+        SceneMgr.getRunningScene():performWithDelay(function()
             AdvCharMgr.activateAllTrainer()
         end,0.5)
     else
@@ -1034,6 +1062,15 @@ function AdvCharMgr.battle_(char)
         print("duplicate battle")
         return 
     end  --to avoid duplicate battle
+    if SearchingMgr.eventStateInfoTable[char.info.pos] == 3 then
+        return
+    end
+    local adventure = LtMapOption.getMapType() == "ADVENTURE"
+    local approach
+    if adventure and not SearchingMgr.checkPlayer(char.info.pos) then
+        approach = AdvCharMgr.approachTile(char, SearchingMgr.playerCurrPosition)
+        if not approach then return end
+    end
     print("battle!!!")
     SearchingUIMgr.TurnToBlock(char.info.pos)
     SearchingMgr.onbattle = true
@@ -1045,11 +1082,6 @@ function AdvCharMgr.battle_(char)
         AdvCharMgr.cancelWatching(v)
     end
 
-    if SearchingMgr.eventStateInfoTable[char.info.pos] == 3 then -- 训练师战败态
-        AdvCharMgr.clickEvent(char)
-        return
-    end
-    
     AdvCharMgr.setEmoji(char, 1)
 
     local currP = 1
@@ -1060,15 +1092,19 @@ function AdvCharMgr.battle_(char)
     local col, row = LtMapOption.convertToCoord(char.info.pos)
     local direction = char.info.direction
     local path = {char.info.pos}
-    for i = 1, char.info.vision do
-        local p = LtMapOption.convertToIndex(col + i * direction.c, row + i * direction.r)
-        if p and p ~= SearchingMgr.playerCurrPosition then 
-            table.insert(path, p)
-        else
-            break
+    if adventure then
+        if approach then table.insert(path, approach) end
+    else
+        for i = 1, char.info.vision do
+            local p = LtMapOption.convertToIndex(col + i * direction.c, row + i * direction.r)
+            if p and p ~= SearchingMgr.playerCurrPosition then
+                table.insert(path, p)
+            else
+                break
+            end
         end
+        table.insert(path, SearchingMgr.playerCurrPosition)
     end
-    table.insert(path, SearchingMgr.playerCurrPosition)
     
     local function step()
         if currP == #path or SearchingMgr.checkPlayer(path[currP]) then
@@ -1090,7 +1126,7 @@ function AdvCharMgr.battle_(char)
 
             SearchingMgr.eventStateInfoTable[path[currP]] = 2 --战斗触发
             
-            SceneMgr.getRunningScene:performWithDelay(function()
+            SceneMgr.getRunningScene():performWithDelay(function()
                 
                 -- 千层塔PVP战斗
                 if SearchingMgr.eventInfoTable[char.info.pos] == LtEventOption.EVENT_OTHERTRAINER then
@@ -1190,7 +1226,10 @@ function AdvCharMgr.battle_(char)
             return
         else
             currP = currP + 1
-            AdvCharMgr.stepToBlock(char, path[currP], movetime)
+            if not AdvCharMgr.stepToBlock(char, path[currP], movetime) then
+                AdvCharMgr.recoverRejectedBattle(char.info.pos)
+                return
+            end
             char.info.node:performWithDelay(function()
                 SearchingMgr.unlock4TrainerMovedOrFailed(path[currP-1])
                 SearchingMgr.Lock_monsterAt(path[currP])
@@ -1201,6 +1240,22 @@ function AdvCharMgr.battle_(char)
     
     step()
     
+end
+
+function AdvCharMgr.recoverRejectedBattle(pos)
+    SearchingMgr.onbattle = false
+    SearchingMgr.onmove = false
+    SearchingMgr.canMove = true
+    if SearchingMgr.eventStateInfoTable[pos] == 2 then
+        SearchingMgr.eventStateInfoTable[pos] = 1
+    end
+    local char = TRAINERS[pos]
+    if char then
+        char.info.rejectedPosition = SearchingMgr.playerCurrPosition
+        AdvCharMgr.clearEmoji(char)
+        AdvCharMgr.Idle(char)
+        AdvCharMgr.activateAllTrainer()
+    end
 end
 
 function AdvCharMgr.clickEvent(char)

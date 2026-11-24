@@ -97,6 +97,8 @@ def main():
                 "assets/src/GameMgr/Common/GameGuideMgr1.lua",
                 "assets/src/GameMgr/Item/GachaViewMgr.lua",
                 "assets/src/GameMgr/Map/BattleMapMgr.lua",
+                "assets/src/GameMgr/Searching/AdvCharMgr.lua",
+                "assets/src/GameMgr/Searching/SearchingMgr.lua",
                 "assets/src/Net/Process/ChatProcess.lua",
                 "assets/src/Net/CallbackMgr.lua",
                 "assets/src/Net/Process/PetProcess.lua",

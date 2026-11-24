@@ -1295,11 +1295,6 @@ function SearchingMgr.enterBattleAt(i, params)
     SearchingMgr.onbattle = true
     SearchingMapMgr.battlePos = i
     
-    if LtMapOption.getMapType() == "ADVENTURE" then
-        SearchingMgr.UN_SCH_GLOBAL_CHECK()
-        AdvCharMgr.cleatTranerTable()
-        require("src.GameMgr.Searching.propMgr").removeShadow()
-    end
     if LtMapOption.getMapType() == "LOSTTOWER" then
         LostTowerUIMgr.removeAllAnimation()
     end

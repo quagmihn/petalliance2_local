@@ -24,6 +24,11 @@ function PVEProcess.onGC_CreatePVEBattle_Ack(msg)
             return
         end
         LoadingView.hide()
+        if SceneMgr.currentScene == "SearchingScene" and LtMapOption.getMapType() == "ADVENTURE" then
+            SearchingMgr.UN_SCH_GLOBAL_CHECK()
+            AdvCharMgr.cleatTranerTable()
+            require("src.GameMgr.Searching.propMgr").removeShadow()
+        end
         print("onGC_CreatePVEBattle_Ack")
         print(sz_T2S(res.monsters))
         local canCatchPet = 0
@@ -109,14 +114,7 @@ function PVEProcess.onGC_CreatePVEBattle_Ack(msg)
         -- Release that lock and restore the trainer cell when the server rejects
         -- the request so a corrected/configured encounter can be retried.
         if SceneMgr.currentScene == "SearchingScene" then
-            SearchingMgr.onbattle = false
-            SearchingMgr.canMove = true
-            local battlePos = SearchingMapMgr and SearchingMapMgr.battlePos
-            if battlePos and battlePos > 0
-            and SearchingMgr.eventStateInfoTable
-            and SearchingMgr.eventStateInfoTable[battlePos] == 2 then
-                SearchingMgr.eventStateInfoTable[battlePos] = 1
-            end
+            AdvCharMgr.recoverRejectedBattle(SearchingMapMgr.battlePos)
         end
         StandardTipsMgr.show(1, "error code: "..res.code)
     end

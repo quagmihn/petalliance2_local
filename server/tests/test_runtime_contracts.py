@@ -118,6 +118,10 @@ assert(pets.getFightPoint({}) == 0)
 
 
 class TutorialBattleLuaContracts(unittest.TestCase):
+    def test_adventure_trainer_tile_rules(self):
+        root = Path(__file__).resolve().parents[2]
+        subprocess.run(["lua", "server/tests/fixtures/trainer_tiles_harness.lua"], cwd=root, check=True)
+
     def test_second_battle_reports_result_before_tutorial_continuation(self):
         source = (Path(__file__).resolve().parents[2] /
                   "decoded_lua/assets/src/GameMgr/Common/GameGuideMgr1.lua").read_text()
