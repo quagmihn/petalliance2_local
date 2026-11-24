@@ -9,6 +9,34 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @unittest.skipUnless(shutil.which("lua"), "Lua interpreter is not installed")
 class GachaGuideRecoveryTests(unittest.TestCase):
+    def test_formation_guide_points_to_panda_even_with_a_higher_rarity_pet(self):
+        script = r'''
+GameGuideMgr = {}
+local actions = {}
+CSResourceMgr = {getNodeByName=function(_, node) return node end}
+CocosModuleMgr = {
+    setScreenTouch=function() end,
+    setButtonGuide=function(node, _, action) actions[node] = action end,
+}
+UnblockLoader = {addCallback=function(_, action) action() end}
+NpcDialogueMgr = {show=function(_, action) action() end}
+PetListMgr = {getPetListNode=function(uid) return {node=uid} end}
+PokemonInfo = {
+    getPetArmy=function() return {15, 16} end,
+    getAllPets=function() return {{objID=16, pokeID=116}, {objID=36, pokeID=45}} end,
+    getPokemonInfoByID=function() return {rarePoint=5} end,
+}
+dofile("decoded_lua/assets/src/GameMgr/Common/GameGuideMgr1.lua")
+GameGuideMgr.firstFormation()
+actions.b1()
+actions.tab2()
+local removeWhittiger = assert(actions[16])
+actions[16] = nil
+removeWhittiger()
+assert(actions[36] and not actions[16])
+'''
+        subprocess.run(["lua", "-"], input=script, text=True, cwd=ROOT, check=True)
+
     def test_starter_guides_use_the_owned_starter_and_saved_state(self):
         script = r'''
 GameGuideMgr = {}

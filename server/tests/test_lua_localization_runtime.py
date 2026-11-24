@@ -56,7 +56,7 @@ class LuaLocalizationRuntimeTests(unittest.TestCase):
             "vn": ("Mạo Hiểm", "Đá Tập Kết", "Shawn", "Shawn"),
         }
         keys = ("menu5", "town8", "npcname2", "train99998")
-        with ZipFile(ROOT / "dist/monster2_runtime.apk") as archive:
+        with ZipFile(ROOT / "dist/monster2_local-guide-runtime.apk") as archive:
             for lang, translations in expected.items():
                 with self.subTest(lang=lang), closing(sqlite3.connect(":memory:")) as db:
                     member = f"assets/res/Config/db/lang_{lang}.db"

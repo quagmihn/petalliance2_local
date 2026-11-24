@@ -858,56 +858,45 @@ function GameGuideMgr.firstFormation()
                                 end
                             end)
                         end
-                        local petArmyInfo = PokemonInfo.getPetArmy(1)
-                        if #petArmyInfo<=2 then
-                            --添加宠物教程
-                            if #petArmyInfo==0 then
-                                print("编队引导异常，当前队伍没有宠物")
-                                save()
-                            else
-                                local function addPet()
-                                    local petVec = PokemonInfo.getAllPets()
-                                    local petObjID = nil
-                                    for key, var in pairs(petVec) do
-                                        if PokemonInfo.getPokemonInfoByID(var.pokeID).rarePoint>2 then
-                                            petObjID = var.objID
-                                            break
-                                        end
-                                    end
-                                    if petObjID then
-                                        local pBtn = PetListMgr.getPetListNode(petObjID).node
-                                        CocosModuleMgr.setButtonGuide(pBtn, 2.5, function()
-                                            --拖拽教程
-                                            -- drag()
-                                            local teamdb1 = CSResourceMgr.getNodeByName("Pet/Formation/FormationView.csb", "teamdb1")
-                                            local effAni = AnimationMgr.createAni(teamdb1, "Spine/effects/Ui_xinshouyindaoshouzhi_2.png",
-                                                teamdb1:getContentSize().width+57, teamdb1:getContentSize().height+57)
-                                            teamdb1:setLocalZOrder(CocosModuleMgr.ZORDER_GUIDE)
-                                            AnimationMgr.playAni(effAni.res, "animation", true, effAni.tag)
-                                            NpcDialogueMgr.show(55, function()
-                                                AnimationMgr.removeGafObjectByTag(effAni.res, effAni.tag)
-                                                save()
-                                            end)
-                                        end)
-                                    else
-                                        print("编队引导异常，玩家没有A级以上宠物")
-                                        save()
-                                    end
-                                end
-                                local petArmy = PokemonInfo.getPetArmy(1)
-                                if #petArmy==2 then
-                                    local petObjID = petArmy[2]
-                                    local pBtn = PetListMgr.getPetListNode(petObjID).node
-                                    CocosModuleMgr.setButtonGuide(pBtn, 2.5, function()
-                                        addPet()
-                                    end)
-                                else
-                                    addPet()
-                                end
+                        local petArmy = PokemonInfo.getPetArmy(1)
+                        local pandaUID
+                        for _, ownedPet in ipairs(PokemonInfo.getAllPets()) do
+                            if ownedPet.pokeID == 45 then
+                                pandaUID = ownedPet.objID
+                                break
                             end
+                        end
+                        if not pandaUID then
+                            GameGuideMgr.interruptProcess(10011)
+                            return
+                        end
+                        for _, activeUID in ipairs(petArmy) do
+                            if activeUID == pandaUID then
+                                save()
+                                return
+                            end
+                        end
+
+                        local function addPanda()
+                            local pBtn = PetListMgr.getPetListNode(pandaUID).node
+                            CocosModuleMgr.setButtonGuide(pBtn, 2.5, function()
+                                local teamdb1 = CSResourceMgr.getNodeByName("Pet/Formation/FormationView.csb", "teamdb1")
+                                local effAni = AnimationMgr.createAni(teamdb1, "Spine/effects/Ui_xinshouyindaoshouzhi_2.png",
+                                    teamdb1:getContentSize().width+57, teamdb1:getContentSize().height+57)
+                                teamdb1:setLocalZOrder(CocosModuleMgr.ZORDER_GUIDE)
+                                AnimationMgr.playAni(effAni.res, "animation", true, effAni.tag)
+                                NpcDialogueMgr.show(55, function()
+                                    AnimationMgr.removeGafObjectByTag(effAni.res, effAni.tag)
+                                    save()
+                                end)
+                            end)
+                        end
+                        local lastActiveUID = petArmy[#petArmy]
+                        if #petArmy >= 2 then
+                            local pBtn = PetListMgr.getPetListNode(lastActiveUID).node
+                            CocosModuleMgr.setButtonGuide(pBtn, 2.5, addPanda)
                         else
-                            print("编队引导异常，当前队伍有2个以上宠物")
-                            save()
+                            addPanda()
                         end
                     end)
                 end)
