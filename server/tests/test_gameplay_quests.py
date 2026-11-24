@@ -33,6 +33,9 @@ class QuestDB:
     async def current_adventure_id(self, char_id):
         return self.current_adventures.get(char_id)
 
+    async def fired_adventure_event_ids(self, char_id, adventure_id):
+        return set()
+
     async def claim_adventure_cell(self, char_id, adventure_id, floor, col, row, rewards):
         key = (char_id, adventure_id, floor, col, row)
         if key not in self.adventure_claims:

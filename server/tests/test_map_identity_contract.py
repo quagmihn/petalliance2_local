@@ -55,6 +55,9 @@ class MapIdentityContractTests(unittest.IsolatedAsyncioTestCase):
             async def start_adventure(self, char_id, adventure_id):
                 self.current[char_id] = adventure_id
 
+            async def fired_adventure_event_ids(self, char_id, adventure_id):
+                return set()
+
         session = SimpleNamespace(db=DB(), char_id=2, current_adventure_id=None)
         for adventure_id, count in ((1, 30), (2, 30), (3, 60)):
             ack, body = await dispatch(session, 2996, Writer().u32(adventure_id).bytes())

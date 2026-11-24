@@ -30,3 +30,18 @@ def scene_cells(adventure_id):
     }
     coords = {(cell["floor"], cell["eventX"], cell["eventY"]) for cell in cells}
     return cells if coords == expected and len(coords) == len(cells) else ()
+
+
+def scene_encounter(adventure_id, scene_id, event_type):
+    """Resolve authored battles, including the client's disposable overlay."""
+    scene = next((cell for cell in scene_cells(adventure_id) if cell["id"] == scene_id), None)
+    if scene is None:
+        return None
+    if scene["eventType"] == event_type:
+        return int(scene["event"]), None
+    if scene["eventType"] == 21:  # LtEventOption.EVENT_DISPOSABLE
+        disposable = table("DisposableInfo").get(scene["event"])
+        if disposable and disposable["eventType"] == event_type:
+            # SearchingMapMgr passes this field directly to the event renderer.
+            return int(disposable["eventRandomID"]), int(scene["event"])
+    return None

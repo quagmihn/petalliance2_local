@@ -6,12 +6,11 @@ import logging
 import re
 
 from protocol import Reader, Writer
-from adventure_config import scene_cells
+from adventure_config import scene_encounter
 from pet_config import tutorial_monster
 from client_config import table as client_table
-from pet_config import untrained_hp
 from battle_group_config import (resolve_monster_man_group, resolve_tutorial_group,
-                                 resolve_tutorial_wild, resolve_world_map_wild)
+                                 resolve_tutorial_wild, resolve_wild, resolve_world_map_wild)
 
 log = logging.getLogger("game_socket")
 FIGHTER = re.compile(r"([1-9][0-9]{0,18}),([0-9]{1,15}(?:\.[0-9]{1,12})?)")
@@ -71,8 +70,10 @@ async def handle(message_id: int, payload: bytes, session):
                     supply = await session.db.supply_tutorial_capture_balls(session.char_id, quest_id, attempts)
             else:
                 world_wild = resolve_world_map_wild(battle_type_id)
+                attempts = (int(client_table("MonstrosityInfo")[battle_type_id]["capture"])
+                            if world_wild and world_wild[0].get("canCatch") else 0)
                 started = bool(sub_id == 0 and world_wild and await session.db.start_world_map_quest_wild(
-                    session.char_id, session.session_id, battle_type_id))
+                    session.char_id, session.session_id, battle_type_id, attempts))
                 if started and world_wild:
                     enemy, exp = world_wild
                     resolved = (None, enemy, exp)
@@ -95,47 +96,40 @@ async def handle(message_id: int, payload: bytes, session):
                 return [item_counts_update([supply]), (210, body)]
             return 210, body
 
-        if battle_type == 3:
+        if battle_type in (2, 3):
             if session.char_id is None:
                 return 210, Writer().u16(1).bytes()
             adventure_id = await session.db.current_adventure_id(session.char_id)
-            scene = next((cell for cell in scene_cells(adventure_id) if cell["id"] == battle_type_id), None)
-            if scene is None or scene["eventType"] != 8 or sub_id != 0:
-                log.warning("battle_rejected request_id=136 char_id=%s handler=adventure_trainer_battle "
-                            "adventure_id=%s scene_id=%s sub_id=%s rejection_reason=unconfigured_trainer_scene",
-                            session.char_id, adventure_id, battle_type_id, sub_id)
+            encounter = scene_encounter(adventure_id, battle_type_id, 2 if battle_type == 2 else 8)
+            if sub_id != 0 or encounter is None:
+                log.warning("battle_rejected request_id=136 char_id=%s handler=adventure_battle "
+                            "adventure_id=%s scene_id=%s type=%s sub_id=%s "
+                            "rejection_reason=unconfigured_encounter_scene response_id=210 response_code=1",
+                            session.char_id, adventure_id, battle_type_id, battle_type, sub_id)
                 return 210, Writer().u16(1).bytes()
-            group_id = int(scene["event"])
-            group = client_table("MonsterGroupManInfo").get(group_id)
-            if group is None or not group["pokemons"]:
+            group_id, disposable_id = encounter
+            resolved = resolve_wild(group_id) if battle_type == 2 else resolve_monster_man_group(group_id)
+            if resolved is None:
                 return 210, Writer().u16(1).bytes()
+            enemies, exp = resolved
+            options = {}
+            if battle_type == 2:
+                attempts = int(client_table("MonstrosityInfo")[group_id]["capture"]) if enemies.get("canCatch") else 0
+                enemies = [enemies]
+                options = {"battle_type": battle_type, "attempts": attempts}
+            if disposable_id is not None:
+                options["disposable_id"] = disposable_id
             started = await session.db.start_adventure_battle(
-                session.char_id, session.session_id, adventure_id, battle_type_id, group_id)
+                session.char_id, session.session_id, adventure_id, battle_type_id, group_id, **options)
             if not started:
-                log.warning("battle_rejected request_id=136 char_id=%s handler=adventure_trainer_battle "
-                            "adventure_id=%s scene_id=%s rejection_reason=active_adventure_changed",
+                log.warning("battle_rejected request_id=136 char_id=%s handler=adventure_battle "
+                            "adventure_id=%s scene_id=%s rejection_reason=inactive_or_defeated "
+                            "response_id=210 response_code=1",
                             session.char_id, adventure_id, battle_type_id)
                 return 210, Writer().u16(1).bytes()
-            monstrosities = client_table("MonstrosityInfo")
-            monsters = []
-            for monster_id in group["pokemons"]:
-                info = monstrosities.get(int(monster_id))
-                if info is None or not info["level"]:
-                    raise ValueError(f"trainer group {group_id} references invalid monster {monster_id}")
-                level = int(info["level"][0])
-                stage = int(info["petStage"])
-                star = int(info["petStar"])
-                hp = int(untrained_hp(int(info["petnumber"]), level, stage, star)
-                         * int(info["amendmentHP"]) / 1000)
-                skill1 = int(info["skill1"][0]) if info["skill1"] else 0
-                skill2 = int(info["skill2"][0]) if info["skill2"] else 0
-                skill3 = int(info["skill3"][0]) if info["skill3"] else 0
-                monsters.append({"mID": int(info["id"]), "level": level,
-                                 "skill1": skill1, "skill2": skill2, "skill3": skill3,
-                                 "hp": hp, "petStage": stage, "petStar": star, "skin": 0})
             body = (Writer().u16(0).vector_strings([
-                json.dumps(monster, separators=(",", ":")) for monster in monsters
-            ]).u32(int(group["exp"])).vector_strings([]).bytes())
+                json.dumps(monster, separators=(",", ":")) for monster in enemies
+            ]).u32(exp).vector_strings([]).bytes())
             return 210, body
 
         if session.char_id is None:

@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from client_config import table
-from pet_config import untrained_hp
+from pet_config import acquisition_skill_pools, untrained_hp
 
 _ROOT = Path(__file__).resolve().parent
 
@@ -92,20 +92,32 @@ def world_map_wild_events() -> dict[int, int]:
 
 
 def resolve_world_map_wild(monster_id: int) -> tuple[dict, int] | None:
-    """Resolve a normal world-map wild encounter without capture privileges."""
+    """Resolve a normal world-map wild encounter drawn from the authored map."""
     configured_ids = set(world_map_wild_events().values())
+    return resolve_wild(monster_id) if monster_id in configured_ids else None
+
+
+def resolve_wild(monster_id: int) -> tuple[dict, int] | None:
     info = table("MonstrosityInfo").get(monster_id)
-    if monster_id not in configured_ids or info is None or not info["level"]:
+    if info is None or not info["level"]:
         return None
     level = int(info["level"][0])
     stage, star = int(info["petStage"]), int(info["petStar"])
     hp = (untrained_hp(int(info["petnumber"]), level, stage, star)
           * int(info["amendmentHP"]) // 1000)
     skill = lambda key: int(info[key][0]) if info[key] else 0
-    return ({"mID": int(info["id"]), "level": level,
+    enemy = {"mID": int(info["id"]), "level": level,
              "skill1": skill("skill1"), "skill2": skill("skill2"),
              "skill3": skill("skill3"), "hp": hp,
-             "petStage": stage, "petStar": star, "skin": 0}, int(info["exp"]))
+             "petStage": stage, "petStar": star, "skin": 0}
+    if info["capture"] > 0:
+        try:
+            acquisition_skill_pools(int(info["petnumber"]))
+        except ValueError:
+            pass
+        else:
+            enemy["canCatch"] = True  # Lua tests for field presence.
+    return enemy, int(info["exp"])
 
 
 @lru_cache(maxsize=1)

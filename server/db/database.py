@@ -737,7 +737,7 @@ class Database:
                 return True
 
     async def start_world_map_quest_wild(self, char_id: int, session_id: str,
-                                         monster_id: int) -> bool:
+                                         monster_id: int, attempts: int = 0) -> bool:
         """Authorize a map wild battle against one active, unlocked event-18 node."""
         from battle_group_config import world_map_node_unlocks, world_map_wild_events
         from quest_config import load_quests
@@ -786,7 +786,8 @@ class Database:
                     await conn.execute(
                         "UPDATE tutorial_battle_sessions SET state='lost',finished_at=now() WHERE battle_id=$1",
                         previous["battle_id"])
-                await self._insert_pve_battle(conn, char_id, session_id, monster_id, 1, monster_id)
+                await self._insert_pve_battle(conn, char_id, session_id, monster_id, 1, monster_id,
+                                              capture_attempts=attempts)
                 return True
 
     async def start_tutorial_wild_battle(self, char_id: int, session_id: str,
@@ -866,19 +867,15 @@ class Database:
         The client serializer calls this field pokemonID and BattleMapMgr
         supplies MonstrosityInfo.petnumber, not the encounter's mID.
         """
+        from battle_group_config import tutorial_wild_requirements
+        from character_values import validate_character_values
         from client_config import table
         from pet_config import starting_skills
         import secrets
 
-        requirements = __import__("battle_group_config").tutorial_wild_requirements()
-        monsters = table("MonstrosityInfo")
-        candidates = {encounter_id: monsters[encounter_id]
-                      for encounter_id in requirements
-                      if encounter_id in monsters
-                      and int(monsters[encounter_id]["petnumber"]) == monster_id}
         item = table("ItemInfo").get(ball_item_id)
         ball = table("PokemonBallInfo").get(ball_item_id)
-        if not candidates or item is None or ball is None or int(item["itemType"]) != 9:
+        if item is None or ball is None or int(item["itemType"]) != 9:
             return None
         template_id = monster_id
         template = table("PokemonInfo").get(template_id)
@@ -895,23 +892,20 @@ class Database:
             raise ValueError("capture roll outside [0,99]")
         async with self.pool.acquire() as conn:
             async with conn.transaction():
-                owner = await conn.fetchval(
-                    "SELECT char_id FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                owner = await conn.fetchrow(
+                    "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
                 if owner is None:
                     return None
                 # Reconnect establishes a new TCP session ID. Resolve the
                 # encounter from its authenticated owner and lock it once.
                 battle = await conn.fetchrow(
                     """SELECT * FROM tutorial_battle_sessions WHERE char_id=$1
-                       AND battle_type=1 AND battle_type_id=ANY($2::integer[])
-                       AND state IN ('started','won')
-                       ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""",
-                    char_id, list(candidates))
-                if battle is None:
+                       ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""", char_id)
+                if (battle is None or battle["battle_type"] not in (1, 2)
+                        or battle["state"] not in ("started", "won")):
                     return None
-                requirement = requirements[int(battle["battle_type_id"])]
-                monster = candidates[int(battle["battle_type_id"])]
-                if int(monster["capture"]) <= 0:
+                monster = table("MonstrosityInfo").get(int(battle["group_id"]))
+                if monster is None or int(monster["petnumber"]) != template_id or int(monster["capture"]) <= 0:
                     return None
                 if battle["captured_pet_uid"] is not None:
                     existing = await conn.fetchrow(
@@ -923,7 +917,14 @@ class Database:
                     return {"caught": True, "pet_uid": int(existing["pet_uid"]),
                             "pet_json": pet_json(existing), "remaining": int(battle["capture_attempts_remaining"]),
                             "rate_bonus": 0, "duplicate": True}
-                if battle["state"] not in ("started", "won") or int(battle["capture_attempts_remaining"]) <= 0:
+                if int(battle["capture_attempts_remaining"]) <= 0:
+                    return None
+                values = owner["game_values"] or {}
+                if isinstance(values, str):
+                    values = json.loads(values)
+                capacity = validate_character_values(["petPacketNum"], values)["petPacketNum"]
+                occupied = await conn.fetchval("SELECT count(*) FROM pets WHERE char_id=$1", char_id)
+                if occupied >= capacity:
                     return None
                 inventory = await conn.fetchrow(
                     "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2 FOR UPDATE",
@@ -967,6 +968,11 @@ class Database:
                     await conn.execute(
                         "UPDATE tutorial_battle_sessions SET captured_pet_uid=$2 WHERE battle_id=$1",
                         battle["battle_id"], pet["pet_uid"])
+                    result.update(pet_uid=int(pet["pet_uid"]), pet_json=serialized)
+                    requirement = (tutorial_wild_requirements().get(int(battle["group_id"]))
+                                   if battle["battle_type"] == 1 else None)
+                    if requirement is None:
+                        return result
                     quest_id = int(requirement["quest_id"])
                     quest = await conn.fetchrow(
                         "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=$2 AND status=0 FOR UPDATE",
@@ -989,35 +995,47 @@ class Database:
                     await conn.execute(
                         "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
                         char_id, quest_id, json.dumps(progress))
-                    result.update(pet_uid=int(pet["pet_uid"]), pet_json=serialized)
                 return result
 
     async def start_adventure_battle(self, char_id: int, session_id: str, adventure_id: int,
-                                     scene_id: int, group_id: int) -> bool:
+                                     scene_id: int, group_id: int, *, battle_type: int = 3,
+                                     attempts: int = 0, disposable_id: int | None = None) -> bool:
         async with self.pool.acquire() as conn:
             async with conn.transaction():
-                active_adventure = await conn.fetchval(
-                    """SELECT adventure_id FROM character_adventures
+                active_adventure = await conn.fetchrow(
+                    """SELECT adventure_id,started_at FROM character_adventures
                        WHERE char_id=$1 AND completed_at IS NULL FOR UPDATE""", char_id)
-                if active_adventure != adventure_id:
+                if active_adventure is None or active_adventure["adventure_id"] != adventure_id:
                     return False
                 await conn.fetchval("SELECT 1 FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                if await conn.fetchval(
+                    """SELECT EXISTS(SELECT 1 FROM tutorial_battle_sessions
+                       WHERE char_id=$1 AND adventure_id=$2 AND battle_type_id=$3 AND battle_type=$4
+                         AND state='won' AND created_at >= $5)""",
+                    char_id, adventure_id, scene_id, battle_type, active_adventure["started_at"]):
+                    return False
+                if disposable_id is not None and await conn.fetchval(
+                    """SELECT 1 FROM adventure_fired_events
+                       WHERE char_id=$1 AND adventure_id=$2 AND event_id=$3""",
+                    char_id, adventure_id, disposable_id):
+                    return False
                 existing = await conn.fetchrow(
-                    """SELECT battle_id,battle_type,battle_type_id,adventure_id
+                    """SELECT battle_id,battle_type,battle_type_id,adventure_id,created_at
                        FROM tutorial_battle_sessions WHERE char_id=$1 AND state='started'
                        ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""", char_id)
                 if existing is not None:
-                    if (int(existing["battle_type"]) == 3
+                    if (int(existing["battle_type"]) == battle_type
                             and int(existing["battle_type_id"]) == scene_id
-                            and int(existing["adventure_id"]) == adventure_id):
+                            and existing["adventure_id"] == adventure_id
+                            and existing["created_at"] >= active_adventure["started_at"]):
                         await conn.execute("UPDATE tutorial_battle_sessions SET session_id=$2 WHERE battle_id=$1",
                                            existing["battle_id"], session_id)
                         return True
                     await conn.execute(
                         "UPDATE tutorial_battle_sessions SET state='lost',finished_at=now() WHERE battle_id=$1",
                         existing["battle_id"])
-                await self._insert_pve_battle(conn, char_id, session_id, group_id, 3, scene_id,
-                                              adventure_id)
+                await self._insert_pve_battle(conn, char_id, session_id, group_id, battle_type, scene_id,
+                                              adventure_id, attempts)
                 return True
 
     async def finish_tutorial_battle(self, char_id: int, session_id: str, won: bool,
@@ -1029,7 +1047,8 @@ class Database:
                 # able to finish the character's active server-issued battle.
                 # The locked state transition still makes the end request one-use.
                 battle = await conn.fetchrow(
-                    """SELECT battle_id,group_id,battle_type,fighter_uids FROM tutorial_battle_sessions
+                    """SELECT battle_id,group_id,battle_type,battle_type_id,adventure_id,fighter_uids
+                       FROM tutorial_battle_sessions
                        WHERE char_id=$1 AND state='started'
                        ORDER BY battle_id DESC LIMIT 1 FOR UPDATE""", char_id)
                 if battle is None or level is None:
@@ -1043,7 +1062,7 @@ class Database:
                 if won:
                     from client_config import table
 
-                    config = "MonstrosityInfo" if battle["battle_type"] == 1 else "MonsterGroupManInfo"
+                    config = "MonstrosityInfo" if battle["battle_type"] in (1, 2) else "MonsterGroupManInfo"
                     group = table(config).get(battle["group_id"])
                     exp = int(group["exp"]) if group else 0
                     if exp and fighters and reported_fighters is not None:
@@ -1067,7 +1086,17 @@ class Database:
                                 char_id, quest.quest_id,
                                 json.dumps([objective.amount for objective in quest.objectives]))
                             tutorial_handled = True
-                    elif battle["battle_type"] == 3:
+                    elif battle["battle_type"] in (2, 3):
+                        from adventure_config import scene_encounter
+
+                        encounter = scene_encounter(
+                            battle["adventure_id"], battle["battle_type_id"], 2 if battle["battle_type"] == 2 else 8)
+                        if encounter and encounter[1] is not None:
+                            await conn.execute(
+                                """INSERT INTO adventure_fired_events(char_id,adventure_id,event_id)
+                                   VALUES ($1,$2,$3) ON CONFLICT DO NOTHING""",
+                                char_id, battle["adventure_id"], encounter[1])
+                    if battle["battle_type"] == 3:
                         await self._advance_configured_battle_objectives(conn, char_id)
                     if battle["battle_type"] == 5 and not tutorial_handled:
                         await self._advance_world_map_trainer_objectives(
@@ -1645,6 +1674,12 @@ class Database:
         """Return the retained adventure ID, including a completed run for ACK retries."""
         return await self.pool.fetchval(
             "SELECT adventure_id FROM character_adventures WHERE char_id=$1", char_id)
+
+    async def fired_adventure_event_ids(self, char_id: int, adventure_id: int) -> set[int]:
+        rows = await self.pool.fetch(
+            "SELECT event_id FROM adventure_fired_events WHERE char_id=$1 AND adventure_id=$2",
+            char_id, adventure_id)
+        return {row["event_id"] for row in rows}
 
     async def record_adventure_events(self, char_id: int, adventure_id: int,
                                      event_ids: list[int]) -> bool:

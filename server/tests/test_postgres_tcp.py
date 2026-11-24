@@ -711,9 +711,38 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((wild_battle.u16(), wild_battle.u8()), (0, 1))
             wild_enemy = json.loads(wild_battle.string())
             self.assertEqual(wild_enemy["mID"], 215)
-            self.assertNotIn("canCatch", wild_enemy)
+            self.assertTrue(wild_enemy["canCatch"])
             self.assertEqual(wild_battle.u32(), 16); wild_battle.u8(); wild_battle.finish()
             await win_battle(pet_uid, 16)
+            wild_template = table("MonstrosityInfo")[215]["petnumber"]
+            await db.pool.execute(
+                "INSERT INTO inventory(char_id,item_id,count) VALUES($1,2,2) "
+                "ON CONFLICT(char_id,item_id) DO UPDATE SET count=EXCLUDED.count", char_id)
+            wrong_capture = await send(15, Writer().u32(999999).u32(2).bytes(), 198)
+            self.assertEqual(wrong_capture.u16(), 303)
+            capture = Writer().u32(wild_template).u32(2).bytes()
+            with patch("secrets.randbelow", return_value=99):
+                self.assertEqual((await send(15, capture, 112)).u8(), 1)
+                msg, body, _ = await receive()
+                attempt = Reader(body)
+                self.assertEqual((msg, attempt.u16(), attempt.u16()), (198, 0, 2))
+            with patch("secrets.randbelow", return_value=0):
+                self.assertEqual((await send(15, capture, 112)).u8(), 1)
+                msg, body, _ = await receive()
+                caught = Reader(body)
+                world_captured_uid = caught.u64()
+                self.assertEqual((msg, json.loads(caught.string())["pokeID"]), (3141, wild_template))
+                msg, body, _ = await receive()
+                result = Reader(body)
+                self.assertEqual((msg, result.u16(), result.u16()), (198, 0, 1))
+            self.assertEqual((await send(15, capture, 112)).u8(), 1)
+            msg, body, _ = await receive()
+            duplicate = Reader(body)
+            self.assertEqual((msg, duplicate.u16(), duplicate.u16()), (198, 0, 1))
+            self.assertEqual(json.loads(duplicate.string())["objID"], world_captured_uid)
+            self.assertEqual(await db.pool.fetchval(
+                "SELECT count(*) FROM wild_battle_capture_attempts WHERE battle_id=("
+                "SELECT max(battle_id) FROM tutorial_battle_sessions WHERE char_id=$1)", char_id), 2)
             wild_progress = await db.pool.fetchval(
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=1503", char_id)
             self.assertEqual(json.loads(wild_progress) if isinstance(wild_progress, str)
@@ -812,6 +841,26 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 entered.finish()
                 if adv_id == 2:
                     self.assertEqual((await send(136, trainer_request, 210)).u16(), 1)
+                if adv_id == 3:
+                    # Wise Arena's one-time cell 111 unwraps via DisposableInfo
+                    # 7 to wild monster 1. Its authored capture count is zero.
+                    self.assertEqual((await send(136, Writer().u32(2).u32(110).u32(0).bytes(), 210)).u16(), 1)
+                    wild_scene = Writer().u32(2).u32(111).u32(0).bytes()
+                    wild = await send(136, wild_scene, 210)
+                    self.assertEqual((wild.u16(), wild.u8()), (0, 1))
+                    wild_pet = json.loads(wild.string())
+                    self.assertEqual(wild_pet["mID"], 1)
+                    self.assertNotIn("canCatch", wild_pet)
+                    self.assertEqual((wild.u32(), wild.u8()), (16, 0))
+                    wild.finish()
+                    await win_battle(pet_uid, 16)
+                    self.assertEqual((await send(136, wild_scene, 210)).u16(), 1)
+                    repeat = await send(2996, Writer().u32(3).bytes(), 3080)
+                    self.assertEqual((repeat.u16(), repeat.u32()), (0, 3))
+                    dismissed = next(event for event in json.loads(repeat.string())["events"]
+                                     if event["sceneID"] == 111)
+                    self.assertEqual((dismissed["type"], dismissed["eventID"]), (0, 0))
+                    self.assertEqual((await send(136, wild_scene, 210)).u16(), 1)
                 cleared = await send(3082, Writer().u16(8).bytes(), 2995)
                 self.assertEqual((cleared.u16(), cleared.u8()), (0, 2))
                 self.assertEqual(json.loads(cleared.string()),

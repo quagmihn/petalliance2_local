@@ -194,6 +194,7 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((ack_id, Reader(ack).i32()), (773, 0))
                 commit = await dispatch(relogin, 400, Writer().u32(10010).bytes())
                 self.assertEqual([msg_id for msg_id, _ in commit], [726, 404])
+                await db.start_adventure(char_id, 1)
                 self.assertTrue(await db.start_adventure_battle(
                     char_id, "formation-isolation", 1, 15, 1))
                 self.assertTrue(await db.finish_tutorial_battle(char_id, "formation-isolation", True))

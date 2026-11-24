@@ -68,14 +68,19 @@ async def create_adventure(session, payload: bytes):
     cells = scene_cells(adventure_id)
     if not cells:
         return 3080, Writer().u16(1).bytes()
-    events = [
-        {
+    fired = await session.db.fired_adventure_event_ids(session.char_id, adventure_id) if session.char_id else set()
+    disposable = client_table("DisposableInfo") if fired else {}
+    events = []
+    for scene in cells:
+        event_id, event_type = scene["event"], scene["eventType"]
+        if event_type == 21 and event_id in fired and event_id in disposable:
+            finished = disposable[event_id]
+            event_id, event_type = finished["finishEvent"], finished["finishEventType"]
+        events.append({
             "sceneID": scene["id"], "flo": scene["floor"],
-            "eventID": scene["event"], "x": scene["eventX"],
-            "y": scene["eventY"], "type": scene["eventType"],
-        }
-        for scene in cells
-    ]
+            "eventID": event_id, "x": scene["eventX"],
+            "y": scene["eventY"], "type": event_type,
+        })
     state = json.dumps({"advID": adventure_id, "events": events, "npcShop": []},
                        ensure_ascii=False, separators=(",", ":"))
     session.current_adventure_id = adventure_id
