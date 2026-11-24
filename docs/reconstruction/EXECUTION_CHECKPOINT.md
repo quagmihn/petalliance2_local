@@ -1,5 +1,169 @@
 # Execution checkpoint
 
+## 2026-11-24 · Panda formation, Wise Arena and Town Market
+
+The official launcher serves HTTP 8080 and TCP 5568 on the Waydroid bridge.
+Both pools verified `monster2_db` as `monster2`. The catalog SHA256 is
+`75ada34ad42be2bf79667c87a8e15f10ab3e5ee828b76653eea51f11e0bc5795`.
+`LOCAL_PAYMENT_SANDBOX=1` and `PAYMENT_PROVIDER=local` are set for the
+private test host.
+
+| Area | Waydroid and PostgreSQL evidence |
+| --- | --- |
+| Sequential tutorial | Android user 11, account 74 and character 6 continued without a seeded quest or reward. Lost Forest and Secret Path retained three crowns each. The character completed the Slash introduction and the free Senior → Supreme sequence. Ledger rows granted item 33066 and Grade A Panda (template 45, UID 36), each at zero cost. |
+| Formation | The guide had selected the first high-rarity Pet, Whittiger. The same-signer APK update now selects template 45. ACK 1756 saved Panda in fighting slot 1 beside Zupedo and moved Whittiger to reserve. Quest 10011 committed. The game restored team power 955 on cold login, fielded Panda in the Selena fight, and persisted its 24 EXP. |
+| Story and map | The official server now recognizes authored finish markers in `story.txt` only after the prerequisite commits. Android received success for story 30000 after 10032. In Wise Arena, Panda cut three obstacles, the party crossed to the authored second floor, beat the configured trainer, and cleared with two crowns (mask 14), 64 character EXP and item 2 ×2. Panda's cumulative EXP was 45 after the second trainer. The gold/chest crown remains unverified. |
+| Ordinary draws | Independent QA user 10 / character 4 completed ordinary Senior free, Skill x1 and Skill x10. Requests 1392 returned success via 1561, animations displayed and the menus remained responsive. Ledger rows 49–51 granted item 212 ×1 and eleven Skill rewards, with 98 and 898 diamond deductions. The resulting diamond balance was 1,938. |
+| Town Market | The auction screen was waiting on missing ACKs 493 and 520. It now receives empty player-listing results and can open the configured Mall. Through the normal Android UI, QA character 4 bought SKU 188 (Normal Essence, item 35) for 20 diamonds. The client displayed Purchase success and 1,918 diamonds. PostgreSQL recorded 1,938 → 1,918 diamonds and 0 → 1 of item 35. The wire sent inventory 112, wallet 473 and success 563. |
+
+After a cold login on character 4, the Bag still showed Normal Essence
+and the ordinary draw items, with the committed 1,918-diamond balance.
+The corresponding screen is `market-qa-bag-cold.png`.
+
+The APK at `dist/monster2_local-guide-runtime.apk` has SHA256
+`3958e0faabf3b7ada03aa913e1db94835d7c0756a898ff07c8660e92ebec12ac`.
+Its signing certificate has SHA256
+`f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a`.
+The archive change was limited to encrypted `GameGuideMgr1.lua` among
+12,655 non-signature entries. Waydroid retained app data. The source
+commits are `f53b47a` (formation), `a72b67e` (story), and `a997cb5`
+(Town Market query responses).
+
+The pre-deployment backup `artifacts/content-continuation-20261124/monster2_db-predeploy.dump`
+has SHA256 `61a0398deee3fb9fce66f64d1e42e7cdd6e8d14d687c586245bce25c4b557561`.
+The dump has 131 TOC entries. An isolated socket-only cluster restored it
+in one transaction, validated 182 public constraints, and matched the COPY
+data across all 18 tables. These changes required no schema migration.
+The post-QA backup has SHA256
+`062d37add773e8cd84c7fde604ee3fe520802c0f815b4db17cdb196392585f71`
+and a readable 131-entry TOC.
+
+The local evidence directory contains the before/after TSV snapshots,
+`sequence-panda.png`, `sequence-panda-correct-selection.png`,
+`sequence-wise-arena-clear-final.png`, ordinary draw screenshots, and
+the machine-readable content registry. Earlier signed APKs referenced in
+this document are stored under `artifacts/dist-cleanup-20261124/archive/`.
+The previous guide APK with a reused filename is
+`monster2_local-guide-runtime-20261122.apk` in that archive.
+
+The post-cleanup suite passed all **119 tests** on `monster2_test_db`.
+`dist` is 719 MiB and contains the active APK, build-base APK, local
+signing keystore, and fresh-install OBB. The cleanup moved 16 historical
+APKs and the overlay directory to the local archive and removed 41
+generated files totaling 9,150,425,194 bytes. The manifest and per-file
+actions are in `artifacts/dist-cleanup-20261124/result.json`. The installed
+APK signature, ZIP alignment, package ID, and SHA256 were verified again.
+
+## 2026-11-22 · Sequential tutorial, inventory and Adventure recovery
+
+The official launcher serves the project source on HTTP 8080 and TCP 5568.
+Each pool independently verified `monster2_db` as `monster2`. Local checkout
+remained enabled with `LOCAL_PAYMENT_SANDBOX=1` and `PAYMENT_PROVIDER=local`.
+The Gacha catalog SHA256 is
+`75ada34ad42be2bf79667c87a8e15f10ab3e5ee828b76653eea51f11e0bc5795`.
+The installed `com.petalliance2.sea` matched
+`dist/monster2_local-guide-runtime.apk`, SHA256
+`60a285d19f6a819cbed7e6a415e28337c181c96ee8190e2338b7d3c241e28a27`,
+with certificate SHA256
+`f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a`.
+Only the encrypted `GameGuideMgr1.lua` changed among 12,655 non-signature
+entries. The in-place same-signer upgrade preserved app data.
+
+| Area | Evidence |
+| --- | --- |
+| Sequential character | User 11, account 74 and character 6 were created through Waydroid in the November 19 run. This pass resumed the same unseeded character. PostgreSQL recorded Lost Forest mask 15, level 2 and cumulative EXP 60. The map displayed 1/10, one cleared map with three crowns. The player claimed quest 2 through the Quest panel after cold login. |
+| Adventure quest refresh | PostgreSQL had quest 2 at `[1]` while the open client still showed `0/1`. The clear now returns the committed quest rows through 404 after 2995, with existing 473 and 1749. Framed TCP tests verify the exact objective vector and that a retry grants no second reward. |
+| Feed and Enhance | Lost Forest awarded one Exp Potion(S). The player used it through Bag → Pet → Feed and raised Zupedo UID 15 from accumulated EXP 16 to 109, level 2, and displayed power 383 → 412. Cold login restored the new result. The guide now identifies that starter instead of looking for UID 1. The player then used the Enhance button, consuming three cookies and 100 gold. PostgreSQL recorded Stage 1 and the live Pet panel displayed power 439. The transaction now publishes the updated wallet and Bag before ACK 1032. |
+| Prior scripted draw | Independent tutorial checkpoint, user 12, completed both guided free draws, displayed Grade A Panda (template 45, owned UID 18), and finished formation. Its snapshot matched after a cold login. The separate paid x1 and x10 trials used ordinary configured rewards. |
+| Appearance and store | Prior controlled Waydroid profile redeemed item 31049, equipped appearance 1049, changed scene and cold-logged into Town wearing the saved Silver Helmet. Market links for all 90 enabled offers resolve. The latest VIP cap and transaction changes have PostgreSQL/TCP evidence. |
+| Map identity | Lost Forest and Secret Path use different authored `SceneInfo.number` cells with the same environment and dimensions. Prior Android screenshots show both corrected floors and portal clears. The current pass reconfirmed all Lost Forest objectives on the sequential account. The regressed reverse join was also repaired in the machine-readable export. |
+
+The grade and item names come from the target APK. Two local guided supply
+rules fill specific missing progression grants. `AdventureInfo[1]` lists
+item 154 in the preview and Lua dialogue 19 says the enhancement material
+was already acquired. The shipped clear gives only the potion. After
+Lost Forest and a leveled starter, quest 10005 supplies the shortfall up to
+the configured Stage 1 cost (three Milchick Cookies). A saved character in
+10006 can receive the same one-time grant on its next Bag load. The route
+capture guide highlights `BattleCCSB.ballOrder[1]` (ball item 2) and its
+three authored encounters each specify three capture attempts. The
+one-time supply uses those IDs and counts and retains the configured catch
+rate. These are local supply rules, with original grant timing unverified.
+
+The latest suite ran **118 tests** using `monster2_test_db`. No schema
+migration was required for the current fixes. The pre-deployment dump
+`artifacts/content-continuation-20261122/monster2_db-predeploy.dump` has
+SHA256 `e2093a54e344ab8f7853491d1d6e67eef9f9050ae290012f6b9c3d81e97912b7`.
+It restored in one transaction to a separate socket-only cluster under a
+non-superuser role. All 182 public constraints validated and all 18 tables
+matched the dump's COPY data. The local evidence directory contains the
+screenshots, state snapshots and compiled registries. The owner profile
+was excluded from fixture writes.
+
+Source commits `b7d2c83` (Adventure quest refresh and export), `f55e8ca`
+(starter UID), `768ae54` (training material), `33c4997` (Enhance
+notifications), and `e921f3d` (capture supply).
+[Content catalog and exports](CONTENT_REFERENCE_MATRIX.md)
+
+## 2026-11-20 · Battle Pet EXP, authored Adventure IDs and Senior rarity
+
+- Battle create ACK 210 already supplied a configured EXP amount from
+  MonsterGroupManInfo or MonstrosityInfo. Lua rendered it for the fighting
+  cards. The previous handler for 263 marked the battle and quests without
+  updating Pet EXP. The new transaction uses the issued snapshot of
+  fighting UIDs and validates the UID/HP result vector. Support and reserve
+  slots do not receive this reward. The roster and reward come from the
+  database and server configuration. Pet levels and caps share the EXP
+  table semantics used for feeding. Updates 3141 follow the transaction
+  commit and precede ACK 186. Replay against a closed encounter grants
+  nothing. The legacy client protocol carries no global battle nonce.
+- **Waydroid Pet EXP PASS** on QA account 75 / char 7, session
+  `3b4aebcf4067`. The trainer used group 1 and advertised +16.
+  PostgreSQL changed Panda UID 18 and Zupedo UID 17 from Lv1 EXP 0 to
+  Lv1 EXP 16. Both 3141 packets arrived before 186, and Panda's Status
+  tab showed 16/50 before login was restarted. After an official server
+  restart and Android cold login (session `f5c13f74ec88`), the same tab
+  still showed 16/50. The PostgreSQL integration test independently
+  confirms a 44 → 60 crossing to Lv2, reserve/support exclusion,
+  a formation edit after battle issue, and concurrent duplicate rejection.
+- The additive `tutorial_battle_sessions.fighter_uids` column stores the
+  issuance roster. Existing entries keep their historical values. In-flight
+  entries issued before the migration can finish without retroactive EXP
+  when they lack an issuance snapshot. For rollback, use the previous
+  server commit and retain the nullable column and existing player EXP.
+- The Adventure join formerly used a field type from AdventureInfo.
+  The wire cell layout now uses SceneInfo.number, which is the authored
+  Adventure ID. Coverage is 275 of 290 exact grids (previous join 22).
+  Fifteen placeholder maps return 3080/code 1 before persisting a run.
+  The PostgreSQL framed integration passes Adventure 1 → 2 → 3 with
+  synthetic clear masks, distinct wire rewards and independent stars.
+  [Map analysis](MAP_GENERATION_ANALYSIS.md)
+- The production Senior cap is tier 4 in every ordinary draw mode.
+  Its remaining entries are two items at relative weights 1,500 and
+  4,300. The three enabled ordinary pools have eight total rows.
+  Supreme validates configured Pet references through tier 6, while
+  the target pool still only supplies items. The scripted Panda guarantee
+  stays separate. [Rarity and gaps](GACHA_RARITY_MATRIX.md)
+- Independent Pet audit found 191 valid Fight, 3 Material and 58 Fight
+  entries missing basic attack configuration. The 58 resolve only to 0
+  in all three available snapshots. The reference audit still reports
+  426 missing item IDs, 33 Pet IDs, 291 reward IDs and one quest parent.
+  The alternate market offers SKU 203 for item 9986 at one diamond,
+  with incompatible pricing for adjacent products. Target SKU 203
+  stays disabled. [Pet audit](PET_TEMPLATE_MATRIX.md) · [Shop audit](SHOP_CONTENT_COVERAGE.md)
+- **117 tests PASS** on `monster2_test_db`. Code commits are `1a73b04`
+  (EXP), `35864b0` (Senior), `605084d` (Adventure) and `9dfcb4e`
+  (Pet audit). The official launcher runs `9dfcb4e86dd17d8fa49639bf8879ad5458ea8818`
+  using HTTP PID 54044 and TCP PID 54045, both verified as
+  `monster2_db` / `monster2`. Local-only payment remains active.
+- Pre-migration dump SHA256
+  `dc474d5700dea52e496a902f92f81267527a8bfe08a8f542a8604fc711e7d1c5`.
+  The isolated single-transaction restore as a non-superuser role
+  recovered five characters and 33 Pets. The official game data and the
+  owned account were excluded from fixture writes. Installed APK remains
+  SHA256 `5e4360f91bc2d88a9aa3a978c4da357f115b4f6f8ceba85e9a9ed98d541b83a6`.
+  Evidence and backup are under `artifacts/battle-exp-20261120/`.
+
 ## 2026-11-20 · Saved formation, trainer progress and content validation
 
 - The owner trace showed 1755 saved Panda UID 27 in place of Catepii UID 3,

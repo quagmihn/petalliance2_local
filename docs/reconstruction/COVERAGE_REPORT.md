@@ -1,5 +1,35 @@
 # Coverage report
 
+## 2026-11-24 runtime update
+
+The unseeded character completed both scripted draws, deployed Panda,
+continued the authored story, and cleared Wise Arena through two floors
+with two crowns. Ordinary free, x1 and x10 draws were also repeated on the
+current release using the independent QA character. Town Market recovered
+from its loading screen and a configured Mall purchase persisted through
+cold login. See the
+[execution checkpoint](EXECUTION_CHECKPOINT.md) for evidence and limits.
+
+## 2026-11-22 content and runtime checkpoint
+
+The current content export and unresolved links are documented in the
+[content reference matrix](CONTENT_REFERENCE_MATRIX.md). The runtime evidence
+below is scoped to the interaction and fixture listed.
+
+| Scope | DISCOVERED / PARSED | REFERENCES_VALID / IMPLEMENTED | Acceptance |
+| --- | --- | --- | --- |
+| Pets | 252 | 191 usable Fight loadouts, 3 Material; 58 lack an authored basic attack | DATABASE_TESTED for configured acquisition, feeding, Stage, battle EXP and formation. WAYDROID_VERIFIED for the starter, the separate Panda checkpoint and representative progression. |
+| Items | 1,776 | 25 types; 104 unresolved literal icon paths | WAYDROID_VERIFIED for an Adventure EXP potion received, used and restored through Pet state on cold login. Split stacks, general equipment and remaining uses are open. |
+| Equipment and Fashion | 5 character equipment records, 39 Pet equipment templates, 300 appearances, 291 vouchers | All 291 vouchers resolve; instance acquisition and loadouts remain partial | WAYDROID_VERIFIED for Silver Helmet voucher redemption, equip and cold relogin. Equipment instance workflows remain BLOCKED on protocol and source coverage. |
+| Gacha | 3 machines, 17 linked target pools, 27 target entries | Eight enabled ordinary rows after the local Senior rarity cap; all original target awards resolve | The scripted free Panda was WAYDROID_VERIFIED in isolation. Paid modes were verified before the cap change. The cap and live startup validation are DATABASE_TESTED. Original wish and sequence rules remain open. |
+| Shops | 90 Market, 567 CommonShop, 7 Activity, 50 Family offers | All 90 enabled Market references resolve; 493 CommonShop and 62 Adventure NPC offer rows have missing references | DATABASE_TESTED for atomic Market purchasing and cap checks. Prior Waydroid evidence covers capture-ball checkout, local recharge and M-PASS. |
+| Quests | 747 | 72 resolvable rewards, 308 no-award rows, 367 unresolved reward links, one missing parent | DATABASE_TESTED for supported objective adapters and transaction guards. The fresh Waydroid sequence verifies the first Adventure, its quest claim and guided training. |
+| Adventures / battles | 290 Adventures, 22,486 authored cells, 907 trainer groups | 275 exact grids, 15 placeholder layouts fail entry | WAYDROID_VERIFIED for authored Lost Forest and Secret Path portal clears across QA cases. Multi-floor progression and all encounter variants remain open. |
+| Events | 43 activities, 31 sign-ins, 182 stationary awards | References exported for review | Config parsed. Broad eligibility, claims and runtime verification remain open. |
+
+The official source and current APK are recorded in the
+[execution checkpoint](EXECUTION_CHECKPOINT.md). Earlier results follow.
+
 ## 2026-11-20 · Content integrity
 
 | Scope | Tested or evidenced | Open |

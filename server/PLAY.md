@@ -10,6 +10,10 @@ Hosts with different PostgreSQL connection settings can set DATABASE_URL in
 ignored by Git. Local PostgreSQL authentication can supply credentials
 without storing them in the launcher.
 
+On an isolated local host, `LOCAL_PAYMENT_SANDBOX=1` and
+`PAYMENT_PROVIDER=local` in that file enable simulated checkout and M-PASS
+without a payment provider. The files remain optional for ordinary play.
+
 The default ports are HTTP 8080 and TCP 5568. Ctrl+C shuts down both children.
 Run `./server/run_all.sh test` with an explicit DATABASE_URL for
 `monster2_test_db`. Use `./server/run_all.sh play` with `server/.env.play`
@@ -65,9 +69,11 @@ isolated account fixture for ordinary test draws. The patched runtime APK
 sends a replay key. Identical legacy paid requests without a key are rejected
 for eight seconds after a draw.
 
-The formation and guided-trainer release is
-`dist/monster2_local-formation-runtime.apk`, SHA256
-`5e4360f91bc2d88a9aa3a978c4da357f115b4f6f8ceba85e9a9ed98d541b83a6`.
+The current Android release is `dist/monster2_local-guide-runtime.apk`, SHA256
+`3958e0faabf3b7ada03aa913e1db94835d7c0756a898ff07c8660e92ebec12ac`.
+`dist/monster2_patched.apk` is the client build input. The signing keystore
+and fresh-install OBB are also in `dist`. Older releases are archived locally
+under `artifacts/dist-cleanup-20261124/archive/`.
 See the [runtime checkpoint](../docs/reconstruction/EXECUTION_CHECKPOINT.md)
 for the matching official server commit and Android acceptance.
 Keep signed APKs and database backups outside Git.

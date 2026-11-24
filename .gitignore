@@ -21,6 +21,12 @@ __pycache__/
 /artifacts/production-predeploy-20261118/
 /artifacts/gacha-runtime-20261119/
 /artifacts/content-restoration-20261119/
+/artifacts/battle-exp-20261120/
+/artifacts/content-integrity-20261120/
+/artifacts/formation-content-20261120/
+/artifacts/content-continuation-20261122/
+/artifacts/content-continuation-20261124/
+/artifacts/dist-cleanup-20261124/
 /server.txt
 
 /server/.env.production

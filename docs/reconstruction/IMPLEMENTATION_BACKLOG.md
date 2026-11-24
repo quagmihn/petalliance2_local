@@ -1,5 +1,43 @@
 # Implementation backlog
 
+## Next acceptance after the unseeded tutorial replay
+
+1. Complete all Wise Arena pickup cells in one run and verify the third
+   crown. The sequential character reached both floors, used Slash,
+   defeated the trainer and persisted two crowns.
+2. Trace the original first-ten selection sequence outside the guide.
+   The current Senior free and Skill x1/x10 passed in Waydroid.
+   Restore Wish/Dream independently from the ordinary pools and leave
+   unsupported costume/Pet rewards outside enabled catalog selections.
+3. Extend the accepted Town Market checkout beyond Normal Essence.
+   Resolve the missing Adventure NPC supplies and trace VIP thresholds
+   against compatible source data. Continue the owned equipment instance
+   and slot protocol before enabling affected offers.
+4. Resolve missing quest, battle and event dependencies using the generated
+   [reference matrix](CONTENT_REFERENCE_MATRIX.md). The target has 58 Fight
+   templates without a basic attack in the available snapshots.
+5. Trace the Town position broadcast. Motion sends request 45 on
+   `zhucheng_2` and still shows a generic failure because the relay is absent.
+   The current player stayed connected.
+
+## Next acceptance after battle EXP and the authored-scene switch
+
+1. Complete the three-Adventure chain on Android, including portal
+   traversal with the newly mapped Wise Arena floors. A framed TCP
+   sequence verifies IDs, rewards and mask persistence.
+2. Establish source-backed Pet eligibility and odds for the two ordinary
+   Gacha pools. Senior already enforces the Gold cap. The deployed Senior
+   and Supreme pools currently contain only items.
+3. Resolve target-compatible price/config for SKU 203. The alternate row
+   identifies item 9986, while target and alternate currencies/amounts
+   for nearby offers need comparison before any import.
+4. Verify owned equipment instance ID and slot handling against the client.
+   Maintain distinction between a fashion voucher, an owned appearance,
+   and a slotted equipment instance. Continue event/reward reference checks.
+
+See [runtime evidence](EXECUTION_CHECKPOINT.md) and
+[current coverage](CONTENT_COVERAGE.md).
+
 ## Next acceptance cases after formation and trainer progress
 
 1. Repeat the normal encounter after swapping a reserve Pet into the

@@ -17,4 +17,15 @@ persisted through an enabled reward. The authored templates remain readable
 for analysis. Pet UIDs in formation refer to owned records and retain
 level, Stage, EXP, skills, and equipment across a slot change.
 
+## Follow-up across three local config snapshots
+
+`Proto_Pet_Types.lua` defines use type 0 as Fight and 1 as Material.
+Of the 194 valid starting loadouts, 191 belong to Fight and 3 to Material.
+All 58 invalid entries are Fight and classified `MISSING_CONFIGURATION`.
+Every available snapshot resolves their basic-attack pool to skill 0.
+The checked encounter, award, fragment and evolution tables reference none
+of these 58. There is no verified alternate attack to import. No skill
+records were added or changed. Generate the per-template report with
+`python tools/audit_pet_starting_skills.py`.
+
 [Existing Pet inventory audit](PET_CATALOG.md)
