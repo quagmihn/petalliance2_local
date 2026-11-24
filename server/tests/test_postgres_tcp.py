@@ -826,6 +826,13 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await commit_quest(10009))[0].u16(), 0)
             gacha_unlocked = Reader((await receive())[1])
             self.assertEqual((gacha_unlocked.u8(), gacha_unlocked.u32()), (1, 10010))
+            await db.pool.execute(
+                """INSERT INTO quests(char_id,quest_id,status,progress)
+                   VALUES($1,10032,0,'[0]'),($1,30000,0,'[0]')""", char_id)
+            self.assertEqual((await commit_quest(30000))[0].u16(), 1)
+            await db.pool.execute(
+                "UPDATE quests SET status=1,progress='[1]' WHERE char_id=$1 AND quest_id=10032", char_id)
+            self.assertEqual((await commit_quest(30000))[0].u16(), 0)
         finally:
             if writer:
                 writer.close(); await writer.wait_closed()

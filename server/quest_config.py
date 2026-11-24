@@ -124,13 +124,15 @@ def load_quests(path: Path | None = None) -> dict[int, Quest]:
         missing = [child for child in quest.child_ids if child and child not in quests]
         if missing:
             raise QuestConfigError(f"quest {quest.quest_id} references missing children {missing}")
-    # A small number of tutorial guide rows use a zero-target objective as a
-    # client-side walkthrough marker. Keep this protocol meaning in explicit
-    # data, rather than treating every zero-target objective as complete.
+    # NpcDialogueMgr finishes the configured story by sending a quest commit.
+    # The server still requires the active strong quest, its committed parent
+    # and the zero-target objective shape.
+    from client_config import text_table
+
+    marker_ids = {int(row[0]) for row in text_table("story.txt")[1:] if row[0].isdigit()}
     marker_path = Path(__file__).resolve().parent / "config/quest_client_commit_markers.json"
     if marker_path.exists():
         import json
-        marker_ids = {int(value) for value in json.loads(marker_path.read_text())}
-        quests = {qid: (replace(q, client_commit_marker=True)
-                        if qid in marker_ids else q) for qid, q in quests.items()}
-    return quests
+        marker_ids.update(int(value) for value in json.loads(marker_path.read_text()))
+    return {qid: (replace(q, client_commit_marker=True) if qid in marker_ids else q)
+            for qid, q in quests.items()}
