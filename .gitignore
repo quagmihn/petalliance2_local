@@ -27,6 +27,7 @@ __pycache__/
 /artifacts/content-continuation-20261122/
 /artifacts/content-continuation-20261124/
 /artifacts/dist-cleanup-20261124/
+/artifacts/gameplay-runtime-20261124/
 /server.txt
 
 /server/.env.production

@@ -2,14 +2,21 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
-mode="${1:-${GAME_ENV:-production}}"
-case "$mode" in
-    test) MONSTER2_EXPECTED_DB=monster2_test_db ;;
-    play) MONSTER2_EXPECTED_DB=monster2_play_db ;;
-    production) MONSTER2_EXPECTED_DB=monster2_db ;;
-    *) echo "Usage: $0 [test|play|production]" >&2; exit 2 ;;
+profile="${1:-local}"
+case "$profile" in
+    local) mode=production; MONSTER2_EXPECTED_DB=monster2_db ;;
+    test) mode=test; MONSTER2_EXPECTED_DB=monster2_test_db ;;
+    play) mode=play; MONSTER2_EXPECTED_DB=monster2_play_db ;;
+    production) mode=production; MONSTER2_EXPECTED_DB=monster2_db ;;
+    *) echo "Usage: $0 [local|test|play|production]" >&2; exit 2 ;;
 esac
 [[ $# -le 1 ]] || exit 2
+if [[ "$profile" == local ]]; then
+    # Interactive shells and service managers start from the same profile.
+    unset DATABASE_URL MONSTER2_DRAW_CATALOG NEW_QUEST_INFO_PATH \
+        VERSION_FILE GAME_HOST GAME_BIND HTTP_BIND GAME_PORT HTTP_PORT LOCAL_PAYMENT_SANDBOX PAYMENT_PROVIDER
+    source ./config/local-play.env
+fi
 if [[ "$mode" != test && -f ".env.$mode" ]]; then
     # Disable xtrace while reading local credentials.
     restore_trace=false
@@ -20,6 +27,11 @@ if [[ "$mode" != test && -f ".env.$mode" ]]; then
     source "./.env.$mode"
     if "$restore_trace"; then set -x; fi
 fi
+if [[ "$profile" != local ]]; then
+    LOCAL_PAYMENT_SANDBOX=0
+    PAYMENT_PROVIDER=none
+fi
+export LOCAL_PAYMENT_SANDBOX PAYMENT_PROVIDER
 if [[ "$mode" == production && -z "${DATABASE_URL:+set}" ]]; then
     DATABASE_URL='postgresql://monster2@/monster2_db?host=/run/postgresql'
 fi
@@ -36,6 +48,7 @@ if [[ -z "${DATABASE_URL:+set}" ]]; then
     exit 2
 fi
 export DATABASE_URL MONSTER2_EXPECTED_DB GAME_ENV="$mode"
+export NEW_QUEST_INFO_PATH VERSION_FILE
 export MONSTER2_DRAW_CATALOG="${MONSTER2_DRAW_CATALOG:-config/target_draw.json}"
 export GAME_HOST="${GAME_HOST:-192.168.240.1}"
 default_bind=0.0.0.0
@@ -52,6 +65,7 @@ if [[ "$mode" == production && ( -z "${GAME_BIND:-}" || -z "${HTTP_BIND:-}" ) ]]
 fi
 export GAME_BIND="${GAME_BIND:-$default_bind}" HTTP_BIND="${HTTP_BIND:-$default_bind}"
 export GAME_PORT="${GAME_PORT:-5568}" HTTP_PORT="${HTTP_PORT:-8080}"
+export MONSTER2_LAUNCH_PROFILE="$profile"
 python_bin="${PYTHON_BIN:-python}"
 
 for port in "$GAME_PORT" "$HTTP_PORT"; do
@@ -70,45 +84,12 @@ if [[ -n "$listeners" ]]; then
     exit 1
 fi
 
-"$python_bin" -B - <<'PY'
-import asyncio
-import json
-import os
-from db.database import Database
-from local_draw import catalog_report
-from market_config import enabled_offers
-
-async def main():
-    db = await Database.connect()
-    await db.close()
-
-try:
-    path = os.environ["MONSTER2_DRAW_CATALOG"]
-    print("gacha_catalog=" + json.dumps(catalog_report(path), sort_keys=True), flush=True)
-except (OSError, ValueError, KeyError, TypeError) as exc:
-    raise SystemExit(f"Invalid Gacha catalog {path!r}: {exc}. Correct MONSTER2_DRAW_CATALOG before starting.") from None
-
-try:
-    print("market_catalog=" + json.dumps({"enabled_offers": len(enabled_offers())}), flush=True)
-except (OSError, ValueError, KeyError, TypeError) as exc:
-    raise SystemExit(f"Invalid enabled Market catalog: {exc}") from None
-
-try:
-    asyncio.run(main())
-except FileNotFoundError:
-    raise SystemExit(
-        "Database preflight failed: PostgreSQL Unix socket is missing. "
-        "Check that the intended PostgreSQL instance is running and that "
-        "DATABASE_URL identifies its socket directory and port."
-    ) from None
-except Exception as exc:
-    raise SystemExit(f"Database preflight failed ({type(exc).__name__})") from None
-PY
+"$python_bin" -B launcher_preflight.py
 
 revision=$(git rev-parse HEAD)
 dirty=$(git status --porcelain --untracked-files=no)
-printf 'mode=%s commit=%s dirty=%s source=%s http=%s:%s tcp=%s:%s advertised=%s:%s\n' \
-    "$mode" "$revision" "$([[ -z "$dirty" ]] && echo no || echo yes)" "$PWD" \
+printf 'profile=%s mode=%s commit=%s dirty=%s source=%s http=%s:%s tcp=%s:%s advertised=%s:%s\n' \
+    "$profile" "$mode" "$revision" "$([[ -z "$dirty" ]] && echo no || echo yes)" "$PWD" \
     "$HTTP_BIND" "$HTTP_PORT" "$GAME_BIND" "$GAME_PORT" "$GAME_HOST" "$GAME_PORT"
 
 pids=()
