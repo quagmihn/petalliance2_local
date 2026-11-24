@@ -338,6 +338,15 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 "SELECT level,exp FROM pets WHERE char_id=$1 AND pet_uid=$2", char_id, pet_uid)
             self.assertEqual((pet_state["level"], pet_state["exp"]), (2, 108))
 
+            # Town Market blocks input during its initial auction search.
+            own_listings = await send(478, b"", 493)
+            self.assertEqual((own_listings.u16(), own_listings.u8()), (0, 0))
+            own_listings.finish()
+            query = Writer().u32(1).u32(1).u32(0).u32(0).u32(0).u32(6).string("").bytes()
+            results = await send(492, query, 520)
+            self.assertEqual((results.u16(), results.u8()), (0, 0))
+            results.finish()
+
             # Product 201 is configured as one Master Ball for 600 MCash.
             await db.pool.execute("UPDATE characters SET diamond=10000 WHERE char_id=$1", char_id)
             writer.write(frame(577, xor_payload(Writer().u32(201).u32(1).bytes())))

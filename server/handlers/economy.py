@@ -1,8 +1,4 @@
-"""Economy packet handlers.
-
-Catalog-backed transactional purchase and payment delivery are not available
-yet. Return the protocol failure code instead of granting fabricated products.
-"""
+"""Economy handlers for configured purchases, local checkout, and prize draws."""
 from __future__ import annotations
 
 import json
@@ -76,6 +72,30 @@ async def buy_product(session, payload: bytes):
     return reject_unmapped_purchase(session, 481, "CG_BUYPRODUCT_REQ", 471,
                                     "GC_BUYPRODUCT_ACK", product_id=product_id,
                                     count=count)
+
+
+async def get_my_market(session, payload: bytes):
+    Reader(payload).finish()
+    if session.char_id is None:
+        return 493, Writer().u16(1).bytes()
+    # The private server has no player-authored listings. The client reads
+    # configured Commerce and Mall offers separately from MarketInfo.
+    return 493, Writer().u16(0).vector_strings([]).bytes()
+
+
+async def search_market_products(session, payload: bytes):
+    r = Reader(payload)
+    r.u32()  # itemType
+    r.u32()  # itemSubType
+    r.u32()  # itemID
+    r.u32()  # sortType
+    r.u32()  # startIndex
+    r.u32()  # searchNum
+    r.string()  # selectID
+    r.finish()
+    if session.char_id is None:
+        return 520, Writer().u16(1).bytes()
+    return 520, Writer().u16(0).vector_strings([]).bytes()
 
 
 async def buy_market(session, payload: bytes):

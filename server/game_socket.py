@@ -74,6 +74,8 @@ CMD = {
     "change_character_info": 632, "change_character_info_ack": 630,
     "buy_goods": 858, "buy_goods_ack": 1953,
     "buy_product": 481, "buy_product_ack": 471,
+    "get_my_market": 478, "get_my_market_ack": 493,
+    "search_market_products": 492, "search_market_products_ack": 520,
     "buy_market": 577, "buy_market_ack": 563,
     "buy_activity": 595, "buy_activity_ack": 593,
     "buy_mcash": 398, "buy_mcash_ack": 406,
@@ -122,7 +124,7 @@ EXPECTED_ACKS = {
     90: (473, 89),
     3082: (2995, 404, 473, 1749),
     15: (112, 3141, 198), 136: (112, 210), 263: (3141, 186), 1392: (112, 3141, 473, 1561), 1519: (1396,),
-    516: (526, 112, 3141, 2105), 577: (563, 112, 473),
+    516: (526, 112, 3141, 2105), 478: (493,), 492: (520,), 577: (563, 112, 473),
 }
 
 
@@ -182,6 +184,8 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["get_character_values"]: return await player.get_character_values(session, payload)
     if msg_id == CMD["buy_goods"]: return await economy.buy_goods(session, payload)
     if msg_id == CMD["buy_product"]: return await economy.buy_product(session, payload)
+    if msg_id == CMD["get_my_market"]: return await economy.get_my_market(session, payload)
+    if msg_id == CMD["search_market_products"]: return await economy.search_market_products(session, payload)
     if msg_id == CMD["buy_market"]: return await economy.buy_market(session, payload)
     if msg_id == CMD["buy_activity"]: return await economy.buy_activity(session, payload)
     if msg_id == CMD["buy_mcash"]: return await economy.buy_mcash(session, payload)
