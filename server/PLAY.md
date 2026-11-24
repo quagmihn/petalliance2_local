@@ -10,9 +10,9 @@ Hosts with different PostgreSQL connection settings can set DATABASE_URL in
 ignored by Git. Local PostgreSQL authentication can supply credentials
 without storing them in the launcher.
 
-On an isolated local host, `LOCAL_PAYMENT_SANDBOX=1` and
-`PAYMENT_PROVIDER=local` in that file enable simulated checkout and M-PASS
-without a payment provider. The files remain optional for ordinary play.
+On an isolated local host, use `export LOCAL_PAYMENT_SANDBOX=1` and
+`export PAYMENT_PROVIDER=local` in that file to enable simulated checkout
+and M-PASS without a payment provider. The file is optional for ordinary play.
 
 The default ports are HTTP 8080 and TCP 5568. Ctrl+C shuts down both children.
 Run `./server/run_all.sh test` with an explicit DATABASE_URL for
