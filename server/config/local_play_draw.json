@@ -1,0 +1,31 @@
+{
+  "source": "local-play-v1",
+  "machines": {
+    "1": [
+      {"pet_id": 26, "count": 1, "weight": 1250},
+      {"pet_id": 25, "count": 1, "weight": 850},
+      {"pet_id": 16, "count": 1, "weight": 350},
+      {"pet_id": 17, "count": 1, "weight": 100},
+      {"item_id": 2, "count": 3, "weight": 2300},
+      {"item_id": 3, "count": 1, "weight": 1300},
+      {"item_id": 154, "count": 3, "weight": 1500},
+      {"item_id": 35, "count": 2, "weight": 1050},
+      {"item_id": 107, "count": 2, "weight": 800},
+      {"item_id": 10002, "count": 2, "weight": 500}
+    ],
+    "2": [
+      {"pet_id": 28, "count": 1, "weight": 1600},
+      {"pet_id": 20, "count": 1, "weight": 750},
+      {"pet_id": 116, "count": 1, "weight": 250},
+      {"pet_id": 207, "count": 1, "weight": 75},
+      {"item_id": 1, "count": 2, "weight": 3525},
+      {"item_id": 31049, "count": 1, "weight": 2400},
+      {"item_id": 35023, "count": 1, "weight": 1400}
+    ],
+    "3": [
+      {"item_id": 10001, "count": 5, "weight": 6000},
+      {"item_id": 10001, "count": 10, "weight": 3000},
+      {"item_id": 10001, "count": 20, "weight": 1000}
+    ]
+  }
+}

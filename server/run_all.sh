@@ -49,7 +49,7 @@ if [[ -z "${DATABASE_URL:+set}" ]]; then
 fi
 export DATABASE_URL MONSTER2_EXPECTED_DB GAME_ENV="$mode"
 export NEW_QUEST_INFO_PATH VERSION_FILE
-export MONSTER2_DRAW_CATALOG="${MONSTER2_DRAW_CATALOG:-config/target_draw.json}"
+export MONSTER2_DRAW_CATALOG="${MONSTER2_DRAW_CATALOG:-config/local_play_draw.json}"
 export GAME_HOST="${GAME_HOST:-192.168.240.1}"
 default_bind=0.0.0.0
 if [[ "$mode" == production && ( -z "${GAME_BIND:-}" || -z "${HTTP_BIND:-}" ) ]]; then

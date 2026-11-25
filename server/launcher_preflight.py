@@ -28,13 +28,15 @@ def report(label, values):
 def runtime_content():
     server_config = ROOT / "server/config"
     groups = {
-        "pets": ("PokemonInfo.dat", "GeneInfo.dat", "GeneProbabilityInfo.dat", "PetSkillInfo.dat"),
-        "items": ("ItemInfo.dat", "PetPieceInfo.dat", "RewardInfo.dat", "AwardElementInfo.dat"),
+        "pets": ("PokemonInfo.dat", "GeneInfo.dat", "GeneProbabilityInfo.dat", "PetSkillInfo.dat",
+                 "PetAdvanceInfo.dat", "PetEvoInfo.dat", "GlobalConfigAddInfo.dat"),
+        "items": ("ItemInfo.dat", "PetPieceInfo.dat", "RewardInfo.dat", "AwardElementInfo.dat",
+                  "FashionItemInfo.dat", "PokemonBallInfo.dat"),
         "market": ("MarketInfo.dat", "ShopInfo.dat", "ShopPoolInfo.dat"),
         "maps": ("AdventureInfo.dat", "SceneInfo.dat", "FloorRelationInfo.dat", "DisposableInfo.dat",
                  "MonstrosityInfo.dat", "MonsterGroupManInfo.dat", "map_event.txt", "map_node.txt"),
         "events": ("ActivityInfoClient.dat", "SevenDayInfo.dat", "FirstRechargeAwardInfo.dat",
-                   "RewardInfo.dat", "NormalRechargeInfo.dat", "MonthCardRechargeInfo.dat"),
+                   "RewardInfo.dat", "NormalRechargeInfo.dat", "MonthCardRechargeInfo.dat", "firstRecharge.txt"),
         "quests": ("NewQuestInfo.dat", "story.txt"),
     }
     resolved = {}

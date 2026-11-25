@@ -22,6 +22,8 @@ DATABASES = {"production": "monster2_db", "play": "monster2_play_db", "test": "m
 LEGACY_RETRY_SECONDS = 8
 SENIOR_MAX_PET_RARITY = 4
 TARGET_NORMAL = {"source": "target-normal"}
+LOCAL_PLAY_SOURCE = "local-play-v1"
+LOCAL_ITEM_TYPES = {1: {7, 9, 14, 16, 19}, 2: {9, 22}, 3: {2}}
 DRAW_SOURCE_TABLES = ("CapsuleEggInfo", "CapsuleEggAwardInfo", "AwardElementInfo",
                       "ConsumeElementInfo", "ItemInfo", "PokemonInfo", "GeneInfo",
                       "GeneProbabilityInfo")
@@ -86,6 +88,9 @@ def _original_pool(pool_id):
 def parse_catalog(raw, *, complete=False):
     local = json.loads(raw)
     machines = table("CapsuleEggInfo")
+    local_play = isinstance(local, dict) and local.get("source") == LOCAL_PLAY_SOURCE
+    if local_play:
+        local = local.get("machines")
     if local == TARGET_NORMAL:
         local = {str(machine_id): _original_pool(machine["normalEggAwardIndex"])
                  for machine_id, machine in machines.items()}
@@ -120,10 +125,23 @@ def parse_catalog(raw, *, complete=False):
                 raise ValueError(f"invalid local prize for machine {machine_id}")
             if kind == "item" and element_id not in items:
                 raise ValueError(f"invalid local prize for machine {machine_id}: unknown item {element_id}")
+            if kind == "item" and local_play:
+                item = items[element_id]
+                if item["itemType"] not in LOCAL_ITEM_TYPES[machine_id]:
+                    raise ValueError(f"machine {machine_id}: item {element_id} has an incompatible category")
+                if item["itemType"] == 22 and item["paramA"] not in table("FashionItemInfo"):
+                    raise ValueError(f"machine {machine_id}: fashion voucher {element_id} has no appearance")
+                if item["itemType"] == 9 and element_id not in table("PokemonBallInfo"):
+                    raise ValueError(f"machine {machine_id}: item {element_id} has no capture configuration")
             if kind == "pet":
                 if amount != 1:
                     raise ValueError(f"machine {machine_id}: each Pet prize must grant one Pet")
                 acquisition_skill_pools(element_id)
+                if local_play:
+                    rarity = pokemon(element_id)["rare"]
+                    if not ((machine_id == 1 and 1 <= rarity <= 4) or
+                            (machine_id == 2 and 3 <= rarity <= 6)):
+                        raise ValueError(f"machine {machine_id}: Pet {element_id} has an incompatible rarity")
             prizes.append((kind, element_id, amount, weight))
         if complete and sum(prize[3] for prize in prizes) != 10_000:
             raise ValueError(f"machine {machine_id}: weights must sum to 10000")
@@ -164,7 +182,7 @@ def startup_catalog(configured_path):
 def catalog_report(configured_path):
     path, digest, machines = startup_catalog(configured_path)
     guide, goal = tutorial_guide()
-    target_normal = json.loads(path.read_bytes()) == TARGET_NORMAL
+    source = json.loads(path.read_bytes()).get("source")
     return {
         "source": str(path), "sha256": digest,
         "environment": os.getenv("GAME_ENV"), "expected_database": os.getenv("MONSTER2_EXPECTED_DB"),
@@ -175,7 +193,8 @@ def catalog_report(configured_path):
         "effective_weight_sums": {i: sum(prize[3] for prize in machine.prizes)
                                   for i, machine in machines.items()},
         "modes": {i: (["free"] if i in (1, 2) else []) + ["x1", "x10"] for i in machines},
-        "pool_rules": "target-normal-independent" if target_normal else "local-independent",
+        "pool_rules": {TARGET_NORMAL["source"]: "target-normal-independent",
+                       LOCAL_PLAY_SOURCE: "local-play-v1-independent"}.get(source, "local-independent"),
         "source_tables": {name: sha256((CONFIG / f"{name}.dat").read_bytes()).hexdigest()
                           for name in DRAW_SOURCE_TABLES},
         "tutorial": {"quest_id": guide.quest_id, "machine_id": 2, "pet_id": GACHA_GUIDE_PET_ID,

@@ -18,6 +18,31 @@ from protocol import Reader, Writer, frame, xor_payload
 
 
 class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
+    def test_private_play_pools_have_machine_specific_categories_and_weights(self):
+        from collections import Counter
+        from random import Random
+        from client_config import table
+        from local_draw import parse_catalog
+        from pet_config import pokemon
+
+        path, _, machines = startup_catalog("config/local_play_draw.json")
+        for machine_id, expected in ((1, {1, 2, 3, 4}), (2, {3, 4, 5, 6}), (3, set())):
+            machine = machines[machine_id]
+            self.assertEqual({pokemon(prize_id)["rare"] for kind, prize_id, _, _ in machine.prizes
+                              if kind == "pet"}, expected)
+            self.assertEqual(sum(weight for _, _, _, weight in machine.prizes), 10_000)
+            with patch("local_draw.randbelow", side_effect=Random(machine_id).randrange):
+                sample = [award for _ in range(2_000) for award in machine.draw(10)]
+            counts = Counter((a["elementType"], a["elementID"], a["num"]) for a in sample)
+            self.assertEqual(len(counts), len(machine.prizes))
+            for kind, prize_id, qty, weight in machine.prizes:
+                self.assertAlmostEqual(counts[kind, prize_id, qty] / 20_000, weight / 10_000, delta=0.012)
+        self.assertEqual({table("ItemInfo")[i]["itemType"] for _, i, _, _ in machines[3].prizes}, {2})
+        raw = json.loads(path.read_bytes())
+        raw["machines"]["1"][0]["pet_id"] = 207
+        with self.assertRaisesRegex(ValueError, "incompatible rarity"):
+            parse_catalog(json.dumps(raw), complete=True)
+
     def test_official_catalog_is_identical_in_test_play_and_production(self):
         reports = []
         for mode, database in (("test", "monster2_test_db"), ("play", "monster2_play_db"),
