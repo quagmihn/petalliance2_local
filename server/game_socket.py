@@ -11,7 +11,7 @@ import uuid
 from db.database import Database
 from handlers import treasure
 from handlers import character_state
-from handlers import (auth, battle, chat, economy, inventory, map as map_handler,
+from handlers import (auth, battle, chat, economy, events, inventory, map as map_handler,
                       pet, player, territory, world_boss)
 from protocol import (Reader, Writer, frame, read_frame, redact_payload,
                       ProtocolDecodeError, redact_response_payload,
@@ -54,6 +54,7 @@ CMD = {
     "get_achievements": 72, "get_achievements_ack": 74,
     "get_potentials": 69, "get_potentials_ack": 70,
     "get_seven_day_award": 391, "get_seven_day_award_ack": 390,
+    "compound_pet_piece": 83, "compound_pet_piece_ack": 84,
     "get_activities": 154, "get_activities_ack": 152,
     "get_friends": 347, "get_friends_ack": 253,
     "get_friend_detail": 1283, "get_friend_detail_ack": 1261,
@@ -67,6 +68,10 @@ CMD = {
     "get_world_open_time": 412, "get_world_open_time_ack": 410,
     "get_science": 659, "get_science_ack": 651,
     "check_unread_mail": 930, "check_unread_mail_ack": 1077,
+    "list_mail": 978, "list_mail_ack": 274,
+    "get_mail": 288, "get_mail_ack": 305,
+    "claim_mail": 1054, "claim_mail_ack": 1106,
+    "delete_mail": 1114, "delete_mail_ack": 271,
     "get_world_boss": 446, "get_world_boss_ack": 450,
     "quest_list": 785, "quest_list_ack": 26, "quest_list_ntf": 404,
     "quest_commit": 400, "quest_commit_ack": 726,
@@ -117,14 +122,15 @@ EXPECTED_ACKS = {
     1644: (1664,), 1819: (1901,), 501: (498,),
     2075: (2102,), 2121: (2109,), 2098: (2066,),
     1283: (1261,),
-    1038: (112, 473, 1032),
+    1038: (112, 473, 1032), 1302: (112, 3141, 1371),
     2996: (3080,), 3078: (3081, 1749),
     2998: (3079,),
-    4: (5,), 324: (320,), 391: (390,),
+    4: (5,), 83: (262, 3141, 84), 324: (320,), 391: (112, 262, 473, 3141, 390),
+    930: (1077,), 978: (274,), 288: (305,), 1054: (112, 262, 473, 3141, 1106), 1114: (271,),
     90: (473, 89),
     3082: (2995, 404, 473, 1749),
     15: (112, 3141, 198), 136: (112, 210), 263: (3141, 186), 1392: (112, 3141, 473, 1561), 1519: (1396,),
-    516: (526, 112, 3141, 2105), 478: (493,), 492: (520,), 577: (563, 112, 473),
+    516: (526, 112, 262, 473, 3141, 2105), 478: (493,), 492: (520,), 577: (563, 112, 473),
 }
 
 
@@ -146,6 +152,8 @@ class Session:
 
 
 async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, bytes] | None:
+    if msg_id == CMD["compound_pet_piece"]:
+        return await inventory.compound_pet_piece(session, payload)
     # Native CommandL.SYSPING_ACK shares numeric ID 4 with the Lua command
     # CG_FIREADVENTUREEVENT_REQ. The native packet has no body; the gameplay
     # request has an adventure ID and byte-counted event vector.
@@ -154,7 +162,13 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
             return None
         return await map_handler.fire_adventure_events(session, payload)
     if msg_id == CMD["get_seven_day_award"]:
-        return await map_handler.get_seven_day_award(session, payload)
+        return await events.get_seven_day_award(session, payload)
+    if msg_id == CMD["get_activities"]: return await events.get_activities(session, payload)
+    if msg_id == CMD["check_unread_mail"]: return await events.check_unread_mail(session, payload)
+    if msg_id == CMD["list_mail"]: return await events.list_mail(session, payload)
+    if msg_id == CMD["get_mail"]: return await events.update_mail(session, payload, CMD["get_mail_ack"])
+    if msg_id == CMD["claim_mail"]: return await events.update_mail(session, payload, CMD["claim_mail_ack"])
+    if msg_id == CMD["delete_mail"]: return await events.update_mail(session, payload, CMD["delete_mail_ack"])
     if msg_id == CMD["finish_adventure"]:
         return await map_handler.finish_adventure(session, payload)
     if msg_id == CMD["read_info"]:

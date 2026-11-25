@@ -516,7 +516,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             # ID 4 with no payload is the native SYSPING_ACK; it is intentionally
             # one-way. The following request proves the socket remains usable.
             writer.write(frame(4, b"")); await writer.drain()
-            seven_day = await send(391, Writer().u32(1).u32(0).bytes(), 390)
+            seven_day = await send(391, Writer().u32(24).u32(0).bytes(), 390)
             self.assertEqual(seven_day.u16(), 1); seven_day.finish()
             r = await send(227, b"", 225)
             self.assertEqual((r.u16(), r.string()), (0, "[]")); r.finish()

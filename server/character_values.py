@@ -59,6 +59,8 @@ def _expected(key: str):
     if normalized in OBJECT_DEFAULTS: return dict, OBJECT_DEFAULTS[normalized]
     if normalized in BOOLEAN_KEYS: return (bool, int), False
     if normalized in NUMERIC_KEYS: return int, 0
+    if normalized.startswith("seven") and normalized[5:].isdigit():
+        return int, 0
     if normalized.startswith(("buymarketitemnum_", "buymarketitemtime_", "msa_", "aaw_", "weektake", "takeweekawardtime")):
         return int, 0
     return None

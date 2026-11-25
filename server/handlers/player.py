@@ -179,6 +179,8 @@ async def change_character_info(session, payload: bytes):
     if (session.char_id is None or char_id != session.char_id
             or not re.fullmatch(r"[a-z0-9_]{1,64}", normalized)
             or normalized in ("fashion_info", "curfashion")
+            or re.fullmatch(r"seven[0-9]+", normalized)
+            or normalized.startswith("first_recharge_mail_")
             or normalized.startswith(("buymarketitemnum_", "buymarketitemtime_"))):
         return 630, Writer().u16(1).bytes()
     await session.db.set_character_value(session.char_id, normalized, content)

@@ -1,8 +1,9 @@
 import json
 import logging
 
-from protocol import Writer
+from protocol import Reader, Writer
 from client_config import table
+from reward_config import resolve_reward
 
 log = logging.getLogger("game_socket.inventory")
 
@@ -15,6 +16,36 @@ def item_counts_update(counts):
     ]).bytes()
 
 
+def inventory_packets(counts):
+    pieces = table("PetPieceInfo")
+    ordinary, fragments = [], []
+    for item_id, count in counts:
+        if item_id in pieces:
+            fragments.append(json.dumps({"itemID": item_id, "num": count}, separators=(",", ":")))
+        else:
+            ordinary.append((item_id, count))
+    packets = [item_counts_update(ordinary)] if ordinary else []
+    if fragments:
+        packets.append((262, Writer().vector_strings(fragments).bytes()))
+    return packets
+
+
+def reward_packets(state):
+    from handlers.economy import wallet_update
+
+    packets = inventory_packets(state["counts"].items())
+    if state["wallet"] is not None:
+        wallet = state["wallet"]
+        packets.append(wallet_update(wallet, {"level": wallet["level"], "exp": wallet["exp"]}))
+    packets.extend((3141, Writer().u64(json.loads(pet)["objID"]).string(pet).bytes()) for pet in state["pets"])
+    return packets
+
+
+def award_strings(rewards):
+    return [json.dumps({"elementType": reward["kind"], "elementID": reward["id"], "num": reward["num"]},
+                       separators=(",", ":")) for reward in rewards]
+
+
 async def get_items(session, payload: bytes):
     rows = []
     if session.char_id is not None:
@@ -24,19 +55,20 @@ async def get_items(session, payload: bytes):
         )
     # Proto_Item.lua acknowledgement counts items, equips, furniture, skillbooks,
     # and pet pieces; unknown catalog classifications remain zero.
-    total = sum(int(row["count"]) for row in rows)
-    ack = Writer().u16(0).u32(total).u32(0).u32(0).u32(0).u32(0).bytes()
+    pieces = table("PetPieceInfo")
+    fragments = sum(int(row["count"]) for row in rows if row["item_id"] in pieces)
+    total = sum(int(row["count"]) for row in rows) - fragments
+    ack = Writer().u16(0).u32(total).u32(0).u32(0).u32(0).u32(fragments).bytes()
     responses = [(37, ack)]
     for start in range(0, len(rows) or 1, 255):
         batch = rows[start:start + 255]
-        responses.append(item_counts_update((row["item_id"], row["count"]) for row in batch))
+        responses.extend(inventory_packets((row["item_id"], row["count"]) for row in batch)
+                         if batch else [item_counts_update([])])
     return responses
 
 
 async def use_item(session, payload: bytes):
     """Consume a supported configured item and report its committed state."""
-    from protocol import Reader
-
     reader = Reader(payload)
     item_id, pet_uid, target_text, use_count = reader.u32(), reader.u32(), reader.string(), reader.u32()
     reader.finish()
@@ -45,10 +77,11 @@ async def use_item(session, payload: bytes):
         return error
     try:
         item = table("ItemInfo").get(item_id)
-        if item is not None and item["itemType"] == 22:
+        if item is None or item["bUse"] != 1:
+            return error
+        if item["itemType"] == 22:
             fashion_id = item["paramA"]
-            if (pet_uid or use_count != 1 or item["bUse"] != 1
-                    or fashion_id not in table("FashionItemInfo")):
+            if pet_uid or use_count != 1 or fashion_id not in table("FashionItemInfo"):
                 return error
             code, remaining, state = await session.db.redeem_fashion_item(
                 session.char_id, item_id, fashion_id)
@@ -59,8 +92,21 @@ async def use_item(session, payload: bytes):
                 (2105, Writer().string(json.dumps(state, separators=(",", ":"))).bytes()),
                 (526, Writer().u16(0).u32(item_id).u32(remaining).vector_strings([]).bytes()),
             ]
+        if item["itemType"] in (10, 18):
+            if pet_uid or item["paramA"] <= 0 or any(item[k] for k in ("paramB", "paramC", "paramD", "paramE")):
+                return error
+            if item["itemType"] == 10:
+                rewards = [{"kind": "goldCoin", "id": 0, "num": item["paramA"] * use_count}]
+            else:
+                rewards = [resolve_reward(item["paramA"]) for _ in range(use_count)]
+            state = await session.db.exchange_inventory_stack(session.char_id, item_id, use_count, rewards)
+            if state is None:
+                return error
+            remaining = state["counts"][item_id]
+            ack = Writer().u16(0).u32(item_id).u32(remaining).vector_strings(award_strings(rewards))
+            return [*reward_packets(state), (526, ack.bytes())]
         configured = table("GlobalConfigAddInfo")[9]["values"][:-1]
-        if item_id not in configured or item is None or item["itemType"] != 19 or item["bUse"] != 1:
+        if item_id not in configured or item["itemType"] != 19:
             raise ValueError("item is not a configured Pet EXP potion")
         item_exp = int(item["paramA"])
         if item_exp <= 0:
@@ -86,3 +132,29 @@ async def use_item(session, payload: bytes):
         log.warning("item_use_rejected account_id=%s char_id=%s pet_uid=%s item_id=%s reason=%s",
                     getattr(session, "account_id", None), session.char_id, pet_uid, item_id, exc)
         return error
+
+
+async def compound_pet_piece(session, payload: bytes):
+    from pet_config import acquisition_skill_pools
+
+    reader = Reader(payload)
+    piece_id = reader.u32()
+    reader.finish()
+    error = (84, Writer().u16(1).bytes())
+    piece = table("PetPieceInfo").get(piece_id)
+    item = table("ItemInfo").get(piece_id)
+    if session.char_id is None or not piece or piece["num"] <= 0 or not item or item["itemType"] != 15:
+        return error
+    gene = table("GeneInfo").get(piece["pokeID"])
+    if not gene:
+        return error
+    pet_id = gene["petID"]
+    try:
+        acquisition_skill_pools(pet_id)
+    except ValueError:
+        return error
+    result = await session.db.exchange_inventory_stack(
+        session.char_id, piece_id, piece["num"], [{"kind": "pet", "id": pet_id, "num": 1}])
+    if result is None:
+        return error
+    return [*reward_packets(result), (84, Writer().u16(0).bytes())]

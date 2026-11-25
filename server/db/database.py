@@ -1607,6 +1607,148 @@ class Database:
             char_id, item_id, count,
         )
 
+    async def exchange_inventory_stack(self, char_id, item_id, amount, rewards):
+        """Spend an existing stack and grant its configured exchange atomically."""
+        from reward_service import receive_rewards
+
+        if amount <= 0:
+            return None
+        async with self.pool.acquire() as conn, conn.transaction():
+            char = await conn.fetchrow(
+                "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+            if char is None:
+                return None
+            count = await conn.fetchval(
+                "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2 FOR UPDATE",
+                char_id, item_id)
+            if count is None or count < amount:
+                return None
+            remaining = count - amount
+            granted = await receive_rewards(
+                conn, char_id, char["game_values"], rewards, self._grant_character_exp,
+                removed_item=item_id if remaining == 0 else None)
+            if granted is None:
+                return None
+            final = int(granted["counts"].get(item_id, count)) - amount
+            if final:
+                await conn.execute("UPDATE inventory SET count=$3 WHERE char_id=$1 AND item_id=$2",
+                                   char_id, item_id, final)
+            else:
+                await conn.execute("DELETE FROM inventory WHERE char_id=$1 AND item_id=$2", char_id, item_id)
+            granted["counts"][item_id] = final
+            return granted
+
+    async def enhance_innate_skill(self, char_id, pet_uid, slot):
+        """Upgrade the client's shard-only talent/support skills."""
+        from client_config import table
+        from handlers.pet import pet_json
+
+        if not 4 <= slot < 9:
+            return None
+        skills = table("PetSkillInfo")
+        config = table("GlobalConfigAddInfo")
+        async with self.pool.acquire() as conn, conn.transaction():
+            await conn.fetchval("SELECT char_id FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+            pet = await conn.fetchrow("SELECT * FROM pets WHERE char_id=$1 AND pet_uid=$2 FOR UPDATE",
+                                      char_id, pet_uid)
+            if pet is None:
+                return None
+            passives = json.loads(pet["passive_skills_json"])
+            index = slot - 4
+            if not isinstance(passives, list) or index >= len(passives):
+                return None
+            skill_id = passives[index]["paSkillID"]
+            current, target = skills.get(skill_id), skills.get(skill_id + 1)
+            level = skill_id % 10
+            if (not current or not target or not 1 <= level <= 4
+                    or current["skill_A_Type"] not in (7, 8)
+                    or current["skill_A_Type"] != target["skill_A_Type"]
+                    or current["groundpower"] != target["groundpower"]):
+                return None
+            cost = 2 * config[6400 + level]["values"][0] * config[6550 + current["airpower"]]["values"][0]
+            if cost <= 0:
+                return None
+            shard = 10001
+            remaining = await conn.fetchval(
+                """UPDATE inventory SET count=count-$3 WHERE char_id=$1 AND item_id=$2 AND count >= $3
+                   RETURNING count""", char_id, shard, cost)
+            if remaining is None:
+                return None
+            if remaining == 0:
+                await conn.execute("DELETE FROM inventory WHERE char_id=$1 AND item_id=$2", char_id, shard)
+            passives[index]["paSkillID"] = target["id"]
+            updated = await conn.fetchrow(
+                "UPDATE pets SET passive_skills_json=$2::jsonb WHERE pet_uid=$1 RETURNING *",
+                pet_uid, json.dumps(passives))
+            return target["id"], remaining, pet_json(updated)
+
+    async def claim_seven_day_gift(self, char_id, gift_id, open_day, now, rewards):
+        from reward_service import receive_rewards
+
+        key = f"seven{gift_id}"
+        async with self.pool.acquire() as conn, conn.transaction():
+            char = await conn.fetchrow(
+                "SELECT created_at,game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+            if char is None:
+                return None
+            age = now - char["created_at"].timestamp()
+            values = json.loads(char["game_values"])
+            if not (open_day - 1) * 86400 <= age < 7 * 86400 or values.get(key) == 1:
+                return None
+            state = await receive_rewards(conn, char_id, values, rewards, self._grant_character_exp)
+            if state is None:
+                return None
+            await conn.execute(
+                "UPDATE characters SET game_values=game_values || jsonb_build_object($2::text,1) WHERE char_id=$1",
+                char_id, key)
+            return state
+
+    @staticmethod
+    async def _first_recharge_receipt(conn, char_id, begin, end, threshold):
+        return await conn.fetchrow(
+            """SELECT created_at FROM local_recharge_transactions
+               WHERE char_id=$1 AND simulated AND paid_amount >= $2
+                 AND created_at >= to_timestamp($3) AND created_at < to_timestamp($4)
+               ORDER BY created_at,transaction_id LIMIT 1""", char_id, threshold, begin, end)
+
+    async def first_recharge_mail(self, char_id, begin, end, threshold):
+        async with self.pool.acquire() as conn:
+            receipt = await self._first_recharge_receipt(conn, char_id, begin, end, threshold)
+            if receipt is None:
+                return None
+            char = await conn.fetchrow(
+                """SELECT first_charge_claimed,
+                          (game_values->'first_recharge_mail_read' = 'true'::jsonb) AS is_read
+                   FROM characters WHERE char_id=$1
+                     AND game_values->'first_recharge_mail_deleted' IS DISTINCT FROM 'true'::jsonb""", char_id)
+            return dict(char, created_at=receipt["created_at"]) if char else None
+
+    async def mark_first_recharge_mail(self, char_id, *, delete):
+        field = "first_recharge_mail_deleted" if delete else "first_recharge_mail_read"
+        return bool(await self.pool.fetchval(
+            """UPDATE characters SET game_values=game_values || jsonb_build_object($2::text,true)
+               WHERE char_id=$1 AND (NOT $3::boolean OR first_charge_claimed) RETURNING 1""",
+            char_id, field, delete))
+
+    async def claim_first_recharge_mail(self, char_id, now, begin, end, threshold, rewards):
+        from reward_service import receive_rewards
+
+        if not begin <= now < end:
+            return None
+        async with self.pool.acquire() as conn, conn.transaction():
+            char = await conn.fetchrow(
+                "SELECT first_charge_claimed,game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+            receipt = await self._first_recharge_receipt(conn, char_id, begin, end, threshold)
+            if char is None or receipt is None or char["first_charge_claimed"]:
+                return None
+            state = await receive_rewards(conn, char_id, char["game_values"], rewards, self._grant_character_exp)
+            if state is None:
+                return None
+            await conn.execute(
+                """UPDATE characters SET first_charge_claimed=true,
+                   game_values=game_values || '{"first_recharge_mail_read":true}'::jsonb WHERE char_id=$1""", char_id)
+            return state
+
     async def claim_adventure_cell(self, char_id: int, adventure_id: int, floor: int,
                                   map_col: int, map_row: int, rewards: list[dict]) -> list[str] | None:
         """Atomically grant a configured map-cell reward once and retain its ACK payload."""

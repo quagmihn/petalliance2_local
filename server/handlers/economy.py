@@ -99,7 +99,7 @@ async def search_market_products(session, payload: bytes):
 
 
 async def buy_market(session, payload: bytes):
-    from handlers.inventory import item_counts_update
+    from handlers.inventory import inventory_packets
     from market_config import enabled_offers
 
     r = Reader(payload); product_id, count = r.u32(), r.u32(); r.finish()
@@ -119,8 +119,7 @@ async def buy_market(session, payload: bytes):
         return ack
     if purchase is None:
         return ack
-    notifications = []
-    notifications.append(item_counts_update([(purchase["item_id"], purchase["item_count"])]))
+    notifications = inventory_packets([(purchase["item_id"], purchase["item_count"])])
     notifications.append(wallet_update(purchase["character"], purchase["counters"]))
     notifications.append((563, Writer().u16(0).bytes()))
     log.info("market_purchase char_id=%s market_id=%s item_id=%s count=%s cost=%s currency=%s",
@@ -320,8 +319,19 @@ async def pet_evolve(session, payload: bytes, ack_id: int):
 
 
 async def pet_skill_level(session, payload: bytes):
-    r = Reader(payload); r.u32(); r.u32(); r.finish()
-    return 1371, Writer().u16(1).bytes()
+    from handlers.inventory import item_counts_update
+
+    r = Reader(payload)
+    pet_uid, slot = r.u32(), r.u32()
+    r.finish()
+    state = (await session.db.enhance_innate_skill(session.char_id, pet_uid, slot)
+             if session.char_id is not None else None)
+    if state is None:
+        return 1371, Writer().u16(1).bytes()
+    new_skill, remaining, pet = state
+    return [item_counts_update([(10001, remaining)]),
+            (3141, Writer().u64(pet_uid).string(pet).bytes()),
+            (1371, Writer().u16(0).u32(pet_uid).u32(slot).u32(new_skill).bytes())]
 
 
 async def pet_equip_strengthen(session, payload: bytes):

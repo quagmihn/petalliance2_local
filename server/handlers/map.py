@@ -33,13 +33,11 @@ EMPTY_STARTUP_ACKS = {
     63: (62, lambda: Writer().u16(0).u8(0).bytes()),                             # VIP awards
     72: (74, lambda: Writer().u16(0).u8(0).bytes()),                             # pokemon achievements
     69: (70, lambda: Writer().u16(0).u8(0).bytes()),                             # potentials
-    154: (152, lambda: Writer().u16(0).string("{}").bytes()),                   # activities
     347: (253, lambda: Writer().u16(0).u32(0).bytes()),                          # friends
     2999: (2997, lambda: Writer().u16(0).u32(0).string("").bytes()),             # current adventure
     3104: (3106, lambda: Writer().i32(0).string("").i32(0).u8(0).u32(1).bytes()), # month card
     412: (410, lambda: Writer().u16(0).u64(0).bytes()),                           # world open time
     659: (651, lambda: Writer().u16(0).u8(0).u8(0).u8(0).string("").bytes()),    # science data
-    930: (1077, lambda: Writer().u16(0).u16(0).u16(0).bytes()),                   # unread mail
     446: (450, lambda: Writer().u16(0).u32(0).u32(0).u32(0).u32(0).u32(0).bytes()), # world boss
     785: (26, lambda: Writer().u16(0).u32(0).bytes()),                            # quest list
 }
@@ -170,20 +168,6 @@ async def fire_adventure_events(session, payload: bytes):
                                                      sorted(set(event_ids))):
         return 5, Writer().u16(1).bytes()
     return 5, Writer().u16(0).bytes()
-
-
-async def get_seven_day_award(session, payload: bytes):
-    """Reject award claims until a configured catalog/transaction exists.
-
-    Proto_Item.lua defines a WORD status and parses an award vector only on
-    success. Returning ERROR_FAIL releases the client callback without
-    fabricating a reward or leaving the socket pending.
-    """
-    r = Reader(payload)
-    r.u32()  # sevenDayID
-    r.u32()  # selectIndex
-    r.finish()
-    return 390, Writer().u16(1).bytes()
 
 
 async def finish_adventure(session, payload: bytes):
