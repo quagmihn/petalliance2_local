@@ -44,7 +44,7 @@ SearchingMgr = {
     Lock_monsterAt = function() end,
 }
 SearchingUIMgr = {TurnToBlock = function() end}
-SceneMgr = {getRunningScene = function() return node end}
+SceneMgr = {getRunningScene = node}
 LuaSqlite = {getLanguageByKey = function(value) return value end}
 Proto = {BTT_ADVENTURE_MONSTER_MAN_GROUP = 3}
 CSResourceMgr = {clickEventBindingByNode = function(_, callback) clicked = callback end}

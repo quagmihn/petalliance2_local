@@ -956,7 +956,7 @@ end
 function AdvCharMgr.activateTrainersWhileNoBattle(char)
     local isDisappear = SearchingMgr.itemTypeTable[char.info.pos].disappear
     if isDisappear == 1 then
-        SceneMgr.getRunningScene():performWithDelay(function()
+        SceneMgr.getRunningScene:performWithDelay(function()
             AdvCharMgr.activateAllTrainer()
         end,0.5)
     else
@@ -1126,7 +1126,7 @@ function AdvCharMgr.battle_(char)
 
             SearchingMgr.eventStateInfoTable[path[currP]] = 2 --战斗触发
             
-            SceneMgr.getRunningScene():performWithDelay(function()
+            SceneMgr.getRunningScene:performWithDelay(function()
                 
                 -- 千层塔PVP战斗
                 if SearchingMgr.eventInfoTable[char.info.pos] == LtEventOption.EVENT_OTHERTRAINER then
