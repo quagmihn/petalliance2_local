@@ -23,9 +23,13 @@
       {"item_id": 35023, "count": 1, "weight": 1400}
     ],
     "3": [
-      {"item_id": 10001, "count": 5, "weight": 6000},
-      {"item_id": 10001, "count": 10, "weight": 3000},
-      {"item_id": 10001, "count": 20, "weight": 1000}
+      {"item_id": 10001, "count": 5, "weight": 3500},
+      {"item_id": 10001, "count": 10, "weight": 1800},
+      {"item_id": 10001, "count": 20, "weight": 700},
+      {"item_id": 20171, "count": 1, "weight": 1200},
+      {"item_id": 20230, "count": 1, "weight": 1100},
+      {"item_id": 20307, "count": 1, "weight": 1200},
+      {"item_id": 20043, "count": 1, "weight": 500}
     ]
   }
 }

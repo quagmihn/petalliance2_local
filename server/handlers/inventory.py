@@ -4,6 +4,7 @@ import logging
 from protocol import Reader, Writer
 from client_config import table
 from reward_config import resolve_reward
+from skill_config import skill_book
 
 log = logging.getLogger("game_socket.inventory")
 
@@ -16,17 +17,21 @@ def item_counts_update(counts):
     ]).bytes()
 
 
-def inventory_packets(counts):
+def inventory_packets(counts, *, initial=False):
     pieces = table("PetPieceInfo")
-    ordinary, fragments = [], []
+    ordinary, fragments, books = [], [], []
     for item_id, count in counts:
         if item_id in pieces:
             fragments.append(json.dumps({"itemID": item_id, "num": count}, separators=(",", ":")))
+        elif skill_book(item_id):
+            books.append(json.dumps({"itemID": item_id, "num": count}, separators=(",", ":")))
         else:
             ordinary.append((item_id, count))
     packets = [item_counts_update(ordinary)] if ordinary else []
     if fragments:
         packets.append((262, Writer().vector_strings(fragments).bytes()))
+    if books:
+        packets.append((583 if initial else 133, Writer().vector_strings(books).bytes()))
     return packets
 
 
@@ -57,12 +62,13 @@ async def get_items(session, payload: bytes):
     # and pet pieces; unknown catalog classifications remain zero.
     pieces = table("PetPieceInfo")
     fragments = sum(int(row["count"]) for row in rows if row["item_id"] in pieces)
-    total = sum(int(row["count"]) for row in rows) - fragments
-    ack = Writer().u16(0).u32(total).u32(0).u32(0).u32(0).u32(fragments).bytes()
+    books = sum(int(row["count"]) for row in rows if skill_book(row["item_id"]))
+    total = sum(int(row["count"]) for row in rows) - fragments - books
+    ack = Writer().u16(0).u32(total).u32(0).u32(0).u32(books).u32(fragments).bytes()
     responses = [(37, ack)]
     for start in range(0, len(rows) or 1, 255):
         batch = rows[start:start + 255]
-        responses.extend(inventory_packets((row["item_id"], row["count"]) for row in batch)
+        responses.extend(inventory_packets(((row["item_id"], row["count"]) for row in batch), initial=True)
                          if batch else [item_counts_update([])])
     return responses
 

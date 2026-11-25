@@ -93,7 +93,7 @@ CMD = {
     "buy_npc": 86, "red_heart": 79, "claim_vip": 61,
     "pet_star_up": 1596, "pet_evolve": 1247, "pet_super_evolve": 729,
     "pet_advance_stage": 1038, "pet_advance_stage_ack": 1032,
-    "pet_skill_level": 1302, "pet_equip_strengthen": 561,
+    "pet_skill_change": 1282, "pet_skill_level": 1302, "pet_equip_strengthen": 561,
     "change_channel": 380, "change_channel_ack": 386,
     "chat": 45, "chat_ack": 35,
     "query_self_territory": 1644, "query_self_territory_ack": 1664,
@@ -122,15 +122,15 @@ EXPECTED_ACKS = {
     1644: (1664,), 1819: (1901,), 501: (498,),
     2075: (2102,), 2121: (2109,), 2098: (2066,),
     1283: (1261,),
-    1038: (112, 473, 1032), 1302: (112, 3141, 1371),
+    1038: (112, 473, 1032), 1282: (133, 3141, 1369), 1302: (112, 133, 3141, 1371),
     2996: (3080,), 3078: (3081, 1749),
     2998: (3079,),
-    4: (5,), 83: (262, 3141, 84), 324: (320,), 391: (112, 262, 473, 3141, 390),
-    930: (1077,), 978: (274,), 288: (305,), 1054: (112, 262, 473, 3141, 1106), 1114: (271,),
+    4: (5,), 83: (262, 3141, 84), 324: (320,), 391: (112, 133, 262, 473, 3141, 390),
+    930: (1077,), 978: (274,), 288: (305,), 1054: (112, 133, 262, 473, 3141, 1106), 1114: (271,),
     90: (473, 89),
     3082: (2995, 404, 473, 1749),
-    15: (112, 3141, 198), 136: (112, 210), 263: (3141, 186), 1392: (112, 3141, 473, 1561), 1519: (1396,),
-    516: (526, 112, 262, 473, 3141, 2105), 478: (493,), 492: (520,), 577: (563, 112, 473),
+    15: (112, 3141, 198), 136: (112, 210), 263: (3141, 186), 1392: (112, 133, 262, 3141, 473, 1561), 1519: (1396,),
+    516: (526, 112, 133, 262, 473, 3141, 2105), 478: (493,), 492: (520,), 577: (563, 112, 473),
 }
 
 
@@ -218,7 +218,8 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["pet_advance_stage"]: return await pet.advance_stage(session, payload)
     if msg_id == CMD["pet_evolve"]: return await economy.pet_evolve(session, payload, 777)
     if msg_id == CMD["pet_super_evolve"]: return await economy.pet_evolve(session, payload, 728)
-    if msg_id == CMD["pet_skill_level"]: return await economy.pet_skill_level(session, payload)
+    if msg_id == CMD["pet_skill_change"]: return await economy.pet_skill_action(session, payload, 1369)
+    if msg_id == CMD["pet_skill_level"]: return await economy.pet_skill_action(session, payload, 1371)
     if msg_id == CMD["pet_equip_strengthen"]: return await economy.pet_equip_strengthen(session, payload)
     if msg_id == CMD["get_finished_adventures"]: return await map_handler.get_finished_adventures(session, payload)
     if msg_id == CMD["create_adventure"]: return await map_handler.create_adventure(session, payload)

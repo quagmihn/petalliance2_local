@@ -216,7 +216,7 @@ async def recharge_test(session, payload: bytes):
 
 
 async def capsule_egg(session, payload: bytes):
-    from handlers.inventory import item_counts_update
+    from handlers.inventory import inventory_packets
     from local_draw import configured_catalog, execute
 
     failure = 1561, Writer().u16(1).bytes()
@@ -250,7 +250,7 @@ async def capsule_egg(session, payload: bytes):
     if result is None:
         return 1561, Writer().u16(code).bytes()
     awards, wallet, item_counts, pets = result
-    notifications = [item_counts_update(item_counts.items())] if item_counts else []
+    notifications = inventory_packets(item_counts.items())
     # Pet state precedes the result. The result carries the same serialized
     # detail with the committed ID for the result card and Pet animation.
     notifications.extend(
@@ -318,20 +318,21 @@ async def pet_evolve(session, payload: bytes, ack_id: int):
     return ack_id, Writer().u16(1).bytes()
 
 
-async def pet_skill_level(session, payload: bytes):
-    from handlers.inventory import item_counts_update
+async def pet_skill_action(session, payload: bytes, ack_id: int):
+    from handlers.inventory import inventory_packets
 
     r = Reader(payload)
     pet_uid, slot = r.u32(), r.u32()
+    book_id = r.u32() if ack_id == 1369 else None
     r.finish()
-    state = (await session.db.enhance_innate_skill(session.char_id, pet_uid, slot)
+    state = (await session.db.manage_pet_skill(session.char_id, pet_uid, slot, book_id)
              if session.char_id is not None else None)
     if state is None:
-        return 1371, Writer().u16(1).bytes()
-    new_skill, remaining, pet = state
-    return [item_counts_update([(10001, remaining)]),
+        return ack_id, Writer().u16(1).bytes()
+    new_skill, counts, pet = state
+    return [*inventory_packets(counts.items()),
             (3141, Writer().u64(pet_uid).string(pet).bytes()),
-            (1371, Writer().u16(0).u32(pet_uid).u32(slot).u32(new_skill).bytes())]
+            (ack_id, Writer().u16(0).u32(pet_uid).u32(slot).u32(new_skill).bytes())]
 
 
 async def pet_equip_strengthen(session, payload: bytes):

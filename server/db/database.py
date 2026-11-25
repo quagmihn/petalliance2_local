@@ -1638,49 +1638,57 @@ class Database:
             granted["counts"][item_id] = final
             return granted
 
-    async def enhance_innate_skill(self, char_id, pet_uid, slot):
-        """Upgrade the client's shard-only talent/support skills."""
+    async def manage_pet_skill(self, char_id, pet_uid, slot, book_id=None):
+        """Validate and commit the slot change and its costs together."""
         from client_config import table
         from handlers.pet import pet_json
+        from skill_config import replacement_skill, skill_book, skill_upgrade_costs
 
-        if not 4 <= slot < 9:
+        if not 0 <= slot < 9:
             return None
         skills = table("PetSkillInfo")
-        config = table("GlobalConfigAddInfo")
         async with self.pool.acquire() as conn, conn.transaction():
             await conn.fetchval("SELECT char_id FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
             pet = await conn.fetchrow("SELECT * FROM pets WHERE char_id=$1 AND pet_uid=$2 FOR UPDATE",
                                       char_id, pet_uid)
             if pet is None:
                 return None
-            passives = json.loads(pet["passive_skills_json"])
-            index = slot - 4
-            if not isinstance(passives, list) or index >= len(passives):
+            active = json.loads(pet["skills_json"])
+            passive = json.loads(pet["passive_skills_json"])
+            if len(active) != 4 or slot >= 4 + len(passive):
                 return None
-            skill_id = passives[index]["paSkillID"]
-            current, target = skills.get(skill_id), skills.get(skill_id + 1)
-            level = skill_id % 10
-            if (not current or not target or not 1 <= level <= 4
-                    or current["skill_A_Type"] not in (7, 8)
-                    or current["skill_A_Type"] != target["skill_A_Type"]
-                    or current["groundpower"] != target["groundpower"]):
+            if book_id is None:
+                skill_id = active[slot] if slot < 4 else passive[slot - 4]["paSkillID"]
+                current, target = skills.get(skill_id), skills.get(skill_id + 1)
+                costs = skill_upgrade_costs(current, target) if current else None
+            else:
+                book = skill_book(book_id)
+                if book is None or not replacement_skill(pet["pet_template_id"], slot, active, passive, *book):
+                    return None
+                target = book[1]
+                costs = {book_id: 1}
+            if not costs or any(cost <= 0 for cost in costs.values()):
                 return None
-            cost = 2 * config[6400 + level]["values"][0] * config[6550 + current["airpower"]]["values"][0]
-            if cost <= 0:
+            owned = {row["item_id"]: row["count"] for row in await conn.fetch(
+                """SELECT item_id,count FROM inventory WHERE char_id=$1
+                   AND item_id=ANY($2::integer[]) ORDER BY item_id FOR UPDATE""", char_id, list(costs))}
+            if any(owned.get(item_id, 0) < cost for item_id, cost in costs.items()):
                 return None
-            shard = 10001
-            remaining = await conn.fetchval(
-                """UPDATE inventory SET count=count-$3 WHERE char_id=$1 AND item_id=$2 AND count >= $3
-                   RETURNING count""", char_id, shard, cost)
-            if remaining is None:
-                return None
-            if remaining == 0:
-                await conn.execute("DELETE FROM inventory WHERE char_id=$1 AND item_id=$2", char_id, shard)
-            passives[index]["paSkillID"] = target["id"]
+            counts = {item_id: owned[item_id] - cost for item_id, cost in costs.items()}
+            for item_id, remaining in counts.items():
+                if remaining:
+                    await conn.execute("UPDATE inventory SET count=$3 WHERE char_id=$1 AND item_id=$2",
+                                       char_id, item_id, remaining)
+                else:
+                    await conn.execute("DELETE FROM inventory WHERE char_id=$1 AND item_id=$2", char_id, item_id)
+            if slot < 4:
+                active[slot] = target["id"]
+            else:
+                passive[slot - 4]["paSkillID"] = target["id"]
             updated = await conn.fetchrow(
-                "UPDATE pets SET passive_skills_json=$2::jsonb WHERE pet_uid=$1 RETURNING *",
-                pet_uid, json.dumps(passives))
-            return target["id"], remaining, pet_json(updated)
+                "UPDATE pets SET skills_json=$2::jsonb,passive_skills_json=$3::jsonb WHERE pet_uid=$1 RETURNING *",
+                pet_uid, json.dumps(active), json.dumps(passive))
+            return target["id"], counts, pet_json(updated)
 
     async def claim_seven_day_gift(self, char_id, gift_id, open_day, now, rewards):
         from reward_service import receive_rewards

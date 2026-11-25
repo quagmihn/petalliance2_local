@@ -37,7 +37,7 @@ class LocalDrawTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(counts), len(machine.prizes))
             for kind, prize_id, qty, weight in machine.prizes:
                 self.assertAlmostEqual(counts[kind, prize_id, qty] / 20_000, weight / 10_000, delta=0.012)
-        self.assertEqual({table("ItemInfo")[i]["itemType"] for _, i, _, _ in machines[3].prizes}, {2})
+        self.assertEqual({table("ItemInfo")[i]["itemType"] for _, i, _, _ in machines[3].prizes}, {1, 2})
         raw = json.loads(path.read_bytes())
         raw["machines"]["1"][0]["pet_id"] = 207
         with self.assertRaisesRegex(ValueError, "incompatible rarity"):

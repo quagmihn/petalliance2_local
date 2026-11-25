@@ -94,7 +94,7 @@ class ItemEventRewards(unittest.IsolatedAsyncioTestCase):
                VALUES($1,45,$2::jsonb,$3::jsonb) RETURNING pet_uid""",
             self.char_id, json.dumps(skills), json.dumps(passive))
         await self.db.grant_item(self.char_id, 10001, 42)
-        self.assertEqual(await self.send(1302, Writer().u32(uid).u32(0).bytes()), [(1371, b"\x01\x00")])
+        self.assertEqual(await self.send(1302, Writer().u32(uid).u32(3).bytes()), [(1371, b"\x01\x00")])
         request = Writer().u32(uid).u32(7).bytes()
         result = await self.send(1302, request)
         self.assertEqual([msg for msg, _ in result], [112, 3141, 1371])
@@ -104,6 +104,47 @@ class ItemEventRewards(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.send(1302, request), [(1371, b"\x01\x00")])
         stored = await self.db.pool.fetchval("SELECT passive_skills_json FROM pets WHERE pet_uid=$1", uid)
         self.assertEqual(json.loads(stored)[3]["paSkillID"], 3762)
+
+    async def test_skill_books_partition_on_login_and_learn_and_upgrade_atomically(self):
+        from pet_config import starting_skills
+
+        skills, passive = starting_skills(26)
+        uid = await self.db.pool.fetchval(
+            """INSERT INTO pets(char_id,pet_template_id,skills_json,passive_skills_json)
+               VALUES($1,26,$2::jsonb,$3::jsonb) RETURNING pet_uid""",
+            self.char_id, json.dumps(skills), json.dumps(passive))
+        for book, qty in ((20171, 2), (20307, 1), (20043, 1)):
+            await self.db.grant_item(self.char_id, book, qty)
+        self.assertEqual([msg for msg, _ in await self.send(59)], [37, 583])
+        bad = Writer().u32(uid).u32(2).u32(20307).bytes()
+        self.assertEqual(await self.send(1282, bad), [(1369, b"\x01\x00")])
+        self.assertEqual(await self.stack(20307), 1)
+        request = Writer().u32(uid).u32(2).u32(20171).bytes()
+        learned = await asyncio.gather(self.send(1282, request), self.send(1282, request))
+        result = next(result for result in learned if len(result) > 1)
+        self.assertEqual([msg for msg, _ in result], [133, 3141, 1369])
+        ack = Reader(result[-1][1])
+        self.assertEqual((ack.u16(), ack.u32(), ack.u32(), ack.u32()), (0, uid, 2, 1711))
+        self.assertIn([(1369, b"\x01\x00")], learned)
+        self.assertEqual(await self.stack(20171), 1)
+        upgrade = Writer().u32(uid).u32(2).bytes()
+        await self.db.grant_item(self.char_id, 10001, 14)
+        self.assertEqual(await self.send(1302, upgrade), [(1371, b"\x01\x00")])
+        self.assertEqual((await self.stack(10001), await self.stack(20171)), (14, 1))
+        await self.db.grant_item(self.char_id, 10001)
+        result = await self.send(1302, upgrade)
+        self.assertEqual([msg for msg, _ in result], [112, 133, 3141, 1371])
+        ack = Reader(result[-1][1])
+        self.assertEqual((ack.u16(), ack.u32(), ack.u32(), ack.u32()), (0, uid, 2, 1712))
+        self.assertEqual((await self.stack(10001), await self.stack(20171)), (0, 0))
+        for slot, book, new_skill in ((3, 20043, 431), (5, 20307, 3071)):
+            result = await self.send(1282, Writer().u32(uid).u32(slot).u32(book).bytes())
+            self.assertEqual([msg for msg, _ in result], [133, 3141, 1369])
+            ack = Reader(result[-1][1])
+            self.assertEqual((ack.u16(), ack.u32(), ack.u32(), ack.u32()), (0, uid, slot, new_skill))
+        saved = await self.db.pool.fetchrow("SELECT skills_json,passive_skills_json FROM pets WHERE pet_uid=$1", uid)
+        self.assertEqual(json.loads(saved["skills_json"])[2:], [1712, 431])
+        self.assertEqual(json.loads(saved["passive_skills_json"])[1]["paSkillID"], 3071)
 
     async def test_first_recharge_uses_simulated_receipt_and_claims_mail_only_once(self):
         with patch.dict(os.environ, {"GAME_ENV": "test", "LOCAL_PAYMENT_SANDBOX": "1",
@@ -122,7 +163,7 @@ class ItemEventRewards(unittest.IsolatedAsyncioTestCase):
             claim = Writer().string(mail["_id"]).u16(0).bytes()
             results = await asyncio.gather(self.send(1054, claim), self.send(1054, claim))
             granted = next(result for result in results if len(result) > 1)
-            self.assertEqual([msg for msg, _ in granted], [112, 473, 3141, 1106])
+            self.assertEqual([msg for msg, _ in granted], [112, 133, 473, 3141, 1106])
             self.assertIn([(1106, b"\x01\x00")], results)
             wallet = await self.db.pool.fetchrow(
                 "SELECT diamond,first_charge_claimed FROM characters WHERE char_id=$1", self.char_id)

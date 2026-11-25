@@ -16,6 +16,7 @@ from pet_config import acquisition_skill_pools, pokemon
 from quest_config import GACHA_GUIDE_PET_ID, GACHA_GUIDE_QUEST_ID, load_quests
 from reward_config import resolve_award_element
 from reward_service import grant_rewards
+from skill_config import SKILL_BOOK, skill_book
 
 SERVER_ROOT = Path(__file__).resolve().parent
 DATABASES = {"production": "monster2_db", "play": "monster2_play_db", "test": "monster2_test_db"}
@@ -23,7 +24,7 @@ LEGACY_RETRY_SECONDS = 8
 SENIOR_MAX_PET_RARITY = 4
 TARGET_NORMAL = {"source": "target-normal"}
 LOCAL_PLAY_SOURCE = "local-play-v1"
-LOCAL_ITEM_TYPES = {1: {7, 9, 14, 16, 19}, 2: {9, 22}, 3: {2}}
+LOCAL_ITEM_TYPES = {1: {7, 9, 14, 16, 19}, 2: {9, 22}, 3: {SKILL_BOOK, 2}}
 DRAW_SOURCE_TABLES = ("CapsuleEggInfo", "CapsuleEggAwardInfo", "AwardElementInfo",
                       "ConsumeElementInfo", "ItemInfo", "PokemonInfo", "GeneInfo",
                       "GeneProbabilityInfo")
@@ -133,6 +134,8 @@ def parse_catalog(raw, *, complete=False):
                     raise ValueError(f"machine {machine_id}: fashion voucher {element_id} has no appearance")
                 if item["itemType"] == 9 and element_id not in table("PokemonBallInfo"):
                     raise ValueError(f"machine {machine_id}: item {element_id} has no capture configuration")
+                if item["itemType"] == SKILL_BOOK and not skill_book(element_id):
+                    raise ValueError(f"machine {machine_id}: item {element_id} has no valid skill book target")
             if kind == "pet":
                 if amount != 1:
                     raise ValueError(f"machine {machine_id}: each Pet prize must grant one Pet")
