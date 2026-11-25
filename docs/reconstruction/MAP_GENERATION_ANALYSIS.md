@@ -1,5 +1,20 @@
 # Map generation and save boundaries
 
+## Wise Arena floor two
+
+The authored scene contains Trainer scene 96 and disposable scene 111,
+which resolves through event 7 to wild MonstrosityInfo 1. Waydroid
+observed the Trainer step one tile and start its configured fight, then
+finished the separate Bashful fight at scene 111. The one-time event
+is stored against Adventure 3. The run exited through the authored portal
+and received the configured EXP and two balls.
+
+The disposable monster and the Trainer remain distinct encounters.
+The first reports zero capture attempts. World-map capture eligibility
+derives from the linked quest node and the monster's capture count.
+Lost Forest and Secret Path retain their independent authored cell sets,
+Adventure IDs and save records.
+
 Adventure entry 2996 returns ACK 3080 with the Adventure ID and a JSON state
 containing floor-specific cell events and NPC shop rows.
 `SearchingMapMgr.getDataFromServer` accepts those events only for the currently

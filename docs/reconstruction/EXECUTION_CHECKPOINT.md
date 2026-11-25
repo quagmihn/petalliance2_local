@@ -1,5 +1,50 @@
 # Execution checkpoint
 
+## 2026-11-25 · Wise Arena, item rewards, Skill Gacha and launcher parity
+
+The official launcher runs from this repository and its default private
+profile uses `monster2_db` as role `monster2`. The service and ordinary
+`./server/run_all.sh` invocation on gameplay commit `5f9a078` produced
+identical startup identities and HTTP version payloads. Both listeners
+independently checked the database pool, and both runs used
+192.168.240.1:8080 and :5568 with simulated local checkout.
+[Launcher parity evidence](LAUNCHER_PARITY_REPORT.md)
+
+| Verification | What happened |
+| --- | --- |
+| Waydroid, Trainer | QA character 4 entered Wise Arena floor two. The authored Trainer stepped one tile toward the player, issued scene 96 battle, and the party won with the configured 21 Pet EXP. |
+| Waydroid, wild battle | The reported request 136 uses type 2 with scene 111. The old server accepted just Trainer type 3 for Adventure. The new server resolved scene 111 through DisposableInfo 7 and let the client battle Bashful, gain 16 Pet EXP and exit with the configured 64 character EXP and two balls. One-time event 7 persisted. The QA map retained its clear and crown after cold login. |
+| PostgreSQL and TCP, capture | Configured world-map wild encounters accept eligible balls. Tests exercise a miss, a catch, replay without another grant, and the same owned Pet UID. The Wise Arena Bashful encounter has zero capture attempts. An eligible UI capture remains open. |
+| Waydroid, event rewards | QA character 4 claimed the first recharge mail and Seven-Day day 1. The first claim added 640 diamonds, Katty UID 37, ten original Thunderwrath books and a Silver Bag(M). The second claim set `seven1=1` and granted five Whittiger fragments, a potion and a cookie. |
+| Waydroid, Silver Bag | Bag showed success, consumed item 188 and saved 500 silver in `currencies_json.goldCoin`. The old failing item 187 was the small Silver Bag. PostgreSQL tests cover it and configured chest 199. |
+| Waydroid, Skill | QA character 4 paid 98 and 898 diamonds for x1 and x10. The x10 displayed real Jumpkick and passive books. Zupedo UID 6 learned Jumpkick 1711, then upgraded to 1712 after a restart for one book and 15 shards. A related reconnect loop was traced to untyped JSON parameters in request 632 and fixed. |
+| Waydroid, Senior and Supreme | QA character 7 completed free, paid x1 and x10 on both machines through the ordinary launcher. All six ACKs 1561 succeeded. Senior awarded C/B/A Pets, balls, and materials and charged 105,000 gold. Supreme awarded S Pets, Master Balls, and two kinds of fashion vouchers and charged 2,876 diamonds. PostgreSQL recorded draws 58–63 and balances 95,010 gold and 1,124 diamonds. |
+| PostgreSQL, fragments | Five fragments 38012 synthesize one template 26 Pet. Concurrent requests share one available stack and create one Pet. Android synthesis remains open. |
+
+The APK SHA256 is
+`b469bf2b35885edee69427600a31f41bb55c2b92bcae0bbb9f3c7236d00414b6`
+and signing certificate SHA256 is
+`f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a`.
+The installed package matched the signed file. The previous signed APK
+is in the local rollback folder. Gacha catalog SHA256 is
+`30e863eb46d64ff40f5d137cca98685a4993fd1e1495493249555afa74247900`.
+The full suite passed 127 tests with `monster2_test_db`. No migration was
+required. The predeployment dump SHA256 is
+`a11959f8e349f8812cf60cad41d37b1d0cdbef750c9940f72c407f0f0f2bb375`.
+The isolated socket-only restore exited 0, validated 182 constraints
+and restored five characters, 35 Pets, 65 quests and 29 inventory rows.
+
+Code milestones are `42b3e97`, `44a7e58`, `84b883c`, `895fa93`,
+`21bde9b`, `5c879f3`, `049dde9` and `5f9a078`. The local evidence in
+`artifacts/gameplay-runtime-20261124` contains the rollback APK,
+database dump, PostgreSQL snapshots, launcher and TCP logs, and Waydroid
+screenshots including `qa25-a-trainer-detection-one-step.png`,
+`qa25-a-wild-accepted.png`, `qa25-a-wise-clear.png`,
+`qa25-a-seven-day1-claimed.png`, `qa25-b-skill-x10.png` and
+`qa25-final-a-jumpkick-lv2.png`. The Senior and Supreme x10 reward
+screens are `qa25-final-b-senior-rewards.png` and
+`qa25-final-b-supreme-x10.png`. [Remaining work](IMPLEMENTATION_BACKLOG.md)
+
 ## 2026-11-24 · Panda formation, Wise Arena and Town Market
 
 The official launcher serves HTTP 8080 and TCP 5568 on the Waydroid bridge.

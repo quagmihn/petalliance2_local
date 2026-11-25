@@ -10,9 +10,11 @@ Hosts with different PostgreSQL connection settings can set DATABASE_URL in
 ignored by Git. Local PostgreSQL authentication can supply credentials
 without storing them in the launcher.
 
-On an isolated local host, use `export LOCAL_PAYMENT_SANDBOX=1` and
-`export PAYMENT_PROVIDER=local` in that file to enable simulated checkout
-and M-PASS without a payment provider. The file is optional for ordinary play.
+The default `local` profile is defined in `server/config/local-play.env`.
+It enables simulated checkout and M-PASS on the private Waydroid bridge or
+loopback. The optional ignored environment file can configure the database
+connection. Explicit `./server/run_all.sh production` disables checkout
+simulation.
 
 The default ports are HTTP 8080 and TCP 5568. Ctrl+C shuts down both children.
 Run `./server/run_all.sh test` with an explicit DATABASE_URL for
@@ -55,13 +57,13 @@ starting point. They do not exercise the preceding quest or Adventure.
 
 ### Local draw catalog
 
-The official launcher loads `server/config/target_draw.json` in production,
-play and test. It resolves each configured normal group through the packaged
-award and template tables and prints the configuration and asset hashes before
-opening the ports. Ordinary x10 draws use ten selections from the configured
-normal pool. The exact original server's sequence, wish, dream and VIP rules
-remain unverified. Use `MONSTER2_DRAW_CATALOG=config/local_draw.json` to roll
-back to the earlier local pools. Overrides can use an absolute path.
+The launcher defaults to `server/config/local_play_draw.json`. It validates
+reward IDs against the packaged templates and prints configuration and asset
+hashes before opening the ports. Ordinary x10 draws make ten selections from
+the machine's local weighted pool. The exact original server's sequence,
+Wish, Dream and VIP rules remain unverified. Prior catalog definitions remain
+in `server/config`. To select one in an isolated test, set
+`MONSTER2_DRAW_CATALOG` to its server-relative or absolute path.
 
 Active guide 10010 owns a single scripted free Supreme Panda draw after the
 free Senior step. The draw and quest progress share one transaction. Use the
@@ -70,7 +72,7 @@ sends a replay key. Identical legacy paid requests without a key are rejected
 for eight seconds after a draw.
 
 The current Android release is `dist/monster2_local-guide-runtime.apk`, SHA256
-`3958e0faabf3b7ada03aa913e1db94835d7c0756a898ff07c8660e92ebec12ac`.
+`b469bf2b35885edee69427600a31f41bb55c2b92bcae0bbb9f3c7236d00414b6`.
 `dist/monster2_patched.apk` is the client build input. The signing keystore
 and fresh-install OBB are also in `dist`. Older releases are archived locally
 under `artifacts/dist-cleanup-20261124/archive/`.

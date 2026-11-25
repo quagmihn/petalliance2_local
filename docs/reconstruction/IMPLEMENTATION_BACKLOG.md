@@ -1,5 +1,31 @@
 # Implementation backlog
 
+## Next acceptance after Wise Arena and item rewards
+
+- Exercise an authored capture node in Waydroid. The recorded Wise Arena
+  Bashful cell is a fight with zero capture attempts. Use the eligible
+  world-map node for quest 1503 or an unfinished route capture on a QA
+  character. Also replay the direct Trainer tap while standing adjacent,
+  test rejection recovery in the APK, and check defeated-cell rendering
+  after a fresh entry.
+- Trace the distinct Golden Chest flow from TreasureBoxInfo and
+  requests 229, 285 and 318. The item-use failure in the old log was
+  Silver Bag(S). Four Symbols and ordinary gift chest previews use
+  RewardInfo and should be tested separately from Team Treasure.
+- Verify fragment synthesis and ordinary skill learning, replacement and
+  enhancement in the Android bag and Pet screens, then cold-relogin.
+  Continue with the separate skill-book crafting and education protocols.
+- Reconstruct mount and furniture acquisition before enabling those
+  prizes. Find evidence for ordinary first-ten, guarantees, Wish,
+  Dream and membership modifiers before changing the local draw rules.
+- Continue Seven-Day progress and purchase categories, daily recharge
+  promotions, Pet equipment and late Adventure props. Define accepted
+  rewards from the packaged records for each handler before enabling it.
+- Trace the Town position relay. The client periodically sends request
+  45 with channel 0 / `zhucheng_2` and a position object. ACK 35 returns
+  code 1 because the relay is absent. Its repeated red notice is separate
+  from the fixed Wise Arena battle error and from successful reward claims.
+
 ## Next acceptance after the unseeded tutorial replay
 
 1. Complete all Wise Arena pickup cells in one run and verify the third
