@@ -1586,7 +1586,7 @@ class Database:
     async def set_character_value(self, char_id: int, key: str, value: str) -> None:
         async with self.pool.acquire() as conn:
             result = await conn.execute(
-                "UPDATE characters SET game_values=game_values || jsonb_build_object($2,$3) "
+                "UPDATE characters SET game_values=game_values || jsonb_build_object($2::text,$3::text) "
                 "WHERE char_id=$1", char_id, key.lower(), value,
             )
             if result.endswith(" 0"):

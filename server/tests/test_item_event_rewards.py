@@ -171,3 +171,11 @@ class ItemEventRewards(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await self.stack(20456), await self.stack(188)), (10, 1))
             self.assertEqual(await self.db.pool.fetchval(
                 "SELECT count(*) FROM pets WHERE char_id=$1 AND pet_template_id=208", self.char_id), 1)
+
+    async def test_client_skill_task_progress_updates_without_database_type_error(self):
+        task = Writer().u32(self.char_id).string("sevenDayCompleteTask").string("72").bytes()
+        self.assertEqual(await self.send(632, task), [(630, b"\0\0")])
+        values = await self.db.pool.fetchval("SELECT game_values FROM characters WHERE char_id=$1", self.char_id)
+        self.assertEqual(json.loads(values)["sevendaycompletetask"], "72")
+        claimed = Writer().u32(self.char_id).string("seven1").string("1").bytes()
+        self.assertEqual(await self.send(632, claimed), [(630, b"\x01\x00")])
