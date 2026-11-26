@@ -46,6 +46,7 @@ local layerEvolutionPartB = nil
 local sortedEvolutionPets = {}
 local selectedEvolutionPetIndex = 1
 local trainItemNode = {} --训练node
+local pageStatus = 1
 local pageStarup = 3
 local isFirstEnter = true
 local mainPageSkillNode = {}
@@ -1004,7 +1005,7 @@ end
 function PetEducationMgr.show(scene, objid, pageIndex, closeCallback)
     UIStack.push("PetEducationMgr", PetEducationMgr.hide, true)
     PetEducationMgr.closeCallback = closeCallback
-    pageIndex = pageIndex or 1
+    pageIndex = pageIndex or pageStatus
     local function loadCSB()
         local curLayerBG = CSResourceMgr.createRes(scene, resNameBG, "PetEducationMgrMgr")
         curLayerBG:setLocalZOrder(CocosModuleMgr.ZORDER_WINDOW)
@@ -1078,7 +1079,12 @@ function PetEducationMgr.show(scene, objid, pageIndex, closeCallback)
         
         local objID = objid
         PetEducationMgr.showPet(objID)
-        local allpets = PokemonInfo.getAllPets()
+        local starter = petInfo
+        for _, owned in ipairs(PokemonInfo.getAllPets(true)) do
+            if owned.objID < starter.objID then
+                starter = owned
+            end
+        end
         
         local kuang = CSResourceMgr.getNodeByName(resName_base, {"bg","961","kuang"})
         kuang:setLocalZOrder(10)
@@ -1098,7 +1104,7 @@ function PetEducationMgr.show(scene, objid, pageIndex, closeCallback)
             Label:enableOutline({r=229,g=229,b=229,a=255}, 1)
 
             if var == 3 then
-                local pInfo = PokemonInfo.getPetInfoByObjID(1)
+                local pInfo = starter
                 local pokeInfo = PokemonInfo.getPokemonInfoByID(pInfo.pokeID)
                 if pInfo.Stage < 5 then
                     tab:setColor({r=70,g=70,b=70,a=255})
@@ -1108,7 +1114,7 @@ function PetEducationMgr.show(scene, objid, pageIndex, closeCallback)
                     end)
                 end
             elseif var == 4 then
-                local pInfo = PokemonInfo.getPetInfoByObjID(1)
+                local pInfo = starter
                 local pokeInfo = PokemonInfo.getPokemonInfoByID(pInfo.pokeID)
                 if pInfo.level < 12 then
                     tab:setColor({r=70,g=70,b=70,a=255})

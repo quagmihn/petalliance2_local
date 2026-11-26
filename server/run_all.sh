@@ -2,13 +2,18 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
+doctor=false
+if [[ "${1:-}" == doctor ]]; then
+    doctor=true
+    shift
+fi
 profile="${1:-local}"
 case "$profile" in
     local) mode=production; MONSTER2_EXPECTED_DB=monster2_db ;;
     test) mode=test; MONSTER2_EXPECTED_DB=monster2_test_db ;;
     play) mode=play; MONSTER2_EXPECTED_DB=monster2_play_db ;;
     production) mode=production; MONSTER2_EXPECTED_DB=monster2_db ;;
-    *) echo "Usage: $0 [local|test|play|production]" >&2; exit 2 ;;
+    *) echo "Usage: $0 [doctor] [local|test|play|production]" >&2; exit 2 ;;
 esac
 [[ $# -le 1 ]] || exit 2
 if [[ "$profile" == local ]]; then
@@ -27,11 +32,12 @@ if [[ "$mode" != test && -f ".env.$mode" ]]; then
     source "./.env.$mode"
     if "$restore_trace"; then set -x; fi
 fi
-if [[ "$profile" != local ]]; then
+if [[ "$profile" != local && "$profile" != test ]]; then
     LOCAL_PAYMENT_SANDBOX=0
     PAYMENT_PROVIDER=none
 fi
-export LOCAL_PAYMENT_SANDBOX PAYMENT_PROVIDER
+export LOCAL_PAYMENT_SANDBOX="${LOCAL_PAYMENT_SANDBOX:-0}" PAYMENT_PROVIDER="${PAYMENT_PROVIDER:-none}"
+export VIP_SHOP_UNLIMITED="${VIP_SHOP_UNLIMITED:-0}"
 if [[ "$mode" == production && -z "${DATABASE_URL:+set}" ]]; then
     DATABASE_URL='postgresql://monster2@/monster2_db?host=/run/postgresql'
 fi
@@ -78,10 +84,12 @@ if [[ "$GAME_PORT" == "$HTTP_PORT" ]]; then
     echo "HTTP_PORT and GAME_PORT must differ" >&2
     exit 2
 fi
-listeners=$(ss -H -ltnp "( sport = :$HTTP_PORT or sport = :$GAME_PORT )")
-if [[ -n "$listeners" ]]; then
-    printf 'Requested port already listening (PID shown when visible):\n%s\n' "$listeners" >&2
-    exit 1
+if ! "$doctor"; then
+    listeners=$(ss -H -ltnp "( sport = :$HTTP_PORT or sport = :$GAME_PORT )")
+    if [[ -n "$listeners" ]]; then
+        printf 'Requested port already listening (PID shown when visible):\n%s\n' "$listeners" >&2
+        exit 1
+    fi
 fi
 
 "$python_bin" -B launcher_preflight.py
@@ -91,6 +99,7 @@ dirty=$(git status --porcelain --untracked-files=no)
 printf 'profile=%s mode=%s commit=%s dirty=%s source=%s http=%s:%s tcp=%s:%s advertised=%s:%s\n' \
     "$profile" "$mode" "$revision" "$([[ -z "$dirty" ]] && echo no || echo yes)" "$PWD" \
     "$HTTP_BIND" "$HTTP_PORT" "$GAME_BIND" "$GAME_PORT" "$GAME_HOST" "$GAME_PORT"
+if "$doctor"; then exit 0; fi
 
 pids=()
 shutdown() {

@@ -233,6 +233,10 @@ class Database:
         """Apply a configured MarketInfo purchase and its weekly counter."""
         from character_values import validate_character_values
         from client_config import table
+        from vip_config import unlimited_shop
+
+        vip_offer = market["marketType"] == 4
+        unlimited = vip_offer and unlimited_shop()
         limit = int(market["buyMax"])
         if count < 1 or count > 99 or (limit and market["marketType"] != 4):
             return None
@@ -270,7 +274,7 @@ class Database:
                     period = 7 * 86400
                     same_week = (last + monday_offset) // period == (now + monday_offset) // period
                     previous = int(values.get(num_key, 0)) if same_week else 0
-                    if previous + count > limit:
+                    if not unlimited and previous + count > limit:
                         return None
                     counters.update({num_key: previous + count, time_key: now})
                 currencies = char["currencies_json"] or {}
@@ -300,6 +304,11 @@ class Database:
                        RETURNING count""", char_id, item_id, quantity)
                 updated = await conn.fetchrow(
                     "SELECT * FROM characters WHERE char_id=$1", char_id)
+                if vip_offer:
+                    await conn.execute(
+                        """INSERT INTO vip_shop_purchases(char_id,sku,item_id,quantity,coin_type,cost,unlimited)
+                           VALUES($1,$2,$3,$4,$5,$6,$7)""",
+                        char_id, market["id"], item_id, quantity, coin_type, price, unlimited)
                 return {"character": updated,
                         "item_id": item_id, "item_count": int(inventory["count"]), "counters": counters}
 
@@ -307,6 +316,9 @@ class Database:
                                    package_kind: str, package: dict,
                                    diamonds: int, paid_amount: int):
         """Apply one catalogued local simulation, idempotently and atomically."""
+        from recharge_config import active_normal_package, normal_families
+        from vip_config import rank_for_recharge
+
         if package_kind not in ("normal", "month") or not order_key:
             return None
         package_id = int(package["id"])
@@ -335,9 +347,15 @@ class Database:
                     return {"character": current, "duplicate": True,
                             "package_kind": package_kind, "package_id": package_id}
                 if package_kind == "normal":
-                    await conn.execute(
-                        "UPDATE characters SET diamond=diamond+$2,recharge_total=recharge_total+$3 "
-                        "WHERE char_id=$1", char_id, diamonds, paid_amount)
+                    family = normal_families().get(package_id)
+                    if family is None:
+                        return None
+                    last, now = await conn.fetchrow(
+                        """SELECT max(extract(epoch FROM created_at)),extract(epoch FROM statement_timestamp())
+                           FROM local_recharge_transactions WHERE char_id=$1 AND package_kind='normal'
+                           AND package_id=$2 AND simulated""", char_id, family[0]["id"])
+                    if active_normal_package(*family, last, now)["id"] != package_id:
+                        return None
                 else:
                     expires = await conn.fetchval(
                         """INSERT INTO local_month_cards(char_id,package_id,expires_at)
@@ -346,11 +364,13 @@ class Database:
                                greatest(local_month_cards.expires_at,now())+$3 * interval '1 day'
                            RETURNING expires_at""", char_id, package_id, int(package["days"]))
                     await conn.execute(
-                        """UPDATE characters SET diamond=diamond+$2,
-                           recharge_total=recharge_total+$3,
-                           month_card_until=greatest(month_card_until,$4)
-                           WHERE char_id=$1""",
-                        char_id, diamonds, paid_amount, expires)
+                        """UPDATE characters SET month_card_until=greatest(month_card_until,$2)
+                           WHERE char_id=$1""", char_id, expires)
+                total = char["recharge_total"] + paid_amount
+                await conn.execute(
+                    """UPDATE characters SET diamond=diamond+$2,recharge_total=$3,
+                       vip_level=greatest(vip_level,$4),vip_points=greatest(vip_points,$3)
+                       WHERE char_id=$1""", char_id, diamonds, total, rank_for_recharge(total))
                 await conn.execute(
                     """INSERT INTO local_recharge_transactions
                        (char_id,order_key,package_kind,package_id,paid_amount,rewards,simulated)
@@ -361,6 +381,41 @@ class Database:
                     "SELECT * FROM characters WHERE char_id=$1", char_id)
                 return {"character": updated, "duplicate": False,
                         "package_kind": package_kind, "package_id": package_id}
+
+    async def local_recharge_cooldowns(self, char_id):
+        from recharge_config import normal_families
+
+        bonus_ids = sorted({bonus["id"] for bonus, _ in normal_families().values()})
+        results = await self.pool.fetch(
+            """SELECT package_id, to_char(max(created_at) AT TIME ZONE 'UTC',
+                       'YYYY-MM-DD"T"HH24:MI:SS".000"') AS purchased
+               FROM local_recharge_transactions WHERE char_id=$1 AND package_kind='normal'
+               AND simulated AND package_id=ANY($2::int[]) GROUP BY package_id""", char_id, bonus_ids)
+        return {f"N{row['package_id']}": {"time": [row["purchased"]]} for row in results}
+
+    async def vip_awards(self, char_id):
+        values = await self.pool.fetchval("SELECT game_values FROM characters WHERE char_id=$1", char_id)
+        return json.loads(values).get("vip_local_awards", []) if values else []
+
+    async def claim_vip_milestone(self, char_id, vip_id, rank, rewards):
+        from reward_service import receive_rewards
+
+        async with self.pool.acquire() as conn, conn.transaction():
+            char = await conn.fetchrow("SELECT vip_level,game_values FROM characters WHERE char_id=$1 FOR UPDATE",
+                                       char_id)
+            if char is None or char["vip_level"] < rank:
+                return None
+            claimed = json.loads(char["game_values"]).get("vip_local_awards", [])
+            if vip_id in claimed:
+                return None
+            state = await receive_rewards(conn, char_id, char["game_values"], rewards, self._grant_character_exp)
+            if state is None:
+                return None
+            await conn.execute(
+                """UPDATE characters SET game_values=game_values ||
+                   jsonb_build_object('vip_local_awards',$2::jsonb) WHERE char_id=$1""",
+                char_id, json.dumps(sorted([*claimed, vip_id])))
+            return state
 
     async def local_month_cards(self, char_id: int):
         return await self.pool.fetch(
@@ -453,13 +508,8 @@ class Database:
         )
 
     async def create_starting_pet(self, char_id: int, template_id: int) -> asyncpg.Record:
-        from pet_config import starting_skills
-        skills, passive = starting_skills(template_id)
-        return await self.pool.fetchrow(
-            """INSERT INTO pets(char_id,pet_template_id,slot_index,skills_json,passive_skills_json)
-               VALUES($1,$2,0,$3::jsonb,$4::jsonb) RETURNING *""",
-            char_id, template_id, json.dumps(skills), json.dumps(passive)
-        )
+        from pet_config import insert_owned_pet
+        return await insert_owned_pet(self.pool, char_id, template_id, slot=0)
 
     async def create_character_with_pet(self, account_id: int, world_id: int, name: str,
                                         avatar: int, gender: int, pet_template_id: int,
@@ -486,13 +536,8 @@ class Database:
                     "SELECT * FROM pets WHERE char_id=$1 ORDER BY pet_uid LIMIT 1", char["char_id"]
                 )
                 if first_pet is None and pet_template_id:
-                    from pet_config import starting_skills
-                    skills, passive = starting_skills(pet_template_id)
-                    first_pet = await conn.fetchrow(
-                        """INSERT INTO pets(char_id,pet_template_id,slot_index,skills_json,passive_skills_json)
-                           VALUES($1,$2,0,$3::jsonb,$4::jsonb) RETURNING *""",
-                        char["char_id"], pet_template_id, json.dumps(skills), json.dumps(passive),
-                    )
+                    from pet_config import insert_owned_pet
+                    first_pet = await insert_owned_pet(conn, char["char_id"], pet_template_id, slot=0)
                 # NewQuestInfo.dat for client 1.0.128745 defines quest 1 as
                 # the first strong tutorial quest. Seed only newly created
                 # characters; never rewrite existing progression at login.
@@ -870,7 +915,6 @@ class Database:
         from battle_group_config import tutorial_wild_requirements
         from character_values import validate_character_values
         from client_config import table
-        from pet_config import starting_skills
         import secrets
 
         item = table("ItemInfo").get(ball_item_id)
@@ -956,13 +1000,8 @@ class Database:
                 if caught:
                     level = max(1, int(monster["level"][0]))
                     stage, star = int(monster["petStage"]), int(monster["petStar"])
-                    skills, passive = starting_skills(template_id)
-                    pet = await conn.fetchrow(
-                        """INSERT INTO pets(char_id,pet_template_id,level,star,training_stage,
-                           skills_json,passive_skills_json,slot_index)
-                           VALUES($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,-1) RETURNING *""",
-                        char_id, template_id, level, star, stage,
-                        json.dumps(skills), json.dumps(passive))
+                    from pet_config import insert_owned_pet
+                    pet = await insert_owned_pet(conn, char_id, template_id, level=level, stage=stage, star=star)
                     from handlers.pet import pet_json
                     serialized = pet_json(pet)
                     await conn.execute(
@@ -1196,6 +1235,54 @@ class Database:
             await conn.execute(
                 "UPDATE quests SET progress=$3::jsonb WHERE char_id=$1 AND quest_id=$2",
                 char_id, quest.quest_id, json.dumps(values))
+
+    async def advance_pet_star(self, char_id, pet_uid, material_uids):
+        from handlers.pet import pet_json
+        from pet_config import json_value, star_steps
+
+        if pet_uid in material_uids or 1 in material_uids or len(set(material_uids)) != len(material_uids):
+            return None
+        async with self.pool.acquire() as conn, conn.transaction():
+            if not await conn.fetchval("SELECT char_id FROM characters WHERE char_id=$1 FOR UPDATE", char_id):
+                return None
+            owned = {row["pet_uid"]: row for row in await conn.fetch(
+                "SELECT * FROM pets WHERE char_id=$1 AND pet_uid=ANY($2::bigint[]) FOR UPDATE",
+                char_id, [pet_uid, *material_uids])}
+            target = owned.get(pet_uid)
+            if target is None or len(owned) != len(material_uids) + 1:
+                return None
+            steps = star_steps(target["pet_template_id"])
+            star = target["star"]
+            if not 0 <= star < len(steps):
+                return None
+            step = steps[star]
+            if target["training_stage"] < step.stage or len(material_uids) != step.pet_count:
+                return None
+            for uid in material_uids:
+                material = owned[uid]
+                if (material["slot_index"] != -1 or json_value(material["equips_json"])
+                        or material["pet_template_id"] not in (step.substitutes | {step.pet})):
+                    return None
+            # Capture retries need the owned UID and live fights use an issuance snapshot.
+            if await conn.fetchval(
+                """SELECT EXISTS(SELECT 1 FROM tutorial_battle_sessions WHERE char_id=$1 AND
+                   (captured_pet_uid=ANY($2::bigint[]) OR
+                   (state='started' AND fighter_uids && $2::bigint[])))""",
+                char_id, material_uids,
+            ):
+                return None
+            remaining = await conn.fetchval(
+                """UPDATE inventory SET count=count-$3 WHERE char_id=$1 AND item_id=$2 AND count >= $3
+                   RETURNING count""", char_id, step.item, step.count)
+            if remaining is None:
+                return None
+            if remaining == 0:
+                await conn.execute("DELETE FROM inventory WHERE char_id=$1 AND item_id=$2", char_id, step.item)
+            await conn.execute("DELETE FROM pets WHERE char_id=$1 AND pet_uid=ANY($2::bigint[])",
+                               char_id, material_uids)
+            updated = await conn.fetchrow(
+                "UPDATE pets SET star=star+1 WHERE pet_uid=$1 RETURNING *", pet_uid)
+            return pet_json(updated), step.item, remaining
 
     async def advance_pet_training_stage(self, char_id: int, pet_uid: int):
         """Atomically charge and persist one configured Pet Stage increase."""
@@ -1939,12 +2026,10 @@ class Database:
         return encoded, quest_updates
 
     async def grant_pet(self, char_id: int, template_id: int) -> asyncpg.Record | None:
+        from pet_config import insert_owned_pet
         if template_id <= 0:
             return None
-        return await self.pool.fetchrow(
-            """INSERT INTO pets(char_id,pet_template_id,level,star,evolution,slot_index)
-               VALUES($1,$2,1,0,0,-1) RETURNING *""", char_id, template_id
-        )
+        return await insert_owned_pet(self.pool, char_id, template_id)
 
 
 def _merge_map_unlock(current: str, unlock: str) -> str:

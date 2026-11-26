@@ -78,6 +78,10 @@ CMD = {
     "quest_update": 3133, "quest_update_ack": 3132,
     "change_character_info": 632, "change_character_info_ack": 630,
     "buy_goods": 858, "buy_goods_ack": 1953,
+    "get_shop": 778, "get_shop_ack": 1746,
+    "query_arena": 277, "query_arena_ack": 51,
+    "system_refresh_goods": 835, "system_refresh_goods_ack": 859,
+    "refresh_goods": 853, "refresh_goods_ack": 1876,
     "buy_product": 481, "buy_product_ack": 471,
     "get_my_market": 478, "get_my_market_ack": 493,
     "search_market_products": 492, "search_market_products_ack": 520,
@@ -113,7 +117,8 @@ ACK_NAME = {2126: "GC_PLATFORMLOGIN_ACK", 2179: "GC_DEVICEBIND_ACK",
             32: "GC_GETHOME_ACK",
             1526: "GC_CAPSULEEGGCDS_ACK", 386: "GC_CHANGECHANNEL_ACK"}
 ACK_NAME.update({value: key.upper() for key, value in CMD.items() if key.endswith("_ack")})
-ACK_NAME.update({112: "GC_UPDATEITEMS_NTF", 3141: "GC_UPDATEPOKEMON_NTF"})
+ACK_NAME.update({60: "GC_GETVIPAWARD_ACK", 112: "GC_UPDATEITEMS_NTF", 1650: "GC_PETSTARUP_ACK",
+                 3138: "GC_DELPOKEMON_NTF", 3141: "GC_UPDATEPOKEMON_NTF"})
 EXPECTED_ACKS = {
     690: (721,), 128: (181,),
     227: (225,),
@@ -128,6 +133,7 @@ EXPECTED_ACKS = {
     4: (5,), 83: (262, 3141, 84), 324: (320,), 391: (112, 133, 262, 473, 3141, 390),
     930: (1077,), 978: (274,), 288: (305,), 1054: (112, 133, 262, 473, 3141, 1106), 1114: (271,),
     90: (473, 89),
+    61: (112, 133, 262, 473, 3141, 60), 63: (62,), 1596: (112, 3138, 3141, 1650),
     3082: (2995, 404, 473, 1749),
     15: (112, 3141, 198), 136: (112, 210), 263: (3141, 186), 1392: (112, 133, 262, 3141, 473, 1561), 1519: (1396,),
     516: (526, 112, 133, 262, 473, 3141, 2105), 478: (493,), 492: (520,), 577: (563, 112, 473),
@@ -197,6 +203,14 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["get_capsule_cds"]: return await pet.get_capsule_egg_cds(session, payload)
     if msg_id == CMD["get_character_values"]: return await player.get_character_values(session, payload)
     if msg_id == CMD["buy_goods"]: return await economy.buy_goods(session, payload)
+    if msg_id == CMD["query_arena"]:
+        Reader(payload).finish()
+        # The exchange is implemented independently. The combat lobby needs
+        # verified opponents and rank data before a success response is valid.
+        return 51, Writer().u16(1).bytes()
+    if msg_id == CMD["get_shop"]: return await economy.arena_shop_catalog(session, payload, 1746)
+    if msg_id == CMD["system_refresh_goods"]: return await economy.arena_shop_catalog(session, payload, 859)
+    if msg_id == CMD["refresh_goods"]: return await economy.arena_shop_catalog(session, payload, 1876)
     if msg_id == CMD["buy_product"]: return await economy.buy_product(session, payload)
     if msg_id == CMD["get_my_market"]: return await economy.get_my_market(session, payload)
     if msg_id == CMD["search_market_products"]: return await economy.search_market_products(session, payload)
@@ -214,6 +228,7 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["buy_npc"]: return await economy.buy_npc(session, payload)
     if msg_id == CMD["red_heart"]: return await economy.red_heart(session, payload)
     if msg_id == CMD["claim_vip"]: return await economy.claim_vip_award(session, payload)
+    if msg_id == CMD["get_vip_awards"]: return await economy.get_vip_awards(session, payload)
     if msg_id == CMD["pet_star_up"]: return await economy.pet_star_up(session, payload)
     if msg_id == CMD["pet_advance_stage"]: return await pet.advance_stage(session, payload)
     if msg_id == CMD["pet_evolve"]: return await economy.pet_evolve(session, payload, 777)

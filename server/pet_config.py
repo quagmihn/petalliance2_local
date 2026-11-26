@@ -4,6 +4,7 @@ import json
 import math
 import secrets
 import struct
+from dataclasses import dataclass
 from pathlib import Path
 from protocol import Reader
 
@@ -95,6 +96,48 @@ def starting_skills(template_id):
             draw -= weight
     return [choose(pool) for pool in active], [
         {"paSkillType": skill_type, "paSkillID": choose(pool)} for skill_type, pool in passive]
+
+
+async def insert_owned_pet(conn, char_id, template_id, *, slot=-1, level=1, stage=0, star=0):
+    skills, passive = starting_skills(template_id)
+    return await conn.fetchrow(
+        """INSERT INTO pets(char_id,pet_template_id,slot_index,level,training_stage,star,
+           skills_json,passive_skills_json)
+           VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb) RETURNING *""",
+        char_id, template_id, slot, level, stage, star, json.dumps(skills), json.dumps(passive))
+
+
+@dataclass(frozen=True)
+class StarStep:
+    stage: int
+    item: int
+    count: int
+    pet: int
+    pet_count: int
+    substitutes: frozenset[int]
+
+
+@functools.cache
+def star_steps(template_id):
+    from client_config import table
+
+    catalog = table("PetStarUpInfo")
+    row = catalog[template_id]
+    if row["maxStar"] == 0:
+        return ()
+    keys = ("limit", "costItem", "num1", "costPet", "num2")
+    if any(len(row[key]) != row["maxStar"] for key in keys):
+        raise ValueError(f"bad star-up vectors for Pet {template_id}")
+    items, pets = table("ItemInfo"), table("PokemonInfo")
+    steps = []
+    for stage, item, count, pet, pet_count in zip(*(row[key] for key in keys)):
+        if (count <= 0 or item not in items or pet not in pets or pet_count <= 0
+                or stage > pets[template_id]["topLevel"] // 2):
+            raise ValueError(f"unresolved star-up costs for Pet {template_id}")
+        # The picker looks up common substitutes on the required cost Pet.
+        substitutes = frozenset(catalog[pet]["costPetComm"]) & pets.keys()
+        steps.append(StarStep(stage, item, count, pet, pet_count, substitutes))
+    return tuple(steps)
 
 
 def json_value(value):

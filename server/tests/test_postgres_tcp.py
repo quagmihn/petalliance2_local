@@ -132,7 +132,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(profile.u16(), 0)
             own_profile = json.loads(profile.string())
             self.assertEqual((own_profile["charID"], own_profile["vipLevel"], own_profile["pets.num"]),
-                             (char_id, 1, 1))
+                             (char_id, 13, 1))  # N2's 99 reaches the target's VIP 12 threshold.
             profile.finish()
             # ItemInfo 34066 is consumed to own FashionItemInfo 4066. The
             # underlying item ID is not an appearance ID or an equipment UID.
@@ -367,6 +367,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                 "SELECT count FROM inventory WHERE char_id=$1 AND item_id=1", char_id), 1)
             limit_sku = 178
             capped_buy = Writer().u32(limit_sku).u32(10).bytes()
+            await db.pool.execute("UPDATE characters SET vip_level=0 WHERE char_id=$1", char_id)
             self.assertEqual((await send(577, capped_buy, 563)).u16(), 1)  # VIP rank too low
             await db.pool.execute(
                 """UPDATE characters SET vip_level=12,

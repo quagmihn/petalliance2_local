@@ -15,9 +15,9 @@ log = logging.getLogger("game_socket.economy")
 
 async def get_recharge_cd(session, payload: bytes):
     Reader(payload).finish()
-    # Client parser expects Proto.parseCode followed by a JSON string. Empty
-    # cooldown state is represented by an empty JSON object.
-    return 655, success_code().string("{}").bytes()
+    cooldowns = await session.db.local_recharge_cooldowns(session.char_id) if (
+        session.char_id is not None and local_payment_enabled()) else {}
+    return 655, success_code().string(json.dumps(cooldowns, separators=(",", ":"))).bytes()
 
 
 def wallet_update(row, counters=None) -> tuple[int, bytes]:
@@ -61,10 +61,42 @@ def reject_unmapped_purchase(session, request_id: int, request_name: str,
 
 
 async def buy_goods(session, payload: bytes):
+    from arena_shop import transact
+    from handlers.inventory import reward_packets
+
     r = Reader(payload); shop_type, index, count = r.u32(), r.u32(), r.u32(); r.finish()
+    if shop_type == 1 and session.char_id is not None:
+        result = await transact(session.db, session.char_id, purchase=(index, count))
+        if result is None:
+            return 1953, Writer().u16(1).bytes()
+        _, wallet, grant = result
+        return [*reward_packets(grant), wallet_update(wallet, {"arenascore": json.loads(wallet["game_values"])["arenascore"]}),
+                (1953, Writer().u16(0).bytes())]
     return reject_unmapped_purchase(session, 858, "CG_BUYGOODS_REQ", 1953,
                                     "GC_BUYGOODS_ACK", shop_type=shop_type,
                                     index=index, count=count)
+
+
+async def arena_shop_catalog(session, payload, ack_id):
+    from arena_shop import transact
+
+    r = Reader(payload)
+    shop_type = r.u32()
+    r.finish()
+    if shop_type != 1 or session.char_id is None:
+        return ack_id, Writer().u16(1).bytes()
+    result = await transact(session.db, session.char_id, refresh=ack_id == 1876)
+    if result is None:
+        return ack_id, Writer().u16(1).bytes()
+    state, wallet, _ = result
+    body = Writer().u16(0).u8(len(state["stock"]))
+    for offer in state["stock"]:
+        for field in offer:
+            body.u32(field)
+    if ack_id == 1746:
+        body.u32(state["system"]).u32(state["manual"]).u32(state["system"])
+    ack = (ack_id, body.bytes())
+    return [wallet_update(wallet), ack] if ack_id == 1876 and wallet is not None else ack
 
 
 async def buy_product(session, payload: bytes):
@@ -164,7 +196,7 @@ async def buy_gcash(session, payload: bytes):
 def local_payment_enabled():
     return (os.getenv("LOCAL_PAYMENT_SANDBOX", "0") == "1"
             and os.getenv("GAME_ENV", "").lower() in ("test", "play", "production")
-            and os.getenv("PAYMENT_PROVIDER", "local").lower() in ("", "local", "none"))
+            and os.getenv("PAYMENT_PROVIDER", "").lower() == "local")
 
 
 async def recharge_test(session, payload: bytes):
@@ -302,15 +334,60 @@ async def red_heart(session, payload: bytes):
 
 
 async def claim_vip_award(session, payload: bytes):
-    r = Reader(payload); _vip_id = r.u32(); count = r.u8()
-    for _ in range(count): r.u32()
+    from handlers.inventory import reward_packets
+    from vip_config import milestone
+
+    r = Reader(payload)
+    vip_id = r.u32()
+    requested = [r.u32() for _ in range(r.u8())]
     r.finish()
-    return 60, Writer().u16(1).bytes()
+    error = 60, Writer().u16(1).bytes()
+    if session.char_id is None:
+        return error
+    try:
+        resolved = milestone(vip_id, requested)
+    except (KeyError, ValueError) as exc:
+        log.warning("vip_reward_invalid char_id=%s vip_info_id=%s reason=%s", session.char_id, vip_id, exc)
+        return error
+    if resolved is None:
+        return error
+    state = await session.db.claim_vip_milestone(session.char_id, vip_id, *resolved)
+    return [*reward_packets(state), (60, Writer().u16(0).bytes())] if state is not None else error
+
+
+async def get_vip_awards(session, payload: bytes):
+    Reader(payload).finish()
+    if session.char_id is None:
+        return 62, Writer().u16(1).u8(0).bytes()
+    claimed = await session.db.vip_awards(session.char_id)
+    output = Writer().u16(0).u8(len(claimed))
+    for vip_id in claimed:
+        output.u32(vip_id)
+    return 62, output.bytes()
 
 
 async def pet_star_up(session, payload: bytes):
-    r = Reader(payload); r.u32(); [r.u32() for _ in range(r.u8())]; r.finish()
-    return 1650, Writer().u16(1).bytes()
+    from handlers.inventory import inventory_packets
+
+    error = 1650, Writer().u16(1).bytes()
+    r = Reader(payload)
+    pet_uid = r.u32()
+    materials = [r.u32() for _ in range(r.u8())]
+    r.finish()
+    if session.char_id is None:
+        return error
+    try:
+        result = await session.db.advance_pet_star(session.char_id, pet_uid, materials)
+    except (KeyError, ValueError) as exc:
+        log.warning("pet_star_rejected char_id=%s pet_uid=%s reason=%s", session.char_id, pet_uid, exc)
+        return error
+    if result is None:
+        return error
+    pet, item, count = result
+    return [*inventory_packets([(item, count)]),
+            *((3138, Writer().u64(uid).bytes()) for uid in materials),
+            (3141, Writer().u64(pet_uid).string(pet).bytes()),
+            (1650, Writer().u16(0).bytes())]
 
 
 async def pet_evolve(session, payload: bytes, ack_id: int):

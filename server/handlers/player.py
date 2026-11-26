@@ -72,6 +72,8 @@ async def create_character(session, payload: bytes):
 
 
 async def get_character_values(session, payload: bytes):
+    from vip_config import unlimited_shop
+
     r = Reader(payload)
     keys = [r.string() for _ in range(r.u8())]
     r.finish()
@@ -79,6 +81,8 @@ async def get_character_values(session, payload: bytes):
         raise ValueError("character values requested before character selection")
     raw_values = await session.db.character_values(session.char_id, keys)
     values = validate_character_values(keys, raw_values)
+    if "vipShopUnlimited" in keys:
+        values["vipShopUnlimited"] = unlimited_shop()
     logger = logging.getLogger("game_socket")
     logger.info("character_values_typed char_id=%s requested=%d returned=%d types=%s",
                 session.char_id, len(keys), len(values),
@@ -178,7 +182,8 @@ async def change_character_info(session, payload: bytes):
         normalized = "map_lock"
     if (session.char_id is None or char_id != session.char_id
             or not re.fullmatch(r"[a-z0-9_]{1,64}", normalized)
-            or normalized in ("fashion_info", "curfashion")
+            or normalized in ("fashion_info", "curfashion", "vip_local_awards", "vipshopunlimited",
+                              "arena_shop", "arenascore")
             or re.fullmatch(r"seven[0-9]+", normalized)
             or normalized.startswith("first_recharge_mail_")
             or normalized.startswith(("buymarketitemnum_", "buymarketitemtime_"))):

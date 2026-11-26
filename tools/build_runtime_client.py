@@ -58,7 +58,27 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--input", type=Path, default=Path("dist/monster2_patched.apk"))
     p.add_argument("--output", type=Path, default=Path("dist/monster2_runtime-unsigned.apk"))
+    p.add_argument("--pet-economy-overlay", action="store_true",
+                   help="replace only the Pet default-tab and economy Lua on an already patched APK")
     args = p.parse_args()
+    if args.pet_economy_overlay:
+        overlay = {
+            "assets/src/GameMgr/Pet/PetEducationMgr.lua",
+            "assets/src/GameMgr/Item/PurchaseViewMgr.lua",
+            "assets/src/GameMgr/Item/VipShopViewMgr.lua",
+            "assets/src/Utils/pay/PayConfig.lua",
+        }
+        with zipfile.ZipFile(args.input) as source, zipfile.ZipFile(args.output, "w") as output:
+            if not overlay <= set(source.namelist()):
+                raise ValueError("the input APK is missing one or more Pet/economy Lua modules")
+            for info in source.infolist():
+                if info.filename.upper().startswith("META-INF/"):
+                    continue
+                data = source.read(info)
+                if info.filename in overlay:
+                    data = b"XXTEA" + encrypt((Path("decoded_lua") / info.filename).read_bytes(), b"kyopkm")
+                output.writestr(info, data)
+        return
     target = "assets/src/GameMgr/Map/SceneMgr.lua"
     capture_language_files = {
         "assets/res/Config/db/lang.db",

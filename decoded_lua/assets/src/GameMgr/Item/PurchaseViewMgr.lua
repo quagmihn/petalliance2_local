@@ -279,7 +279,9 @@ function PurchaseViewMgr.changeTab(tabid)
         tipsLB:setVisible(true)
         list_vip:setVisible(true)
         list_vip:setPositionX(305)
-        VipShopViewMgr.request(list_vip)
+        VipShopViewMgr.request(list_vip, function()
+            tipsLB:setVisible(curTab == 2 and CharInfo.get().vipshopunlimited ~= true)
+        end)
     end
 end
 
@@ -315,7 +317,14 @@ function PurchaseViewMgr.setPurchaseItem()
     local vipInfoTable = CharInfo.getVipInfoAllId()
 
     local panelNodes = {}
-    local totalLine = math.ceil((#mRechargeInfo + #nRechargeInfo - 3)/PurchaseViewMgr.ROW)
+    local visibleNormal = {}
+    local orderedNormal = PurchaseViewMgr.sortRechargeInfo(nRechargeInfo)
+    local catalogCount = #orderedNormal
+    orderedNormal = PurchaseViewMgr.checkRechargeFun(orderedNormal)
+    for i = 1, catalogCount do
+        if orderedNormal[i] then table.insert(visibleNormal, orderedNormal[i]) end
+    end
+    local totalLine = math.ceil((#mRechargeInfo + #visibleNormal)/PurchaseViewMgr.ROW)
     local panel = CSResourceMgr.getNodeByName(resName, "panel")
     for i = 1, totalLine do
         panelNodes[i] = panel:clone()
@@ -345,7 +354,13 @@ function PurchaseViewMgr.setPurchaseItem()
         local tips = CSResourceMgr.seekNodeByName(itemNodes[index], "tips")
         tips:setVisible(false)
         local discount = CSResourceMgr.seekNodeByName(itemNodes[index], "discount")
-        CSResourceMgr.setLabelStringByNode(discount, CocosModuleMgr.createStringWithFormat({"recharge15",v.initMCash}))
+        local subtitle = LuaSqlite.getLanguageByKey("recharge15")
+        if subtitle:find("<1>", 1, true) then
+            subtitle = CocosModuleMgr.createStringWithFormat({"recharge15",v.initMCash})
+        else
+            subtitle = subtitle:gsub("%d+", tostring(v.mCashPerDay), 1)
+        end
+        CSResourceMgr.setLabelStringByNode(discount, subtitle)
         local countDown = CSResourceMgr.seekNodeByName(itemNodes[index], "countDown")
         CSResourceMgr.setLabelStringByNode(countDown, "recharge40")
         local days = CSResourceMgr.seekNodeByName(itemNodes[index], "days")
@@ -396,9 +411,7 @@ function PurchaseViewMgr.setPurchaseItem()
         index = index + 1
     end
 
-    local nRechargeInfoN = PurchaseViewMgr.sortRechargeInfo(nRechargeInfo)
-    nRechargeInfoN = PurchaseViewMgr.checkRechargeFun(nRechargeInfoN)
-    for k,v in pairs(nRechargeInfoN) do
+    for _,v in ipairs(visibleNormal) do
         local line = math.ceil(index / PurchaseViewMgr.ROW)
         local row = index % PurchaseViewMgr.ROW == 0 and PurchaseViewMgr.ROW or index % PurchaseViewMgr.ROW
         itemNodes[index] = CSResourceMgr.getNodeByName(resNameItem, "dbBtn"):clone()
@@ -1006,6 +1019,38 @@ end
 
 --充值失败提示 1
 --充值成功NTF未回 2
+function PurchaseViewMgr.refreshLocalCheckout(isMonthCard)
+    if not CSResourceMgr.getCsbObj(resName) then return end
+    local vipID = CharInfo.getVIPLevel()
+    local level = CharInfo.getVipInfoByID(vipID)
+    local maxID = SystemInfo.getGlobalConfigAddInfoByID(55).values[1]
+    local total = (CharInfo.get().recharge or {}).totalMoney or 0
+    local nextLevel = vipID < maxID and CharInfo.getVipInfoByID(vipID + 1) or nil
+    local threshold = nextLevel and nextLevel.recharge or level.recharge
+    local label = "VIP "..level.viplevel
+    if nextLevel then
+        label = label..CocosModuleMgr.createStringWithFormat({"recharge14", math.max(0, threshold - total)})..nextLevel.viplevel
+    end
+    CSResourceMgr.setLabelString(resName, "viptips", label)
+    CSResourceMgr.setLabelString(resName, "barValue", total.."/"..threshold)
+    CSResourceMgr.getNodeByName(resName, "LoadingBar"):setPercent(nextLevel and math.min(100, total/threshold*100) or 100)
+    local MonthCardSend = require("src.Net.Send.MonthCardSend")
+    local function refreshPackages()
+        if CSResourceMgr.getCsbObj(resName) then PurchaseViewMgr.setPurchaseItem() end
+    end
+    local function onFailure(code)
+        TipsMgr.showError(scene, code)
+    end
+    if isMonthCard then
+        CSResourceMgr.removeCSObjectByTag(resNameMoon)
+        NetInterface.sendWithBlock("ZC_LoadMonthCard_Ack", MonthCardSend.sendCZ_LoadMonthCard_Req,
+            refreshPackages, onFailure, nil, false)
+    else
+        NetInterface.sendWithBlock("GC_RechargeCD_Ack", MonthCardSend.sendCG_RechargeCD_Req,
+            refreshPackages, onFailure, nil, false)
+    end
+end
+
 function PurchaseViewMgr.showTipMsg(tpye)
     if tpye == 1 then
         StandardTipsMgr.show(1, "recharge25")

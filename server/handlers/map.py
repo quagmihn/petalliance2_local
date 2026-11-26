@@ -30,7 +30,6 @@ EMPTY_STARTUP_ACKS = {
     18: (17, lambda: Writer().u16(0).bytes()),                                   # tower recovery
     55: (54, lambda: Writer().u16(0).u32(0).bytes()),                            # pet wiki
     96: (97, lambda: Writer().u16(0).u8(0).bytes()),                             # wishing trees
-    63: (62, lambda: Writer().u16(0).u8(0).bytes()),                             # VIP awards
     72: (74, lambda: Writer().u16(0).u8(0).bytes()),                             # pokemon achievements
     69: (70, lambda: Writer().u16(0).u8(0).bytes()),                             # potentials
     347: (253, lambda: Writer().u16(0).u32(0).bytes()),                          # friends

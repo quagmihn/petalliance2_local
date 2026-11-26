@@ -74,6 +74,28 @@ CREATE TABLE IF NOT EXISTS local_month_cards (
     PRIMARY KEY (char_id, package_id)
 );
 
+CREATE TABLE IF NOT EXISTS vip_shop_purchases (
+    purchase_id BIGSERIAL PRIMARY KEY,
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    sku INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    coin_type SMALLINT NOT NULL CHECK (coin_type BETWEEN 1 AND 3),
+    cost BIGINT NOT NULL CHECK (cost > 0),
+    unlimited BOOLEAN NOT NULL,
+    purchased_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS arena_shop_purchases (
+    purchase_id BIGSERIAL PRIMARY KEY,
+    char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,
+    award_id INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    price BIGINT NOT NULL CHECK (price > 0),
+    purchased_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS local_draw_history (
     draw_id BIGSERIAL PRIMARY KEY,
     char_id BIGINT NOT NULL REFERENCES characters(char_id) ON DELETE CASCADE,

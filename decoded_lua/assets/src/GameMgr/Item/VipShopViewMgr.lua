@@ -45,9 +45,9 @@ function VipShopViewMgr.hide()
     CSResourceMgr.removeCSObjectByTag(resName)
 end
 
-function VipShopViewMgr.request(listNode)
+function VipShopViewMgr.request(listNode, onLoaded)
     local shopList = VipShopViewMgr.getVipShopList()
-    local goodsIDList = {}
+    local goodsIDList = {"vipShopUnlimited"}
     for k,v in pairs(shopList) do
         table.insert(goodsIDList, "buyMarketItemNum_"..v.id)
         table.insert(goodsIDList, "buyMarketItemTime_"..v.id)
@@ -57,6 +57,7 @@ function VipShopViewMgr.request(listNode)
         LoginSend.sendCG_GetCharacterValues_Req(goodsIDList) --petPacketNum
     end, function()
         VipShopViewMgr.createVipList(listNode)
+        if onLoaded then onLoaded() end
     end, function(code)
         TipsMgr.showError(SceneMgr.getRunningScene, code)
     end)
@@ -150,6 +151,8 @@ function VipShopViewMgr.refreshVipListNode(parent, marketInfo)
     local spriteTag     = CSResourceMgr.seekNodeByName(parent, "pic_zhekou")
     local spriteLine    = CSResourceMgr.seekNodeByName(parent, "pic_line")
 
+    local unlimited = CharInfo.get().vipshopunlimited == true
+    local available = buyMax - currBuyTimes
     local strBuyTimes = buyMax - currBuyTimes > 0 and LuaSqlite.getLanguageByKey("vipshop3")..buyMax-currBuyTimes.."/"..buyMax or "vipshop4"
 
     CSResourceMgr.setLabelStringByNode(labelVipLv, CocosModuleMgr.createStringWithFormat({"vipshop1", needVipLv}), outlineColor[2], 1, 100)
@@ -165,8 +168,8 @@ function VipShopViewMgr.refreshVipListNode(parent, marketInfo)
     CSResourceMgr.setLabelColorByNode(labelNewPrice, labelColor[4])
     CSResourceMgr.setLabelColorByNode(labelDesc,     labelColor[5])
     CSResourceMgr.setLabelColorByNode(labelTimes,    buyMax-currBuyTimes > 0 and labelColor[6] or labelColor[7])
-    labelTimes:setVisible(isVipEnough)
-    background4:setVisible(isVipEnough)
+    labelTimes:setVisible(isVipEnough and not unlimited)
+    background4:setVisible(isVipEnough and not unlimited)
 
     CSResourceMgr.setSpriteTextureByNode(spriteTag, tagPath)
     CSResourceMgr.setSpriteTextureByNode(spriteRes, resPath)
@@ -183,12 +186,12 @@ function VipShopViewMgr.refreshVipListNode(parent, marketInfo)
             StandardTipsMgr.show(1, "NetErrorText388")
         elseif resCnt < needResCnt then
             StandardTipsMgr.show(1, BuyItemViewMgr.tipsType[needResType])
-        elseif buyMax-currBuyTimes <= 0 then
+        elseif not unlimited and available <= 0 then
             StandardTipsMgr.show(1, "exchange066")
         else
             refreshNode = parent
             refreshMarketInfo = marketInfo
-            BuyItemViewMgr.show(SceneMgr.getRunningScene, itemID, needResType, needResCnt, buyMax-currBuyTimes, marketInfo.id)
+            BuyItemViewMgr.show(SceneMgr.getRunningScene, itemID, needResType, needResCnt, unlimited and 99 or available, marketInfo.id)
         end
     end)
 
@@ -230,7 +233,7 @@ function VipShopViewMgr.getVipShopRedPointState()
         elseif needResType == 3 then
             resCnt = CharInfo.getSilverCash()
         end
-        if isVipEnough == true and buyMax - currBuyTimes > 0 and resCnt >= needResCnt then
+        if isVipEnough == true and (CharInfo.get().vipshopunlimited == true or buyMax - currBuyTimes > 0) and resCnt >= needResCnt then
             return true
         end
     end

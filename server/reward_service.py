@@ -37,13 +37,9 @@ async def grant_rewards(conn, char_id: int, rewards: list[dict],
             items.add(element_id)
         elif kind == "pet":
             from handlers.pet import pet_json
-            from pet_config import starting_skills
+            from pet_config import insert_owned_pet
             for _ in range(amount):
-                skills, passive = starting_skills(element_id)
-                pet = await conn.fetchrow(
-                    """INSERT INTO pets(char_id,pet_template_id,slot_index,skills_json,passive_skills_json)
-                       VALUES($1,$2,-1,$3::jsonb,$4::jsonb) RETURNING *""",
-                    char_id, element_id, json.dumps(skills), json.dumps(passive))
+                pet = await insert_owned_pet(conn, char_id, element_id)
                 pets.append(pet_json(pet))
         else:
             raise ValueError(f"unsupported reward kind {kind}")

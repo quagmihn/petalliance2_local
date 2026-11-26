@@ -9,11 +9,14 @@ from pathlib import Path
 
 import asyncpg
 
-from client_config import CONFIG, ROOT
+from arena_shop import pools as arena_pools
+from client_config import CONFIG, ROOT, table
 from db.database import Database
 from local_draw import catalog_report
 from market_config import enabled_offers
 from quest_config import load_quests
+from recharge_config import normal_families
+from vip_config import max_vip, unlimited_shop
 
 
 def digest(path):
@@ -29,10 +32,11 @@ def runtime_content():
     server_config = ROOT / "server/config"
     groups = {
         "pets": ("PokemonInfo.dat", "GeneInfo.dat", "GeneProbabilityInfo.dat", "PetSkillInfo.dat",
-                 "PetAdvanceInfo.dat", "PetEvoInfo.dat", "GlobalConfigAddInfo.dat"),
+                 "PetAdvanceInfo.dat", "PetStarUpInfo.dat", "PetEvoInfo.dat", "GlobalConfigAddInfo.dat"),
         "items": ("ItemInfo.dat", "PetPieceInfo.dat", "RewardInfo.dat", "AwardElementInfo.dat",
                   "FashionItemInfo.dat", "PokemonBallInfo.dat"),
-        "market": ("MarketInfo.dat", "ShopInfo.dat", "ShopPoolInfo.dat"),
+        "market": ("MarketInfo.dat", "ShopInfo.dat", "ShopPoolInfo.dat", "ArenaAwardInfo.dat",
+                   "ShopReflashInfo.dat", "VipInfo.dat", "DropInfo.dat"),
         "maps": ("AdventureInfo.dat", "SceneInfo.dat", "FloorRelationInfo.dat", "DisposableInfo.dat",
                  "MonstrosityInfo.dat", "MonsterGroupManInfo.dat", "map_event.txt", "map_node.txt"),
         "events": ("ActivityInfoClient.dat", "SevenDayInfo.dat", "FirstRechargeAwardInfo.dat",
@@ -57,7 +61,7 @@ def runtime_content():
 def payment_mode():
     if os.environ.get("LOCAL_PAYMENT_SANDBOX") != "1":
         return "disabled"
-    if os.environ["MONSTER2_LAUNCH_PROFILE"] != "local" or os.getenv("PAYMENT_PROVIDER") != "local":
+    if os.environ["MONSTER2_LAUNCH_PROFILE"] not in ("local", "test") or os.getenv("PAYMENT_PROVIDER") != "local":
         raise SystemExit("Simulated checkout requires the private local launcher profile.")
     for key in ("GAME_BIND", "HTTP_BIND"):
         # The shipped Waydroid bridge and loopback are the only allowed
@@ -86,6 +90,11 @@ def main():
         raise SystemExit(f"Invalid Gacha catalog {path!r}: {exc}. Correct MONSTER2_DRAW_CATALOG before starting.") from None
     try:
         report("market_catalog", {"enabled_offers": len(enabled_offers())})
+        report("pet_economy_catalogs", {"pets": len(table("PokemonInfo")), "skills": len(table("PetSkillInfo")),
+               "items": len(table("ItemInfo")), "star_rows": len(table("PetStarUpInfo")),
+               "vip_max": max_vip()["viplevel"], "vip_shop_unlimited": unlimited_shop(),
+               "arena_shop_slots": len(arena_pools()),
+               "normal_recharge_skus": sorted(normal_families()), "month_card_skus": sorted(table("MonthCardRechargeInfo"))})
         report("content_catalogs", runtime_content())
         load_quests()
         client = json.loads((ROOT / "server/config/runtime_client.json").read_text())

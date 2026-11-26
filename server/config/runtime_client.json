@@ -1,6 +1,6 @@
 {
   "package": "com.petalliance2.sea",
   "version_code": 7,
-  "artifact": "dist/monster2_local-guide-runtime.apk",
-  "sha256": "b469bf2b35885edee69427600a31f41bb55c2b92bcae0bbb9f3c7236d00414b6"
+  "artifact": "dist/monster2_local-pet-economy-runtime.apk",
+  "sha256": "d5b54e278c2ba8d6a86f9f2ea2924eede10e3e049cfc794c0e7fb363a9970dbd"
 }
