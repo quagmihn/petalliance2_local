@@ -1,5 +1,23 @@
 # Execution checkpoint
 
+## 2026-11-26 · Level 50 and private freedom
+
+The official source is `/home/quagmihn/Project/monster2_rebuild`. The play database resolves to `monster2_db` as `monster2`; destructive QA ran against `monster2_test_db` as `quagmihn`. The deployed gameplay revision is `822403b93b73b337e49dff208a56222dfe426287`, which adds the profile appearance correction to `4768edb6afe0e1e6ae9ed7ac155a1496a649c3d6`. The current serving processes are HTTP 13990 and TCP 13991. The installed version-7 APK SHA256 is `e0c0fb48914610f158de5368cd45218534bdac77b9495bfe16032f74628cf10c`.
+
+| Area | Checkpoint |
+| --- | --- |
+| Main character | The explicit named account 6 / char 2 `minh` moved from Level 6 / 630 EXP to Level 50 / 183,360 EXP. Existing VIP 20 and its points stayed intact. Existing Pet, inventory, quest, Adventure and transaction fingerprints matched after the update and after a first cold login. |
+| Freedom | Admin-assigned private-local flag. Shared menu, Wardrobe and Pet tab gates read the server's Boolean. Home, profile and wardrobe opened on the main account. Existing gameplay prerequisites remain enforced. |
+| Storage | Waydroid login and Pet list opened at 500 owned Pets and the Bag opened with 516 item IDs. QA acquired more Pets and cold-logged in. The lower bounded page size resolves the stress case that crashed the app with 100-row pages. |
+| Rewards | 189 Pet templates, 384 linked books and 172 wearable vouchers in the expanded local draw. Real Supreme x10 displayed Thanamon. Bag chests validate weighted outcomes and selectable boxes use exact configured row selection. |
+| Seven-Day | Day 1 gift and 800-diamond offer verified in Waydroid. 31 of 111 rows are implemented. All seven free gifts and offers and three objective families are tested on PostgreSQL. |
+| Checkout | Real N7 purchase granted 4,800 diamonds, followed by two N13 purchases granting 3,300 each on QA. The official runtime retains first-versus-repeat gates, M-PASS and simulation-only orders. |
+| Regression | 141 tests passed with PostgreSQL integration, no skips. Server start and live source identity were recorded with the official launcher. |
+
+Evidence, the verified production dump and character rollback snapshot stay under `artifacts/freedom-level50-20261126/`. The dump was restored and checked before the character change. [Launcher parity](LAUNCHER_PARITY_REPORT.md) records the hash and [Level 50 acceptance](LEVEL50_VIP20_ACCEPTANCE.md) records the controlled transaction.
+
+Continue from [the implementation backlog](IMPLEMENTATION_BACKLOG.md). Remaining independent paths include exact Bag effects, original equipment and furnishing, the unresolved Skill/Pet definitions, verified Rage combat, remaining Seven-Day objectives, and the untested recharge/adventure mode variants. Keep the local player separate from QA fixtures.
+
 ## 2026-11-26 · Pet stars, VIP and private economy
 
 The requested `monster2_rebuild_opencode` path was absent. Active HTTP and

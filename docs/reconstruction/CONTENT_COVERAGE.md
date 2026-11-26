@@ -1,5 +1,18 @@
 # Content coverage
 
+## 2026-11-26 · Private freedom and expanded economy
+
+| Mechanism | Established coverage | Acceptance |
+| --- | --- | --- |
+| Pet initialization | 191 Fight templates and 3 material templates have valid starting skill groups. 189 Fight templates also meet the target asset checks. | Senior and Supreme x10 persisted new Pets on QA. |
+| Ordinary Gacha | 79 Senior Pet templates, 148 Supreme Pet templates, 172 wearable vouchers, 384 books, and 793 total weighted rows across 3 machines. | QA exercised all 3 machines. The final Supreme pool produced Thanamon in Waydroid. |
+| Bag | 1,091 use-enabled entries audited. 136 complete chest vectors, 28 selectable boxes, 5 Silver Bags, 291 voucher links, and 5 Pet potions. | Android chest and wardrobe use, PostgreSQL selectable choices and misclassified recipe rejection. |
+| Seven-Day | 31 of 111 rows, including all 7 daily gifts and all 7 diamond offers. | Day 1 free and paid claims on Android. Scripted clock and objective claims verified in PostgreSQL. |
+| Local recharge | 12 legal original normal SKU variants and 2 entitlement SKUs in the existing transaction engine. | Actual N7 first purchase and two N13 repeat purchases. |
+| Storage | Removable local slot caps, safe stack width and bounded Pet pages. | 500 Pets and 516 item IDs on Android, with 40/100/250/500 wire tests. |
+
+See [checkpoint](EXECUTION_CHECKPOINT.md) and [remaining work](IMPLEMENTATION_BACKLOG.md).
+
 ## 2026-11-26 Pet and economy acceptance
 
 | Area | Evidence |

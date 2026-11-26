@@ -60,3 +60,13 @@ signing certificate. Both new ledger tables can remain in place. Keep
 the owner character and any newer transactions if a release rollback is
 needed. The signed current APK and all QA evidence are recorded in the
 [execution checkpoint](EXECUTION_CHECKPOINT.md).
+
+## 2026-11-26 · Private freedom and expanded economy
+
+The official `./server/run_all.sh` started the clean milestone `4768edb6afe0e1e6ae9ed7ac155a1496a649c3d6` and then the profile fix `822403b93b73b337e49dff208a56222dfe426287` from `/home/quagmihn/Project/monster2_rebuild`. Final HTTP PID 13990 listened on 8080 and TCP PID 13991 on 5568. The final startup marked the worktree dirty due to the pending report edits. Both listeners bound to the Waydroid bridge and independently authenticated to `monster2_db` as `monster2`. The integration profile used `monster2_test_db` as `quagmihn`.
+
+- Payment provider `local` and simulated checkout are active on the private profile.
+- The launcher prints the three freedom/storage flags, source and effective Gacha pool hashes, content hashes, and the expected APK hash. The effective Gacha pool SHA256 is `a145820735be48148e59543dfee6e4cce7fc6fa52a1329f793f8ec0de33ac677`.
+- The installed APK is package `com.petalliance2.sea`, version code 7, SHA256 `e0c0fb48914610f158de5368cd45218534bdac77b9495bfe16032f74628cf10c`. `apksigner verify` confirmed signer SHA256 `f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a`. The previous APK remains in `dist/` for rollback.
+- The production dump `artifacts/freedom-level50-20261126/monster2_db-before.dump` has SHA256 `5a8f7db861ecae098a6f11fdd32092dace91cf48e7216d30bfce17ffb4266111`. It was restored in a separate socket-only cluster under a non-superuser role. The restore contained 207 constraints, 5 characters, 72 Pets, 83 inventory rows, and the matching owner state.
+- The release suite passed 141 tests with `TEST_DATABASE_URL=postgresql:///monster2_test_db` and zero skips. The APK overlay's Lua files also passed `luac -p`. Deployment uses existing DB tables and the character JSON field.

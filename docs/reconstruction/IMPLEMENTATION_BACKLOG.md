@@ -1,5 +1,14 @@
 # Implementation backlog
 
+## After the private freedom and catalog release
+
+1. Exercise Bag item 254 in Waydroid and capture the selected reward and its post-login stock. Use the audit to separate the 115 chest mappings missing valid award kinds or references from the 136 currently enabled. Trace type-8 stamina restoration and the separate equipment, crafting and furniture paths.
+2. Run a Rage/Profound combat action, active replacement and passive replacement using an eligible Pet. Check runtime effect and ownership. Resolve the 58 Fight templates only where a source proves a valid starting group, and locate target-compatible battle resources for templates 157 and 10000.
+3. Run the remaining Seven-Day types from `TaskWatcherManager` against known server mutations. Track original event-specific counters for the 80 unimplemented rows. UI-derived counters require authoritative backing before awards are enabled.
+4. Run the four other normal recharge price tiers in Android and resolve the Wish Tree Seed reward for N10/N11. Preserve first-vs-repeat and separate claims.
+5. Exercise and reconcile the remaining feature-local entry guards, especially Home, original Arena and Dungeon flows. Freedom covers the shared menu and wardrobe gates and the known Pet tab entry points. Actual game prerequisites and absent mode implementations still control their actions.
+6. Keep Pet storage stress tests above 500 separate from ordinary acceptance. Test client sorting, battle, evolution, release and Bag subtype handling at scale. Inspect non-reward inventory mutation paths before raising the verified scope.
+
 ## Next Pet and economy acceptance
 
 1. Implement truthful local NPC Arena entry through 277/51 and replay/history
@@ -207,3 +216,5 @@ Checkpoint baseline tag: `baseline-partial-verified-2026-11-18` at commit `947a0
 - Installed APK from exact baseline with `adb install -r`, preserving app data. Cold login on Waydroid for account 6/char 2 reached MainScene; requests 785/380 and ACKs 26/386 had single callback registrations, loading cleared and input lock released. Evidence: `artifacts/full-gameplay-20261118/`.
 - No induced reconnect occurred during the fresh login; reconnect replay still needs Waydroid test. The old socket close was not paired with server logs.
 - Live server was not restarted or migrated. Next: test recharge click only after applying server code/schema to an isolated runtime; capture synchronized logs for induced reconnect and eventual production server close root cause.
+
+The current local character can continue to open gameplay menus. His invisible quest 2005 automatically attempts commit at login and is rejected because `RewardInfo 11002` is absent. The three available RewardInfo snapshots were decoded: the 3,241-row target and both 3,211-row alternate extracts omit 11002. Locate an independent compatible source or establish the intended reward contract before enabling that commit. Its progress stayed `[1]` and existing rewards stayed unchanged.
