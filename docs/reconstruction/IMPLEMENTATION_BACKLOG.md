@@ -1,5 +1,32 @@
 # Implementation backlog
 
+## Next Pet and economy acceptance
+
+1. Implement truthful local NPC Arena entry through 277/51 and replay/history
+   267/265. Trace the 317/356 opponent payload and the ranked fight/action
+   protocols separately from PvE. Then use the existing level-11 type-1 exchange
+   to verify win → Arena points → buy → relogin. The purchase engine supports
+   778/1746, 835/859, 853/1876 and 858/1953 already.
+2. Add reconnect-safe evolution for 1247/777, starting with normal branches
+   whose costs, destination, skill candidates and slot contracts are resolved.
+   Persist the pending selection until a valid skill-choice or clear request.
+   Super evolution still needs relation and 5-star eligibility.
+3. Implement the unidentified equipment item → owned instance → appraisal →
+   equip lifecycle. Use the VIP claim's badge voucher 50057 as an independent
+   QA case. Verify distinct inventory/template/equipment instance IDs first.
+4. Resolve active and passive high-rarity skills in Android combat, then test
+   crafting and education. Compare effects, cost and persistence. There are
+   384 valid book references and 2,360 configured upgrade edges in the current
+   engine's audited domain.
+5. Establish the broader ordinary Gacha pool policy, including the requested
+   Senior C/B/A roster and Supreme eligible Pet and costume rewards. Complete
+   mount, handheld and furniture ownership before adding those prizes.
+6. Trace the Wish Tree Seed shown on N10/N11 and the client-advertised M-PASS
+   Gacha and capture perks before expanding the ledger reward rules. Replay
+   other normal SKUs and feature triggers independently.
+7. Use `qa_account.py vip-max` with an explicit playing account and the
+   verified backup for a separate VIP rank application where authorized.
+
 ## Next acceptance after Wise Arena and item rewards
 
 - Exercise an authored capture node in Waydroid. The recorded Wise Arena

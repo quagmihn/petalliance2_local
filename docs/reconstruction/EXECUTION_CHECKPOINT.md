@@ -1,5 +1,44 @@
 # Execution checkpoint
 
+## 2026-11-26 · Pet stars, VIP and private economy
+
+The requested `monster2_rebuild_opencode` path was absent. Active HTTP and
+TCP both used `/home/quagmihn/Project/monster2_rebuild/server` from baseline
+`1022e96170e5adccc3836f9b53ecb68113773d6a`. The installed baseline APK was
+`cf5c1c63ad0725cf6b6658f51c77ed733a9eb7cac0bd8b043522b2b3e5d6b5d7`,
+which retained four Adventure Lua differences from the older documented APK.
+The update overlays four Pet/store Lua modules onto that installed baseline.
+
+| Evidence | Result |
+| --- | --- |
+| Test suite | 133 passed with `monster2_test_db`, zero skips |
+| Waydroid Pet | STATUS opened by default. Panda UID 1347 kept its template and formation while upgrading 0 → 5 stars. Each operation received 1650/code 0. Stage +25 was a QA prerequisite. HP 3,746 → 5,619 and power 3,168 → 4,750 persisted after restart. |
+| Waydroid VIP | QA account 848 / char 834 displayed VIP 20. A claim granted Katty and three item stacks. The privilege screen still showed COMPLETED on cold login. |
+| Waydroid VIP Shop | SKU 310 accepted purchases of 10 and 1 above its configured limit of 10. Wallet debits were 5,000 and 500 and PostgreSQL saved both transactions. |
+| Waydroid recharge | N2 +160, N3 +80, M10001 +400 and M10002 +800. Each M-PASS added an entitlement and its eligible initial daily claim (+160 and +320). Both cards and the final balance 462,556 persisted after cold login. |
+| Arena | Nine shop slots are loaded from type 1. Stock, pricing, refresh and committed purchase passed protocol and PostgreSQL tests. In the Android combat lobby, 277 had no response on the previous build. The release sends a rejection until a real Arena lobby is available. |
+
+Gameplay source `3fb95618589b9a6bb7ab0fe2879def01a09c53b9` was deployed
+with the default `server/run_all.sh` profile. Both listeners authenticated
+to `monster2_db` as `monster2`. Schema deployment adds the VIP and Arena
+purchase ledger tables. Owner account 6 / char 2 remained at VIP 15 with
+its predeployment character fingerprint. The VIP 20 admin plan was dry-run
+against that exact pair. A test-only fixture owns all recorded gameplay
+purchases.
+
+The signed APK SHA256 is
+`d5b54e278c2ba8d6a86f9f2ea2924eede10e3e049cfc794c0e7fb363a9970dbd`.
+The certificate SHA256 remains
+`f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a`.
+The dump `artifacts/pet-economy-20261126/monster2_db-predeploy.dump` has
+SHA256 `93367692c8ed72d7d758c70ca800367ff3bff83a108c0a56d41aae156a20ab2f`.
+An isolated socket-only restore under a non-superuser validated 182 public
+constraints and restored 5 characters, 53 Pets and 61 inventory rows.
+
+[Launcher and rollback](LAUNCHER_PARITY_REPORT.md) · [Pet and skill scope](PET_CONTENT_COVERAGE.md) ·
+[Photos and state evidence](../../artifacts/pet-economy-20261126/) ·
+[Next acceptance](IMPLEMENTATION_BACKLOG.md)
+
 ## 2026-11-25 · Wise Arena, item rewards, Skill Gacha and launcher parity
 
 The official launcher runs from this repository and its default private

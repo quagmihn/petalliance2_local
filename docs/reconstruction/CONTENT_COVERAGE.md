@@ -1,5 +1,18 @@
 # Content coverage
 
+## 2026-11-26 Pet and economy acceptance
+
+| Area | Evidence |
+| --- | --- |
+| Pet | 191 valid Fight loadouts and 3 material loadouts. The configured Star-up engine accepted five rounds through Waydroid and persisted the same owned Pet UID. |
+| Skills | 3,730 definitions, 384 linked books and 2,360 validated configuration edges. Existing Android active learning and upgrade evidence remains narrower. |
+| VIP | All 21 privilege drop sets resolve. VIP 20 display, claim and cold relogin passed on QA. |
+| VIP Shop | Private limit override tested above the original cap on Android. Regular shop and eligibility rules remain enforced. |
+| Arena | 157 catalog candidates across nine slot positions and working PostgreSQL checkout. Original Arena combat lobby and points earning are blocked. |
+| Recharge | 12 normal SKU variants and two entitlement SKUs tested in PostgreSQL. Four SKU purchases, daily awards and retention passed on Android. |
+
+[Latest runtime checkpoint](EXECUTION_CHECKPOINT.md) · [Detailed content matrix](PET_CONTENT_COVERAGE.md)
+
 ## 2026-11-25 runtime additions
 
 | Family | Coverage |

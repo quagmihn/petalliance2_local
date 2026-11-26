@@ -71,11 +71,21 @@ isolated account fixture for ordinary test draws. The patched runtime APK
 sends a replay key. Identical legacy paid requests without a key are rejected
 for eight seconds after a draw.
 
-The current Android release is `dist/monster2_local-guide-runtime.apk`, SHA256
-`b469bf2b35885edee69427600a31f41bb55c2b92bcae0bbb9f3c7236d00414b6`.
+The current Android release is `dist/monster2_local-pet-economy-runtime.apk`, SHA256
+`d5b54e278c2ba8d6a86f9f2ea2924eede10e3e049cfc794c0e7fb363a9970dbd`.
 `dist/monster2_patched.apk` is the client build input. The signing keystore
 and fresh-install OBB are also in `dist`. Older releases are archived locally
 under `artifacts/dist-cleanup-20261124/archive/`.
 See the [runtime checkpoint](../docs/reconstruction/EXECUTION_CHECKPOINT.md)
 for the matching official server commit and Android acceptance.
 Keep signed APKs and database backups outside Git.
+
+`./server/run_all.sh doctor` reports the selected database and role, content hashes,
+APK identity, and effective VIP Shop setting without opening either listener.
+The private launcher enables unlimited VIP Store purchases by default. Use
+`VIP_SHOP_UNLIMITED=0 ./server/run_all.sh` for the packaged weekly limits.
+
+The [VIP tool](../docs/reconstruction/VIP20_ACCEPTANCE.md) supports an explicit
+play target with a validated production dump and guarded rollback.
+The [Star-up QA command](../docs/reconstruction/PET_STAR_EVOLUTION.md) provides
+configured resources only on `monster2_test_db`.

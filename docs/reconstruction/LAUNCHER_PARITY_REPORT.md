@@ -36,3 +36,27 @@ including `launcher-a-5f9a078.log`, `launcher-b-5f9a078.log`, their
 matching `.identity` files and `version-a.xml` / `version-b.xml`.
 
 [Current parity evidence](EXECUTION_CHECKPOINT.md)
+# 2026-11-26 Pet and economy deployment
+
+The official project is `/home/quagmihn/Project/monster2_rebuild`. The
+default `server/run_all.sh` command selected private local payment,
+VIP Shop unlimited, the three verified local Gacha pools, and
+`monster2_db` as role `monster2`. The controlled Waydroid suite used
+the same launcher in test mode. Both listeners independently logged their
+database identity. `./server/run_all.sh doctor` provides the report
+while the production listeners are already active.
+
+The first production start on gameplay commit `3fb9561` opened HTTP 8080
+as PID 20023 and TCP 5568 as PID 20024. The dirty flag at that start
+reflected pending documentation changes. The final startup log recorded
+with the documentation commit is `production-launcher-final.log` under
+`artifacts/pet-economy-20261126/`.
+
+The backup in that folder has SHA256
+`93367692c8ed72d7d758c70ca800367ff3bff83a108c0a56d41aae156a20ab2f`.
+Restore verification is in `restore.log`. Rollback uses the previous
+server source and the preserved `installed-base.apk` with the same
+signing certificate. Both new ledger tables can remain in place. Keep
+the owner character and any newer transactions if a release rollback is
+needed. The signed current APK and all QA evidence are recorded in the
+[execution checkpoint](EXECUTION_CHECKPOINT.md).
