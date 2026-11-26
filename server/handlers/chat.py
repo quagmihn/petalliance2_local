@@ -2,20 +2,50 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from character_values import vip_info_id
+from client_config import ROOT
 from fashion_config import stored_fashion_state
 from protocol import ProtocolDecodeError, Reader, Writer
 
 
 log = logging.getLogger("game_socket")
+TOWN_MAPS = frozenset(
+    str(path.relative_to(ROOT / "apk_raw/unpacked/assets/res"))
+    for path in (ROOT / "apk_raw/unpacked/assets/res/Map/TownMap").glob("town_[0-9][0-9].csb")
+)
+
+
+def town_position(content):
+    try:
+        data = json.loads(content)
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    map_resource, position = data.get("mapres"), data.get("posx")
+    if (isinstance(map_resource, str) and map_resource in TOWN_MAPS
+            and type(position) in (int, float) and 0 <= position <= 100_000
+            and isinstance(data.get("nickname"), str)):
+        return map_resource, position
+    return None
 
 
 async def send_chat(session, payload: bytes):
     """Reject chat explicitly while completing the client's ACK contract."""
     r = Reader(payload)
-    recipient, _channel, _content = r.string(), r.string(), r.string()
+    recipient, channel, content = r.string(), r.string(), r.string()
     r.finish()
+    if (session.char_id is not None and recipient == "" and channel == session.channel
+            and re.fullmatch(r"zhucheng_[0-9]{1,5}", channel)):
+        position = town_position(content)
+        if position is not None:
+            moved = session.town_position != position
+            session.town_position = position
+            log.info("town_position char_id=%s channel=%s resource=%s x=%s changed=%s",
+                     session.char_id, channel, *position, moved)
+            return 35, Writer().u16(0).bytes()
     # There is no chat relay/storage in this offline backend. Return the
     # protocol error code instead of claiming a message was delivered.
     log.info(
@@ -39,6 +69,7 @@ async def change_channel(session, payload: bytes):
     # channel on this live session so later chat traffic can be scoped to it.
     session.channel = channel
     session.channel_data = data
+    session.town_position = None
     return 386, Writer().u16(0).string(channel).bytes()
 
 

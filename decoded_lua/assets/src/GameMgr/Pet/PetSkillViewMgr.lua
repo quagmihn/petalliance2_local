@@ -107,7 +107,21 @@ function PetSkillViewMgr.getSkillInfoTableBySkillInfo(skillInfo)
     skillInfoTable.attr  = "UI/CommonFiles/"..skillInfo.skillAtt..".png"--火、水
     skillInfoTable.typeA = skillInfo.skill_A_Type--技能底板
     skillInfoTable.typeB = skillInfo.skill_B_Type--物理、魔法
-    skillInfoTable.desc  = skillInfo.desc
+    skillInfoTable.desc = skillInfo.desc
+    local translation = LuaSqlite.getLanguageByKey(skillInfo.desc)
+    if translation == "" or translation == skillInfo.desc then
+        local descriptions = {}
+        for _, tag in ipairs(skillInfo.tags or {}) do
+            local description = skillInfo.des[tag.instance.id]
+            if type(description) == "string" and description ~= "" then
+                local sourceKey = tag.instance.descs and tag.instance.descs[1]
+                if description ~= sourceKey then
+                    table.insert(descriptions, description)
+                end
+            end
+        end
+        if #descriptions > 0 then skillInfoTable.desc = table.concat(descriptions, "\n") end
+    end
     skillInfoTable.cost  = skillInfo.energy--消耗 
     skillInfoTable.icon  = skillInfo.icon and "Battle/skillIcon/"..skillInfo.icon..".png" or "empty.png"
     return skillInfoTable
@@ -197,7 +211,7 @@ function PetSkillViewMgr.showSkillInfoPage(skillInfo, skillIndex, skillType, obj
         CSResourceMgr.setLabelStringByNode(strExchange, "train46", outlineColor[1], nil, 154)
 
         local btnCanExchange = sInfo.typeA ~= 7 and sInfo.typeA ~= 8 
-        local btnEnable = GameGuideMgr.checkGuideFinishByID(10066)
+        local btnEnable = CharInfo.get().local_freedom == true or GameGuideMgr.checkGuideFinishByID(10066)
         CSResourceMgr.setButtonEnabledByNode(btnExchange, btnEnable and btnCanExchange == true)
         CSResourceMgr.setButtonEnabledByNode(btnLvUp, btnEnable)
 
@@ -1372,7 +1386,7 @@ function PetSkillViewMgr.getSortedSkillTipsInfo(skillInfo, skillType, skillTags,
         end
     end
     local isLocked = unlockLv > skillLv
-    local desc = isLocked and CocosModuleMgr.createStringWithFormat({"train124", unlockLv}) or descA..desc
+    local desc = isLocked and CocosModuleMgr.createStringWithFormat({"train124", unlockLv}) or descA..(desc or "")
     return desc, isLocked
 end
 

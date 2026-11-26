@@ -52,7 +52,7 @@ class MapIdentityContractTests(unittest.IsolatedAsyncioTestCase):
         class DB:
             def __init__(self):
                 self.current = {}
-            async def start_adventure(self, char_id, adventure_id):
+            async def start_adventure(self, char_id, adventure_id, *, resume=False):
                 self.current[char_id] = adventure_id
 
             async def fired_adventure_event_ids(self, char_id, adventure_id):

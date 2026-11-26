@@ -9,7 +9,9 @@ from pathlib import Path
 
 import asyncpg
 
+from adventure_sweep import sweep_config
 from arena_shop import pools as arena_pools
+from chest_config import chest_drop
 from client_config import CONFIG, ROOT, table
 from db.database import Database
 from local_draw import catalog_report
@@ -17,6 +19,7 @@ from local_play import enabled
 from market_config import enabled_offers
 from quest_config import load_quests
 from recharge_config import normal_families
+from reward_config import RewardConfigError, drop_plan
 from vip_config import max_vip, unlimited_shop
 
 
@@ -33,13 +36,15 @@ def runtime_content():
     server_config = ROOT / "server/config"
     groups = {
         "pets": ("PokemonInfo.dat", "GeneInfo.dat", "GeneProbabilityInfo.dat", "PetSkillInfo.dat",
-                 "PetAdvanceInfo.dat", "PetStarUpInfo.dat", "PetEvoInfo.dat", "GlobalConfigAddInfo.dat"),
-        "items": ("ItemInfo.dat", "PetPieceInfo.dat", "RewardInfo.dat", "AwardElementInfo.dat",
+                 "PetAdvanceInfo.dat", "PetStarUpInfo.dat", "PetEvoInfo.dat", "GlobalConfigAddInfo.dat",
+                 "SkillInfo.dat", "SkillTagInfo.dat", "SkillTemplateInfo.dat", "db/lang_en.db"),
+        "items": ("ItemInfo.dat", "PetPieceInfo.dat", "DropInfo.dat", "RewardInfo.dat", "AwardElementInfo.dat",
                   "FashionItemInfo.dat", "PokemonBallInfo.dat"),
         "market": ("MarketInfo.dat", "ShopInfo.dat", "ShopPoolInfo.dat", "ArenaAwardInfo.dat",
                    "ShopReflashInfo.dat", "VipInfo.dat", "DropInfo.dat"),
         "maps": ("AdventureInfo.dat", "SceneInfo.dat", "FloorRelationInfo.dat", "DisposableInfo.dat",
-                 "MonstrosityInfo.dat", "MonsterGroupManInfo.dat", "map_event.txt", "map_node.txt"),
+                 "MonstrosityInfo.dat", "MonsterGroupManInfo.dat", "map_event.txt", "map_node.txt",
+                 "obstruction.txt", "fbpickup.txt"),
         "events": ("ActivityInfoClient.dat", "SevenDayInfo.dat", "FirstRechargeAwardInfo.dat",
                    "RewardInfo.dat", "NormalRechargeInfo.dat", "MonthCardRechargeInfo.dat", "firstRecharge.txt"),
         "quests": ("NewQuestInfo.dat", "story.txt"),
@@ -82,10 +87,25 @@ async def check_database():
         await db.close()
 
 
+def report_reward_catalogs():
+    chests = [key for key, item in table("ItemInfo").items() if item["bUse"] and item["itemType"] == 18]
+    sweeps = {key: row["rewards"] for key, row in table("AdventureInfo").items() if sweep_config(key)}
+    for name, keys, resolve in (("chest_catalog", chests, chest_drop),
+                                ("sweep_catalog", sweeps, lambda key: drop_plan(sweeps[key]))):
+        blocked = {}
+        for key in keys:
+            try:
+                resolve(key)
+            except RewardConfigError as exc:
+                blocked[key] = str(exc)
+        report(name, {"enabled": len(keys) - len(blocked), "blocked": blocked})
+
+
 def main():
     payment = payment_mode()
     report("local_features", {flag: enabled(flag) for flag in (
-        "LOCAL_FREEDOM_MODE", "LOCAL_UNLIMITED_PET_STORAGE", "LOCAL_UNLIMITED_ITEM_STORAGE")})
+        "LOCAL_FREEDOM_MODE", "LOCAL_UNLIMITED_PET_STORAGE", "LOCAL_UNLIMITED_ITEM_STORAGE",
+        "LOCAL_UNLIMITED_SILVER")})
     path = os.environ["MONSTER2_DRAW_CATALOG"]
     try:
         report("gacha_catalog", catalog_report(path))
@@ -93,6 +113,7 @@ def main():
         raise SystemExit(f"Invalid Gacha catalog {path!r}: {exc}. Correct MONSTER2_DRAW_CATALOG before starting.") from None
     try:
         report("market_catalog", {"enabled_offers": len(enabled_offers())})
+        report_reward_catalogs()
         report("pet_economy_catalogs", {"pets": len(table("PokemonInfo")), "skills": len(table("PetSkillInfo")),
                "items": len(table("ItemInfo")), "star_rows": len(table("PetStarUpInfo")),
                "vip_max": max_vip()["viplevel"], "vip_shop_unlimited": unlimited_shop(),

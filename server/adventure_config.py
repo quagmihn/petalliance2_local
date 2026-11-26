@@ -2,8 +2,12 @@
 from collections import defaultdict
 from functools import cache
 
-from client_config import table
+import re
 
+from client_config import table, text_table
+
+TOOL_PICKED_OFFSET = 1_000_000
+TOOL_USED_OFFSET = 2_000_000
 
 @cache
 def _by_adventure():
@@ -45,3 +49,18 @@ def scene_encounter(adventure_id, scene_id, event_type):
             # SearchingMapMgr passes this field directly to the event renderer.
             return int(disposable["eventRandomID"]), int(scene["event"])
     return None
+
+
+@cache
+def obstruction_skills():
+    """Skill-family conditions for the type-5 obstacle implementation."""
+    return {int(row[0]): frozenset(int(value) for value in re.findall(r"\(0,(\d+)\)", row[11]))
+            for row in text_table("obstruction.txt")[1:] if row[0].isdigit() and row[2] == "5"}
+
+
+@cache
+def adventure_tools():
+    return {int(row[0]): tuple(map(int, target.groups()))
+            for row in text_table("fbpickup.txt")[1:]
+            if row[0].isdigit() and row[2] == "1"
+            and (target := re.fullmatch(r"\((\d+),(\d+)\)", row[12]))}

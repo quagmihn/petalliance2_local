@@ -21,7 +21,7 @@ class QuestDB:
         self.adventure_claims = {}
         self.current_adventures = {}
 
-    async def start_adventure(self, char_id, adventure_id):
+    async def start_adventure(self, char_id, adventure_id, *, resume=False):
         self.current_adventures[char_id] = adventure_id
 
     async def start_adventure_battle(self, char_id, session_id, adventure_id, scene_id, group_id):

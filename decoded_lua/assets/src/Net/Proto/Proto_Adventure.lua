@@ -118,7 +118,11 @@ end
 function Proto.writeP_CG_AdventureUseSkill_Req(msg,data)
 	Proto.writeWORD(msg,Proto.Command.CG_ADVENTUREUSESKILL_REQ);
 	Proto.writeDWORD(msg,data.objID); -- 
-	Proto.writeDWORD(msg,data.skillID); -- 
+	Proto.writeDWORD(msg,data.skillID);
+	if data.interactionKind then
+		Proto.writeDWORD(msg,data.adventureID);
+		Proto.writeDWORD(msg,data.interactionKind);
+	end
 end
 
 function Proto.parseP_GC_AdventureUseSkill_Ack(entry)
@@ -185,6 +189,7 @@ function Proto.writeP_CG_QuickClearAdventure_Req(msg,data)
 	Proto.writeDWORD(msg,data.adventureID); -- 副本ID
 	Proto.writeDWORD(msg,data.clearType); -- 扫荡类型 0:扫荡券
 	Proto.writeDWORD(msg,data.isManyTimes); -- 是否连续扫荡 1 是 0 否
+	if data.requestKey then Proto.writeString(msg, data.requestKey) end
 end
 
 function Proto.parseP_GC_QuickClearAdventure_Ack(entry)

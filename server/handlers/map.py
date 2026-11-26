@@ -5,7 +5,7 @@ import logging
 import random
 import time
 from client_config import table as client_table
-from adventure_config import scene_cells
+from adventure_config import TOOL_USED_OFFSET, adventure_tools, obstruction_skills, scene_cells
 
 from protocol import Reader, Writer
 from quest_config import load_quests
@@ -43,10 +43,39 @@ EMPTY_STARTUP_ACKS = {
 
 
 async def adventure_clear_notifications(session):
-    rows = await session.db.adventure_clears(session.char_id)
-    entries = [json.dumps(dict(row), separators=(",", ":")) for row in rows]
+    rows = await session.db.adventure_clears(session.char_id, include_sweeps=True)
+    entries = [json.dumps({key: value for key, value in row.items() if not key.startswith("qc") or value},
+                          separators=(",", ":")) for row in rows]
     return [(1749, Writer().vector_strings(entries[start:start + 32]).bytes())
             for start in range(0, len(entries), 32)]
+
+
+async def quick_clear_adventure(session, payload):
+    from adventure_sweep import sweep
+    from handlers.inventory import award_strings, reward_packets
+    from reward_config import RewardConfigError
+
+    reader = Reader(payload)
+    adventure_id, clear_type, count = reader.u32(), reader.u32(), reader.u32()
+    operation = reader.string(limit=40) if reader.pos < len(payload) else None
+    reader.finish()
+    error = (1741, Writer().u16(1).bytes())
+    if session.char_id is None or clear_type != 0:
+        return error
+    try:
+        result = await sweep(session.db, session.char_id, adventure_id, count, operation)
+    except RewardConfigError as exc:
+        log.warning("sweep_rejected adventure_id=%s reason=%s", adventure_id, exc)
+        return error
+    if result is None:
+        return error
+    state = result["state"]
+    notices = reward_packets(state) if state else []
+    notices.append((1749, Writer().vector_strings([json.dumps(result["clear"], separators=(",", ":"))]).bytes()))
+    notices.append((1741, Writer().u16(0).vector_strings(award_strings(result["awards"])).bytes()))
+    log.info("sweep char_id=%s adventure_id=%s requested_count=%s replay=%s daily_total=%s",
+             session.char_id, adventure_id, count, state is None, result["clear"]["qcTimes"])
+    return notices
 
 
 async def get_finished_adventures(session, payload: bytes):
@@ -65,12 +94,17 @@ async def create_adventure(session, payload: bytes):
     cells = scene_cells(adventure_id)
     if not cells:
         return 3080, Writer().u16(1).bytes()
+    if session.char_id is not None:
+        await session.db.start_adventure(session.char_id, adventure_id, resume=True)
     fired = await session.db.fired_adventure_event_ids(session.char_id, adventure_id) if session.char_id else set()
     disposable = client_table("DisposableInfo") if fired else {}
     events = []
     for scene in cells:
         event_id, event_type = scene["event"], scene["eventType"]
-        if event_type == 21 and event_id in fired and event_id in disposable:
+        if (event_type == 3 and -scene["id"] in fired
+                or event_type == 1 and -(TOOL_USED_OFFSET + scene["id"]) in fired):
+            event_id, event_type = 0, 0
+        elif event_type == 21 and event_id in fired and event_id in disposable:
             finished = disposable[event_id]
             event_id, event_type = finished["finishEvent"], finished["finishEventType"]
         events.append({
@@ -81,8 +115,6 @@ async def create_adventure(session, payload: bytes):
     state = json.dumps({"advID": adventure_id, "events": events, "npcShop": []},
                        ensure_ascii=False, separators=(",", ":"))
     session.current_adventure_id = adventure_id
-    if session.char_id is not None:
-        await session.db.start_adventure(session.char_id, adventure_id)
     return 3080, Writer().u16(0).u32(adventure_id).string(state).bytes()
 
 
@@ -100,6 +132,10 @@ async def get_adventure_award(session, payload: bytes):
                   # Client convertToCoord returns (row, col), then serializes
                   # field=col,row=row; SceneInfo stores eventX as row, eventY as col.
                   and entry["eventX"] == row and entry["eventY"] == col), None)
+    if scene and scene["eventType"] == 1 and scene["event"] in adventure_tools():
+        accepted = await session.db.adventure_tool(session.char_id, adventure_id, scene["id"])
+        return 3079, (Writer().u16(0).vector_strings([]).bytes() if accepted
+                      else Writer().u16(1).bytes())
     # Pickup rewards are configured by SceneInfo.award -> RewardInfo -> AwardElementInfo.
     if scene is None or scene["eventType"] != 1 or scene["award"] <= 0:
         return 3079, Writer().u16(1).bytes()
@@ -167,6 +203,33 @@ async def fire_adventure_events(session, payload: bytes):
                                                      sorted(set(event_ids))):
         return 5, Writer().u16(1).bytes()
     return 5, Writer().u16(0).bytes()
+
+
+async def adventure_use_skill(session, payload: bytes):
+    r = Reader(payload)
+    source_id, scene_id = r.u32(), r.u32()
+    error = 746, Writer().u16(1).bytes()
+    # The local APK includes the active Adventure and interaction kind.
+    if session.char_id is None or len(payload) - r.pos != 8:
+        return error
+    adventure_id, kind = r.u32(), r.u32()
+    cells = {cell["id"]: cell for cell in scene_cells(adventure_id)}
+    target = cells.get(scene_id)
+    if not target or target["eventType"] != 3:
+        return error
+    accepted = False
+    if kind == 2 and source_id == 0:
+        families = obstruction_skills().get(target["event"], ())
+        accepted = bool(families and await session.db.clear_skill_obstacle(
+            session.char_id, adventure_id, scene_id, families))
+    elif kind == 1:
+        source = cells.get(source_id)
+        if (source and source["eventType"] == 1
+                and adventure_tools().get(source["event"]) == (3, target["event"])):
+            accepted = await session.db.adventure_tool(session.char_id, adventure_id, source_id, scene_id)
+    log.info("adventure_interaction char_id=%s adventure_id=%s scene_id=%s kind=%s accepted=%s",
+             session.char_id, adventure_id, scene_id, kind, accepted)
+    return 746, Writer().u16(0 if accepted else 1).bytes()
 
 
 async def finish_adventure(session, payload: bytes):

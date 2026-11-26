@@ -7,12 +7,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
 from arena_shop import pools
+from chest_config import chest_drop
 from client_config import table
 from draw_expansion import compatible_books, compatible_fashion_vouchers, compatible_pets
 from local_draw import catalog_report
 from pet_config import acquisition_skill_pools, star_steps
 from recharge_config import normal_families
-from reward_config import RewardConfigError, reward_options, selectable_reward
+from reward_config import RewardConfigError, selectable_reward
 from skill_config import skill_book, skill_upgrade_costs
 from vip_config import max_vip, milestone
 
@@ -49,7 +50,7 @@ def main():
         result = {"type": kind, "name": item["name"], "description": item["desc"], "reference": reference}
         try:
             if kind == 18:
-                result["outcomes"] = reward_options(reference)
+                result["rolls"] = chest_drop(item_id)
             elif kind == 28 and reference in boxes:
                 result["choices"] = {}
                 for index, amount in enumerate(boxes[reference]["nums"]):

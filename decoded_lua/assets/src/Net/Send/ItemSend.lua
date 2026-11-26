@@ -11,6 +11,7 @@ function ItemSend.sendCG_GetItemPacket_Req()
 
 end
 
+local chestSerial = 0
 function ItemSend.sendCG_UseItem_Req(params)
 
     local data = {
@@ -19,6 +20,10 @@ function ItemSend.sendCG_UseItem_Req(params)
         targetStr = params.targetStr,
         useNum = params.useNum,
     }
+    if params.chest then
+        chestSerial = chestSerial + 1
+        data.targetStr = string.format("local:%08x%08x%08x", os.time(), chestSerial, math.random(0, 0x7fffffff))
+    end
     NetMgr.send(Proto.writeP_CG_UseItem_Req, data)
 
 end

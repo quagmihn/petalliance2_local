@@ -2385,12 +2385,20 @@ function BattleCCSB.createCatchUI(parent,petInfo)
     local function setSelect(i,isBool) 
         -- local ballBtn = ""
         if isBool then
+            if not NetInterface.isConnect then return end
             CocosModuleMgr.setScreenTouch(false)
+            local function recoverCaptureInput()
+                CocosModuleMgr.setScreenTouch(true)
+                BattleCCSB.CATCH.clickDB[i]:hide()
+            end
 
             local PVESend = require("src.Net.Send.PVESend")
             NetInterface.sendWithBlock("GC_PVEPOKEMONCATCH_ACK", function()
                 PVESend.sendCG_PVEPokemonCatch_Req({pokemonID = BattleMapMgr.getCanCatchPet(),itemID = ballOrder[i]})
-            end, nil, nil, nil, false)
+            end, nil, function(code)
+                recoverCaptureInput()
+                TipsMgr.showError(nil, code)
+            end, nil, false, recoverCaptureInput)
             BattleCCSB.CATCH.clickDB[i]:show()
             -- ballBtn = "Battle/catch/bz_di2.png"
             -- CSResourceMgr.setButtonTextureByNode(BattleCCSB.CATCH.ball[i],ballBtn,ballBtn,ballBtn)

@@ -130,6 +130,8 @@ EXPECTED_ACKS = {
     1038: (112, 473, 1032), 1282: (133, 3141, 1369), 1302: (112, 133, 3141, 1371),
     2996: (3080,), 3078: (3081, 1749),
     2998: (3079,),
+    1738: (112, 133, 262, 3141, 473, 1749, 1741),
+    722: (746,),
     4: (5,), 83: (262, 3141, 84), 324: (320,), 391: (112, 133, 262, 473, 3141, 390),
     930: (1077,), 978: (274,), 288: (305,), 1054: (112, 133, 262, 473, 3141, 1106), 1114: (271,),
     90: (473, 89),
@@ -155,6 +157,7 @@ class Session:
         self.username = ""
         self.user_token = ""
         self.channel = ""
+        self.town_position = None
 
 
 async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, bytes] | None:
@@ -177,6 +180,10 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["delete_mail"]: return await events.update_mail(session, payload, CMD["delete_mail_ack"])
     if msg_id == CMD["finish_adventure"]:
         return await map_handler.finish_adventure(session, payload)
+    if msg_id == 1738:
+        return await map_handler.quick_clear_adventure(session, payload)
+    if msg_id == 722:
+        return await map_handler.adventure_use_skill(session, payload)
     if msg_id == CMD["read_info"]:
         return await character_state.read_info(session, payload)
     if msg_id == CMD["get_life_skill_data"]:

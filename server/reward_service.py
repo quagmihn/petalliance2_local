@@ -52,7 +52,7 @@ async def grant_rewards(conn, char_id: int, rewards: list[dict],
             from handlers.pet import pet_json
             from pet_config import insert_owned_pet
             for _ in range(amount):
-                pet = await insert_owned_pet(conn, char_id, element_id)
+                pet = await insert_owned_pet(conn, char_id, element_id, gene_id=reward.get("gene_id"))
                 pets.append(pet_json(pet))
         else:
             raise ValueError(f"unsupported reward kind {kind}")

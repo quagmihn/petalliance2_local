@@ -232,7 +232,7 @@ class Database:
     async def buy_market_item(self, char_id: int, market: dict, count: int):
         """Apply a configured MarketInfo purchase and its weekly counter."""
         from client_config import table
-        from local_play import storage_limits
+        from local_play import silver_override, storage_limits
         from reward_service import fits_wire_stack
         from vip_config import unlimited_shop
 
@@ -284,7 +284,8 @@ class Database:
                 currencies = char["currencies_json"] or {}
                 if isinstance(currencies, str):
                     currencies = json.loads(currencies)
-                if coin_type == 3:
+                virtual_silver = coin_type == 3 and silver_override(char) is not None
+                if coin_type == 3 and not virtual_silver:
                     balance = int(currencies.get("goldCoin", 0))
                     if balance < price:
                         return None
@@ -292,7 +293,7 @@ class Database:
                     await conn.execute(
                         "UPDATE characters SET currencies_json=$2::jsonb WHERE char_id=$1",
                         char_id, json.dumps(currencies))
-                else:
+                elif currency_column is not None:
                     if int(char[currency_column]) < price:
                         return None
                     await conn.execute(
@@ -313,7 +314,7 @@ class Database:
                         """INSERT INTO vip_shop_purchases(char_id,sku,item_id,quantity,coin_type,cost,unlimited)
                            VALUES($1,$2,$3,$4,$5,$6,$7)""",
                         char_id, market["id"], item_id, quantity, coin_type, price, unlimited)
-                return {"character": updated,
+                return {"character": updated, "virtual_silver": virtual_silver,
                         "item_id": item_id, "item_count": int(inventory["count"]), "counters": counters}
 
     async def apply_local_recharge(self, char_id: int, order_key: str,
@@ -448,10 +449,19 @@ class Database:
                     char_id, diamonds)
             return await conn.fetchrow("SELECT * FROM characters WHERE char_id=$1", char_id)
 
-    async def adventure_clears(self, char_id: int):
+    async def adventure_clears(self, char_id: int, *, include_sweeps=False):
+        if not include_sweeps:
+            return await self.pool.fetch(
+                """SELECT adventure_id AS "advID",star_mask AS star
+                   FROM character_adventure_clears WHERE char_id=$1 ORDER BY adventure_id""", char_id)
         return await self.pool.fetch(
-            """SELECT adventure_id AS "advID",star_mask AS star
-               FROM character_adventure_clears WHERE char_id=$1 ORDER BY adventure_id""",
+            """SELECT a.adventure_id AS "advID",a.star_mask AS star,
+                      coalesce((s.counter->>'count')::int,0) AS "qcTimes",
+                      coalesce((s.counter->>'last')::bigint,0) AS "qcUpdateTime"
+               FROM character_adventure_clears a JOIN characters c USING(char_id)
+               CROSS JOIN LATERAL (
+                   SELECT c.game_values->'adventure_sweeps'->'counts'->(a.adventure_id::text) AS counter
+               ) s WHERE a.char_id=$1 ORDER BY a.adventure_id""",
             char_id,
         )
 
@@ -965,6 +975,11 @@ class Database:
                             "pet_json": pet_json(existing), "remaining": int(battle["capture_attempts_remaining"]),
                             "rate_bonus": 0, "duplicate": True}
                 if int(battle["capture_attempts_remaining"]) <= 0:
+                    return None
+                if battle["battle_type"] == 2 and not await conn.fetchval(
+                    """SELECT 1 FROM character_adventures WHERE char_id=$1 AND adventure_id=$2
+                       AND completed_at IS NULL AND started_at<=$3""",
+                    char_id, battle["adventure_id"], battle["created_at"]):
                     return None
                 values = owner["game_values"] or {}
                 if isinstance(values, str):
@@ -1631,9 +1646,9 @@ class Database:
 
     async def character_values(self, char_id: int, keys: list[str]) -> dict[str, Any]:
         from character_values import validate_character_values, vip_info_id
-        from local_play import enabled, freedom
+        from local_play import enabled, freedom, silver_override
         row = await self.pool.fetchrow(
-            "SELECT gold,diamond,vip_level,stamina,vip_points,recharge_total,currencies_json,game_values,created_at,world_id "
+            "SELECT account_id,char_id,name,gold,diamond,vip_level,stamina,vip_points,recharge_total,currencies_json,game_values,created_at,world_id "
             "FROM characters WHERE char_id=$1", char_id,
         )
         if row is None:
@@ -1645,6 +1660,7 @@ class Database:
             stored = json.loads(stored)
         if isinstance(currencies, str):
             currencies = json.loads(currencies)
+        silver = silver_override(row)
         aliases = {
             "gold": row["gold"], "diamond": row["diamond"],
             "viplevel": vip_info_id(row["vip_level"]),
@@ -1668,6 +1684,9 @@ class Database:
                 raw_values[key] = freedom(stored)
             elif normalized in ("local_unlimited_pet_storage", "local_unlimited_item_storage"):
                 raw_values[key] = enabled(normalized.upper())
+            elif normalized == "goldcoin":
+                raw_values[key] = (silver if silver is not None
+                                   else int(currencies.get("goldCoin", currencies.get("goldcoin", 0))))
             elif key in stored:
                 raw_values[key] = stored[key]
             elif normalized in stored:
@@ -1705,7 +1724,7 @@ class Database:
             char_id, item_id, count,
         )
 
-    async def exchange_inventory_stack(self, char_id, item_id, amount, rewards):
+    async def exchange_inventory_stack(self, char_id, item_id, amount, rewards, *, operation=None):
         """Spend an existing stack and grant its configured exchange atomically."""
         from reward_service import receive_rewards
 
@@ -1716,9 +1735,21 @@ class Database:
                 "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
             if char is None:
                 return None
+            receipts = {}
+            if operation is not None:
+                token, created, now, choice, request_count = operation
+                values = json.loads(char["game_values"])
+                receipts = {key: receipt for key, receipt in values.get("chest_receipts", {}).items()
+                            if receipt[0] >= now - 86400}
+                previous = receipts.get(token)
+                if previous is not None and previous[1:4] != [item_id, choice, request_count]:
+                    return None
             count = await conn.fetchval(
                 "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2 FOR UPDATE",
                 char_id, item_id)
+            if operation is not None and previous is not None:
+                return {"counts": {item_id: count or 0}, "wallet": None, "pets": [],
+                        "exchange_rewards": previous[4]}
             if count is None or count < amount:
                 return None
             remaining = count - amount
@@ -1734,6 +1765,11 @@ class Database:
             else:
                 await conn.execute("DELETE FROM inventory WHERE char_id=$1 AND item_id=$2", char_id, item_id)
             granted["counts"][item_id] = final
+            if operation is not None:
+                receipts[token] = [created, item_id, choice, request_count, rewards]
+                await conn.execute(
+                    """UPDATE characters SET game_values=game_values || jsonb_build_object('chest_receipts',$2::jsonb)
+                       WHERE char_id=$1""", char_id, json.dumps(receipts))
             return granted
 
     async def manage_pet_skill(self, char_id, pet_uid, slot, book_id=None):
@@ -1908,14 +1944,72 @@ class Database:
                         raise ValueError(f"unsupported adventure reward kind: {kind}")
         return encoded
 
-    async def start_adventure(self, char_id: int, adventure_id: int) -> None:
-        await self.pool.execute(
-            """INSERT INTO character_adventures(char_id,adventure_id)
-               VALUES($1,$2) ON CONFLICT(char_id) DO UPDATE
-               SET adventure_id=EXCLUDED.adventure_id,started_at=now(),completed_at=NULL,
-                   completion_star=0,completion_awards_json='[]'::jsonb""",
-            char_id, adventure_id,
-        )
+    async def start_adventure(self, char_id: int, adventure_id: int, *, resume=False) -> None:
+        async with self.pool.acquire() as conn, conn.transaction():
+            started = await conn.fetchval(
+                """INSERT INTO character_adventures(char_id,adventure_id)
+                   VALUES($1,$2) ON CONFLICT(char_id) DO UPDATE
+                   SET adventure_id=EXCLUDED.adventure_id,started_at=now(),completed_at=NULL,
+                       completion_star=0,completion_awards_json='[]'::jsonb
+                   WHERE character_adventures.completed_at IS NOT NULL
+                       OR character_adventures.adventure_id<>EXCLUDED.adventure_id OR NOT $3 RETURNING 1""",
+                char_id, adventure_id, resume)
+            if started:
+                await conn.execute(
+                    "DELETE FROM adventure_fired_events WHERE char_id=$1 AND adventure_id=$2 AND event_id<0",
+                    char_id, adventure_id)
+
+    async def clear_skill_obstacle(self, char_id, adventure_id, scene_id, families):
+        async with self.pool.acquire() as conn, conn.transaction():
+            active = await conn.fetchval(
+                """SELECT adventure_id FROM character_adventures
+                   WHERE char_id=$1 AND completed_at IS NULL FOR UPDATE""", char_id)
+            if active != adventure_id:
+                return False
+            # Negative event keys are run-local authored scene cells.
+            if await conn.fetchval(
+                """SELECT 1 FROM adventure_fired_events
+                   WHERE char_id=$1 AND adventure_id=$2 AND event_id=$3""", char_id, adventure_id, -scene_id):
+                return True
+            pets = await conn.fetch("SELECT skills_json FROM pets WHERE char_id=$1", char_id)
+            if not any(type(skill) is int and skill > 0 and skill // 10 in families
+                       for pet in pets for skill in json.loads(pet["skills_json"])):
+                return False
+            await conn.execute(
+                "INSERT INTO adventure_fired_events(char_id,adventure_id,event_id) VALUES($1,$2,$3)",
+                char_id, adventure_id, -scene_id)
+            return True
+
+    async def adventure_tool(self, char_id, adventure_id, source_id, target_id=None):
+        from adventure_config import TOOL_PICKED_OFFSET, TOOL_USED_OFFSET
+
+        picked = -(TOOL_PICKED_OFFSET + source_id)
+        used = -(TOOL_USED_OFFSET + source_id)
+        async with self.pool.acquire() as conn, conn.transaction():
+            active = await conn.fetchval(
+                """SELECT adventure_id FROM character_adventures
+                   WHERE char_id=$1 AND completed_at IS NULL FOR UPDATE""", char_id)
+            if active != adventure_id:
+                return False
+            events = {r["event_id"] for r in await conn.fetch(
+                """SELECT event_id FROM adventure_fired_events WHERE char_id=$1 AND adventure_id=$2
+                   AND event_id=ANY($3::int[])""",
+                char_id, adventure_id, [picked, used, -(target_id or 0)])}
+            if target_id is None:
+                if used in events:
+                    return False
+                additions = [picked]
+            elif used in events:
+                return -target_id in events
+            else:
+                if picked not in events or -target_id in events:
+                    return False
+                additions = [used, -target_id]
+            await conn.executemany(
+                """INSERT INTO adventure_fired_events(char_id,adventure_id,event_id) VALUES($1,$2,$3)
+                   ON CONFLICT DO NOTHING""",
+                [(char_id, adventure_id, event_id) for event_id in additions])
+            return True
 
     async def current_adventure_id(self, char_id: int) -> int | None:
         return await self.pool.fetchval(

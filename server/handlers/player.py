@@ -176,7 +176,8 @@ async def change_character_info(session, payload: bytes):
             or not re.fullmatch(r"[a-z0-9_]{1,64}", normalized)
             or normalized in ("fashion_info", "curfashion", "vip_local_awards", "vipshopunlimited",
                               "arena_shop", "arenascore", "local_freedom",
-                              "local_unlimited_pet_storage", "local_unlimited_item_storage")
+                              "local_unlimited_pet_storage", "local_unlimited_item_storage", "adventure_sweeps", "chest_receipts",
+                              "goldcoin")
             or re.fullmatch(r"seven[0-9]+", normalized)
             or normalized.startswith("first_recharge_mail_")
             or normalized.startswith(("buymarketitemnum_", "buymarketitemtime_"))):

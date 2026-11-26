@@ -42,16 +42,16 @@ def pokemon(template_id):
 
 
 @functools.cache
-def gene(template_id):
+def gene(template_id, gene_id=None):
     for raw in rows("GeneInfo"):
         r = Reader(raw)
-        gene_id, pet_id = r.u32(), r.u32()
-        if pet_id != template_id:
+        row_id, pet_id = r.u32(), r.u32()
+        if pet_id != template_id or (gene_id is not None and gene_id != row_id):
             continue
         groups = [r.u32() for _ in range(4)]
         passive = [{"paSkillType": r.u32(), "paSkillID": r.u32()} for _ in range(r.u8())]
         r.finish()
-        return gene_id, groups, passive
+        return row_id, groups, passive
     raise ValueError(f"unknown GeneInfo template {template_id}")
 
 
@@ -70,10 +70,10 @@ def skill_ids():
 
 
 @functools.cache
-def acquisition_skill_pools(template_id):
+def acquisition_skill_pools(template_id, *, gene_id=None):
     """Resolve and validate every possible skill before a Pet can be granted."""
     pokemon(template_id)
-    _, groups, passive = gene(template_id)
+    _, groups, passive = gene(template_id, gene_id)
     pools = []
     for index, group in enumerate((*groups, *(entry["paSkillID"] for entry in passive))):
         choices = tuple((weight, skill) for weight, skill in skill_choices(group) if weight > 0)
@@ -85,8 +85,8 @@ def acquisition_skill_pools(template_id):
         (entry["paSkillType"], choices) for entry, choices in zip(passive, pools[len(groups):]))
 
 
-def starting_skills(template_id):
-    active, passive = acquisition_skill_pools(template_id)
+def starting_skills(template_id, *, gene_id=None):
+    active, passive = acquisition_skill_pools(template_id, gene_id=gene_id)
 
     def choose(choices):
         draw = secrets.randbelow(sum(weight for weight, _ in choices))
@@ -98,8 +98,8 @@ def starting_skills(template_id):
         {"paSkillType": skill_type, "paSkillID": choose(pool)} for skill_type, pool in passive]
 
 
-async def insert_owned_pet(conn, char_id, template_id, *, slot=-1, level=1, stage=0, star=0):
-    skills, passive = starting_skills(template_id)
+async def insert_owned_pet(conn, char_id, template_id, *, slot=-1, level=1, stage=0, star=0, gene_id=None):
+    skills, passive = starting_skills(template_id, gene_id=gene_id)
     return await conn.fetchrow(
         """INSERT INTO pets(char_id,pet_template_id,slot_index,level,training_stage,star,
            skills_json,passive_skills_json)

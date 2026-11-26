@@ -6,6 +6,7 @@ local shadowNode = nil
 local shadowExists = false
 local shadowRes = "Searching/ShadowLayer.csb"
 
+local pendingTool = false
 local currentItemIndex = 0 --当前使用道具所在位置
 
 local PROP_NUM_MAX = 4
@@ -119,8 +120,30 @@ end
 
 --*****************************  道具事件func定义    ********************************
 ---笛子作用于卡比兽
-local function dizi_kbs_func(k)
+local function dizi_kbs_func(k, accepted)
     if SearchingMgr.mapInfoTable[k] == 0 then
+        if LtMapOption.getMapType() == "ADVENTURE" and not accepted then
+            if pendingTool then return end
+            local item = SearchingMapMgr.allItems[currentItemIndex]
+            if not item or not item.info.sourceSceneID then return end
+            local target = SearchingMapMgr.sceneID["floor"..SearchingMapMgr.currFloor][k]
+            pendingTool = true
+            local function release()
+                pendingTool = false
+                currentItemIndex = 0
+                removeAll()
+            end
+            NetInterface.sendWithBlock("GC_ADVENTUREUSESKILL_ACK", function()
+                require("src.Net.Send.AdventureSend").sendCG_AdventureUseSkill_Req({
+                    objID = item.info.sourceSceneID, skillID = target,
+                    adventureID = SearchingMapMgr.currAdventure, interactionKind = 1,
+                })
+            end, function()
+                pendingTool = false
+                dizi_kbs_func(k, true)
+            end, release, nil, false, release)
+            return
+        end
         SearchingUIMgr.TurnToBlock(k)
         
         local pickItemInfo = SearchingMapMgr.allItems[currentItemIndex].info
@@ -252,7 +275,7 @@ end
 
 ---添加道具
 function propMgr.addProp(slot,img,info)
-    if slot<0 and slot>4 then
+    if slot < 1 or slot > PROP_NUM_MAX then
         print("ADV_DEBUG_INFO:道具slot越界")
         return
     end
@@ -333,6 +356,7 @@ function propMgr.setAllProp()
         end
     end
     currentItemIndex = 0
+    pendingTool = false
 end
 
 function propMgr.refreshProps()

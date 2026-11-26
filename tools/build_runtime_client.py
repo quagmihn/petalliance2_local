@@ -63,6 +63,8 @@ def main():
                    help="replace only the Pet default-tab and economy Lua on an already patched APK")
     mode.add_argument("--freedom-overlay", action="store_true",
                       help="overlay private-local access gates and safe storage UI on the Pet economy APK")
+    mode.add_argument("--adventure-economy-overlay", action="store_true",
+                      help="overlay sweep, obstacle, capture recovery and skill text Lua")
     args = p.parse_args()
     if args.pet_economy_overlay:
         overlay = {
@@ -83,7 +85,21 @@ def main():
             "GameMgr/Item/BagViewMgr.lua",
             "Net/Send/PetSend.lua",
         )}
-    if args.pet_economy_overlay or args.freedom_overlay:
+    if args.adventure_economy_overlay:
+        overlay = {"assets/src/" + name for name in (
+            "GameMgr/Battle/BattleCCSB.lua",
+            "GameMgr/Pet/PetSkillViewMgr.lua",
+            "GameMgr/Searching/AdvConfirmMgr.lua",
+            "GameMgr/Searching/AdvConfirmMgrNew.lua",
+            "GameMgr/Searching/SearchingFuncMgr.lua",
+            "GameMgr/Searching/propMgr.lua",
+            "Net/Proto/Proto_Adventure.lua",
+            "Net/Send/AdventureSend.lua",
+            "Net/Send/ItemSend.lua",
+            "GameMgr/Item/ItemInfoViewMgr.lua",
+            "GameMgr/Item/MultiItemBoxView.lua",
+        )}
+    if args.pet_economy_overlay or args.freedom_overlay or args.adventure_economy_overlay:
         with zipfile.ZipFile(args.input) as source, zipfile.ZipFile(args.output, "w") as output:
             if not overlay <= set(source.namelist()):
                 raise ValueError("the input APK is missing one or more Lua modules in the selected overlay")

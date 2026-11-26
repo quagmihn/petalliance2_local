@@ -54,6 +54,8 @@ function AdventureSend.sendCG_AdventureUseSkill_Req(params)
         objID   = params.objID,
         skillID = params.skillID,
     }
+    data.adventureID = params.adventureID
+    data.interactionKind = params.interactionKind
     NetMgr.send(Proto.writeP_CG_AdventureUseSkill_Req, data)
 
 end
@@ -69,12 +71,15 @@ function AdventureSend.sendCG_AdventureDamage_Req(params)
 
 end
 
+local sweepSerial = 0
 function AdventureSend.sendCG_QuickClearAdventure_Req(params)
+    sweepSerial = sweepSerial + 1
 
     local data = {
         adventureID = params.adventureID,
         clearType   = params.clearType,
         isManyTimes  = params.isManyTimes,
+        requestKey   = string.format("%08x%08x%08x", os.time(), sweepSerial, math.random(0, 0x7fffffff)),
     }
     print("isManyTime",data.isManyTimes)
     NetMgr.send(Proto.writeP_CG_QuickClearAdventure_Req, data)

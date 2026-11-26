@@ -716,7 +716,7 @@ local function refreshSaodangInfo(refreshid)
 
             local mapLock = CharInfo.get().maplock
             --print("charlock & val1"..mapLock,val1)
-            if tonumber(mapLock)<tonumber(val1) then --扫荡变灰
+            if CharInfo.get().local_freedom ~= true and tonumber(mapLock)<tonumber(val1) then --扫荡变灰
                 local btn_saodang = CSResourceMgr.getNodeByName(resNameAdvNewC,"saodangbtn")
                 local btn_saodangX10 = CSResourceMgr.getNodeByName(resNameAdvNewC,"saodangtenbtn")
                 CSResourceMgr.setButtonEnabledByNode(btn_saodang,false)
@@ -1028,9 +1028,9 @@ local function saodangStart()
                     
                     refreshSaodangInfo(SearchingMapMgr.currAdventure)
                 end,
-                function()
-                    --print("saodang 连接中...")
-                end)
+                function(code)
+                    TipsMgr.showError(nil, code)
+                end, nil, false)
         end
     else
         GameAudio.playUISound("popup")
@@ -1082,9 +1082,9 @@ local function saodangx10Start()
         function()
             refreshSaodangInfo(SearchingMapMgr.currAdventure)
         end,
-        function()
-            --print("saodangX10 连接中...")
-        end)
+        function(code)
+            TipsMgr.showError(nil, code)
+        end, nil, false)
     end    
 end
 

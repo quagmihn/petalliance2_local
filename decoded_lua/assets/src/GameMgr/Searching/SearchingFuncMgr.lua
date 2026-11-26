@@ -382,6 +382,8 @@ function SearchingFuncMgr.pickingFuncAt(i)
             local icon = "Searching/env/Common/"..SearchingMgr.itemTypeTable[i].res1..".png"
             local index = #SearchingMapMgr.allItems + 1
             local propMgr = require("src.GameMgr.Searching.propMgr")
+            SearchingMgr.itemTypeTable[i].sourceSceneID =
+                SearchingMapMgr.sceneID["floor"..SearchingMapMgr.currFloor][i]
             propMgr.addProp(index,icon,SearchingMgr.itemTypeTable[i])
         elseif SearchingMgr.itemTypeTable[i].type == "2" then  --金币
             SearchingMapMgr.currCoinNum = SearchingMapMgr.currCoinNum + 1
@@ -964,7 +966,8 @@ function SearchingFuncMgr.ob_tree_onClick_At(i)
         h_pet = h_pet,
     }
 
-    if not AdvPetsMgr.useSkill(pets, skillIDs) then
+    local usingPet = AdvPetsMgr.useSkill(pets, skillIDs)
+    if not usingPet then
         local skill, level = AchievementListMgr.getSkillUpInfo("tool")
         if skill then
             local pSkill = {info = skill, level = level}
@@ -977,38 +980,61 @@ function SearchingFuncMgr.ob_tree_onClick_At(i)
         end
     end
 
+    if usingPet and not NetInterface.isConnect then return end
     SearchingMgr.canMove = false
 
-    local node = SearchingUIMgr.getBlockNode(i)
-    
-    local name = SearchingMgr.itemTypeTable[i].name or ""
-    local resName = "Gaf/Searching/"..name..".gaf"
-    node:performWithDelay(function()
-        SearchingUIMgr.hideBlock(i)  --clearBlock将会清除block信息
-        AnimationMgr.createAni(node, resName, 48, 920, i)
-        AnimationMgr.playAniWithCallback(resName,"do",nil,i,true)
-        if name == "cuttree" then GameAudio.playUISound("actlogging") end
-    end,0.2)
-    node:performWithDelay(function()
+    local function restoreMovement()
         SearchingMgr.canMove = true
-        SearchingMgr.eventStateInfoTable[i] = 3
-        SearchingMgr.checkGoals(i)
-        AnimationMgr.removeGafObjectByTag(resName, i)
-        SearchingMgr.eventInfoTable[i] = SearchingMapMgr.EVENT_VOID
-        SearchingMgr.itemTypeTable[i]  = {}
-        SearchingMgr.unlockTonari(i)
+    end
 
-        --  刷新训练师视野
-        for _, char in pairs(AdvCharMgr.getTrainers()) do
-            AdvCharMgr.setTrainerVision(char)
-            
-            if AdvCharMgr.isInFront(char,3) 
-            and SearchingMgr.eventStateInfoTable[char.info.pos] == 1
-            and SearchingMgr.itemTypeTable[char.info.pos].autoAttack == 1 then
-                AdvCharMgr.setWatching(char)
+    local function clearTile()
+        local node = SearchingUIMgr.getBlockNode(i)
+
+        local name = SearchingMgr.itemTypeTable[i].name or ""
+        local resName = "Gaf/Searching/"..name..".gaf"
+        node:performWithDelay(function()
+            SearchingUIMgr.hideBlock(i)  --clearBlock将会清除block信息
+            AnimationMgr.createAni(node, resName, 48, 920, i)
+            AnimationMgr.playAniWithCallback(resName,"do",nil,i,true)
+            if name == "cuttree" then GameAudio.playUISound("actlogging") end
+        end,0.2)
+        node:performWithDelay(function()
+            SearchingMgr.canMove = true
+            SearchingMgr.eventStateInfoTable[i] = 3
+            SearchingMgr.checkGoals(i)
+            AnimationMgr.removeGafObjectByTag(resName, i)
+            SearchingMgr.eventInfoTable[i] = SearchingMapMgr.EVENT_VOID
+            SearchingMgr.itemTypeTable[i]  = {}
+            SearchingMgr.unlockTonari(i)
+
+            --  刷新训练师视野
+            for _, char in pairs(AdvCharMgr.getTrainers()) do
+                AdvCharMgr.setTrainerVision(char)
+
+                if AdvCharMgr.isInFront(char,3)
+                and SearchingMgr.eventStateInfoTable[char.info.pos] == 1
+                and SearchingMgr.itemTypeTable[char.info.pos].autoAttack == 1 then
+                    AdvCharMgr.setWatching(char)
+                end
             end
-        end
-    end, 0.9)
+        end, 0.9)
+    end
+
+    if usingPet and LtMapOption.getMapType() == "ADVENTURE" then
+        local sceneID = SearchingMapMgr.sceneID["floor"..SearchingMapMgr.currFloor][i]
+        NetInterface.sendWithBlock("GC_ADVENTUREUSESKILL_ACK", function()
+            local AdventureSend = require("src.Net.Send.AdventureSend")
+            AdventureSend.sendCG_AdventureUseSkill_Req({
+                objID = 0, skillID = sceneID, adventureID = SearchingMapMgr.currAdventure,
+                interactionKind = 2,
+            })
+        end, clearTile, function(code)
+            restoreMovement()
+            TipsMgr.showError(nil, code)
+        end, nil, false, restoreMovement)
+    else
+        clearTile()
+    end
 
 end
 

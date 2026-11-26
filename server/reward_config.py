@@ -8,6 +8,7 @@ reward resolver. Unknown element kinds fail closed.
 from __future__ import annotations
 
 import secrets
+from functools import cache
 
 from client_config import table
 from pet_config import acquisition_skill_pools
@@ -20,7 +21,7 @@ class RewardConfigError(ValueError):
 _KINDS = {1: "g_cash", 2: "m_cash", 3: "item", 4: "exp", 5: "pet", 11: "goldCoin"}
 
 
-def reward_options(reward_id: int) -> list[tuple[int, dict]]:
+def reward_options(reward_id: int, *, pet_gene: bool = False) -> list[tuple[int, dict]]:
     reward = table("RewardInfo").get(reward_id)
     if reward is None:
         raise RewardConfigError(f"missing RewardInfo id {reward_id}")
@@ -31,14 +32,17 @@ def reward_options(reward_id: int) -> list[tuple[int, dict]]:
         raise RewardConfigError(f"malformed RewardInfo vectors for id {reward_id}")
     if any(type(weight) is not int or weight < 0 for weight in weights) or sum(weights) <= 0:
         raise RewardConfigError(f"invalid probability weights for RewardInfo id {reward_id}")
-    return [(weight, resolve_award_element(element_id, amount))
+    return [(weight, resolve_award_element(element_id, amount, pet_gene=pet_gene))
             for element_id, amount, weight in zip(element_ids, amounts, weights) if weight > 0]
 
 
 def resolve_reward(reward_id: int, *, draw: int | None = None) -> dict | None:
     if reward_id == 0:
         return None
-    options = reward_options(reward_id)
+    return roll_options(reward_options(reward_id), draw=draw)
+
+
+def roll_options(options, *, draw=None):
     total = sum(weight for weight, _ in options)
     if draw is None:
         draw = secrets.randbelow(total)
@@ -60,6 +64,23 @@ def selectable_reward(box_id: int, selection: int, displayed_amount: int) -> dic
     return resolve_award_element(box["elements"][selection], amount, pet_gene=True)
 
 
+@cache
+def drop_plan(drop_id, *, pet_gene=False):
+    drop = table("DropInfo").get(drop_id)
+    if not drop or not drop["reNumber"] or len(drop["reNumber"]) != len(drop["count"]):
+        raise RewardConfigError(f"unresolved DropInfo {drop_id}")
+    if drop["ticket"] or drop["nTicket"] or any(count <= 0 for count in drop["count"]):
+        raise RewardConfigError(f"unsupported DropInfo ticket or draw count for {drop_id}")
+    return tuple((count, reward_options(group_id, pet_gene=pet_gene))
+                 for group_id, count in zip(drop["reNumber"], drop["count"]))
+
+
+def roll_drop(plan, count):
+    if count * sum(draws for draws, _ in plan) > 254:
+        raise RewardConfigError("drop exceeds the award vector for one action")
+    return [roll_options(pool) for _ in range(count) for draws, pool in plan for _ in range(draws)]
+
+
 def resolve_award_element(element_id: int, amount: int, *, pet_gene: bool = False) -> dict:
     if type(amount) is not int or amount <= 0:
         raise RewardConfigError(f"invalid amount for AwardElementInfo id {element_id}")
@@ -76,14 +97,18 @@ def resolve_award_element(element_id: int, amount: int, *, pet_gene: bool = Fals
     elif kind == "item":
         if target <= 0 or table("ItemInfo").get(target) is None:
             raise RewardConfigError(f"unknown reward item id {target}")
-    elif kind == "pet":
+    gene_id = None
+    if kind == "pet":
         if pet_gene:
             gene = table("GeneInfo").get(target)
             if not gene:
                 raise RewardConfigError(f"missing reward Pet gene id {target}")
-            target = gene["petID"]
+            gene_id, target = target, gene["petID"]
         try:
-            acquisition_skill_pools(target)
+            acquisition_skill_pools(target, gene_id=gene_id)
         except ValueError as exc:
             raise RewardConfigError(f"invalid Pet reward template {target}: {exc}") from exc
-    return {"kind": kind, "id": target, "num": amount}
+    reward = {"kind": kind, "id": target, "num": amount}
+    if gene_id is not None:
+        reward["gene_id"] = gene_id
+    return reward

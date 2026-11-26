@@ -21,6 +21,8 @@ async def get_recharge_cd(session, payload: bytes):
 
 
 def wallet_update(row, counters=None) -> tuple[int, bytes]:
+    from local_play import silver_override
+
     currencies = row["currencies_json"] or {}
     if isinstance(currencies, str):
         currencies = json.loads(currencies)
@@ -36,6 +38,9 @@ def wallet_update(row, counters=None) -> tuple[int, bytes]:
         values["recharge"] = {"totalMoney": int(row["recharge_total"])}
     if counters:
         values.update(counters)
+    silver = silver_override(row)
+    if silver is not None:
+        values["goldCoin"] = silver
     return 473, Writer().string(json.dumps(values, separators=(",", ":"))).bytes()
 
 
@@ -154,10 +159,10 @@ async def buy_market(session, payload: bytes):
     notifications = inventory_packets([(purchase["item_id"], purchase["item_count"])])
     notifications.append(wallet_update(purchase["character"], purchase["counters"]))
     notifications.append((563, Writer().u16(0).bytes()))
-    log.info("market_purchase char_id=%s market_id=%s item_id=%s count=%s cost=%s currency=%s",
+    log.info("market_purchase char_id=%s market_id=%s item_id=%s count=%s cost=%s currency=%s virtual_silver=%s",
              session.char_id, product_id, market["itemID"], count,
              int(market["num"]) * count,
-             market["coinType"])
+             market["coinType"], purchase["virtual_silver"])
     return notifications
 
 

@@ -209,7 +209,7 @@ async def handle(message_id: int, payload: bytes, session):
 
 
 async def capture_pokemon(session, payload: bytes):
-    """Resolve the client's configured type-1 wild capture attempt."""
+    """Resolve a configured world-map or Adventure wild capture attempt."""
     r = Reader(payload)
     monster_id, ball_item_id = r.u32(), r.u32()
     r.finish()
@@ -225,6 +225,8 @@ async def capture_pokemon(session, payload: bytes):
                     monster_id, ball_item_id, exc)
         return error
     if result is None:
+        log.info("wild_capture_rejected char_id=%s template_id=%s ball_id=%s reason=ineligible_attempt",
+                 session.char_id, monster_id, ball_item_id)
         return error
     inventory = await session.db.pool.fetchval(
         "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2",

@@ -1,9 +1,12 @@
 import json
 import logging
+import re
+import time
 
 from protocol import Reader, Writer
 from client_config import table
-from reward_config import resolve_reward, selectable_reward
+from chest_config import chest_rewards
+from reward_config import selectable_reward
 from reward_service import MAX_STACK
 from skill_config import skill_book
 
@@ -81,12 +84,22 @@ async def use_item(session, payload: bytes):
     item_id, pet_uid, target_text, use_count = reader.u32(), reader.u32(), reader.string(), reader.u32()
     reader.finish()
     error = (526, Writer().u16(1).bytes())
-    if session.char_id is None or target_text or use_count < 1 or use_count > 99:
+    if session.char_id is None or use_count < 1 or use_count > 99:
         return error
     try:
         item = table("ItemInfo").get(item_id)
         if item is None or item["bUse"] != 1:
             return error
+        operation = None
+        if target_text:
+            token = re.fullmatch(r"local:([a-f0-9]{8})[a-f0-9]{16}", target_text)
+            if item["itemType"] not in (18, 28) or not token:
+                return error
+            now = int(time.time())
+            created = int(token[1], 16)
+            if not now - 86400 <= created <= now + 60:
+                return error
+            operation = (target_text, created, now, pet_uid, use_count)
         if item["itemType"] == 22:
             fashion_id = item["paramA"]
             if pet_uid or use_count != 1 or fashion_id not in table("FashionItemInfo"):
@@ -112,13 +125,24 @@ async def use_item(session, payload: bytes):
             elif item["itemType"] == 10:
                 rewards = [{"kind": "goldCoin", "id": 0, "num": item["paramA"] * use_count}]
             else:
-                rewards = [resolve_reward(item["paramA"]) for _ in range(use_count)]
-            state = await session.db.exchange_inventory_stack(session.char_id, item_id, use_count, rewards)
+                rewards = chest_rewards(item_id, use_count)
+            if len(rewards) > 255:
+                combined = {}
+                for reward in rewards:
+                    key = (reward["kind"], reward["id"], reward.get("gene_id"))
+                    if key not in combined:
+                        combined[key] = {**reward, "num": 0}
+                    combined[key]["num"] += reward["num"]
+                rewards = list(combined.values())
+                if len(rewards) > 255:
+                    return error
+            state = await session.db.exchange_inventory_stack(session.char_id, item_id, use_count, rewards,
+                                                              operation=operation)
             if state is None:
                 return error
             remaining = state["counts"][item_id]
             # The selectable-box client builds its own reward popup after ACK.
-            shown = [] if item["itemType"] == 28 else award_strings(rewards)
+            shown = [] if item["itemType"] == 28 else award_strings(state.get("exchange_rewards", rewards))
             ack = Writer().u16(0).u32(item_id).u32(remaining).vector_strings(shown)
             return [*reward_packets(state), (526, ack.bytes())]
         configured = table("GlobalConfigAddInfo")[9]["values"][:-1]
