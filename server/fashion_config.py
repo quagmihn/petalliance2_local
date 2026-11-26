@@ -1,6 +1,8 @@
 """Validation and shaping helpers for the shipped FashionItemInfo catalog."""
 from __future__ import annotations
 
+import json
+
 from client_config import table
 
 
@@ -46,6 +48,22 @@ def initial_fashion_state(values) -> dict:
             continue
         bag[fashion_bag_slot(fashion_id)].append(fashion_id)
     return {"curFashion": current, "bag": bag, "defaultFashion": list(current)}
+
+
+def stored_fashion_state(values: dict) -> dict:
+    """Supply the same saved appearance to the profile and the wardrobe."""
+    state = values.get("fashion_info")
+    if isinstance(state, str):
+        state = json.loads(state)
+    if isinstance(state, dict):
+        return state
+    current = values.get("curfashion")
+    if isinstance(current, str):
+        try:
+            current = json.loads(current)
+        except json.JSONDecodeError:
+            current = None
+    return initial_fashion_state(current if isinstance(current, list) else [])
 
 
 def validate_equipped_fashions(values, fashion_state: dict) -> list[int]:

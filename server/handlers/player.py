@@ -7,7 +7,7 @@ import struct
 import time
 
 from character_values import validate_character_values, vip_info_id
-from fashion_config import normalize_fashion_ids
+from fashion_config import normalize_fashion_ids, stored_fashion_state
 from protocol import Reader, Writer, success_code
 
 
@@ -100,15 +100,7 @@ async def get_fashions(session, payload: bytes):
         return 2102, Writer().u16(1).bytes()
     values = row["game_values"] or {}
     if isinstance(values, str): values = json.loads(values)
-    state = values.get("fashion_info")
-    if isinstance(state, str): state = json.loads(state)
-    if not isinstance(state, dict):
-        from fashion_config import initial_fashion_state
-        current = values.get("curfashion")
-        if isinstance(current, str):
-            try: current = json.loads(current)
-            except json.JSONDecodeError: current = []
-        state = initial_fashion_state(current if isinstance(current, list) else [])
+    state = stored_fashion_state(values)
     return 2102, Writer().u16(0).string(json.dumps(state, separators=(",", ":"))).bytes()
 
 

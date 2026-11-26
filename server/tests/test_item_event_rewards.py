@@ -167,6 +167,22 @@ class ItemEventRewards(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((result[-1][0], Reader(result[-1][1]).u16()), (390, 0))
                 self.assertEqual(await self.send(391, request), [(390, b"\x01\x00")])
 
+    async def test_profile_uses_same_appearance_as_wardrobe(self):
+        from fashion_config import default_fashion_ids
+
+        request = Writer().string(str(self.char_id)).bytes()
+        for expected in (default_fashion_ids(), [1049, 2003, 3003, 0, 0, 1]):
+            if expected[0] == 1049:
+                await self.db.pool.execute(
+                    """UPDATE characters SET game_values=
+                       jsonb_build_object('curfashion',$2::text) WHERE char_id=$1""",
+                    self.char_id, json.dumps(expected))
+            profile = Reader((await self.send(1283, request))[0][1])
+            wardrobe = Reader((await self.send(2075))[0][1])
+            self.assertEqual((profile.u16(), wardrobe.u16()), (0, 0))
+            self.assertEqual(json.loads(profile.string())["fashion"]["curFashion"], expected)
+            self.assertEqual(json.loads(wardrobe.string())["curFashion"], expected)
+
     async def test_shard_only_talent_upgrade_checks_slot_and_uses_packaged_cost(self):
         from pet_config import starting_skills
 

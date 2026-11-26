@@ -4,6 +4,7 @@ import json
 import logging
 
 from character_values import vip_info_id
+from fashion_config import stored_fashion_state
 from protocol import ProtocolDecodeError, Reader, Writer
 
 
@@ -65,5 +66,6 @@ async def get_friend_detail(session, payload: bytes):
         "vipLevel": vip_info_id(row["vip_level"]), "charSign": values.get("charsign", ""),
         "pets.num": row["owned_pets"], "diffPets.num": row["pet_species"],
         "lifeSkill": {"career": values.get("lifeskillcareer", 0), "level": values.get("lifeskilllevel", 0)},
+        "fashion": {"curFashion": stored_fashion_state(values)["curFashion"]},
     }
     return 1261, Writer().u16(0).string(json.dumps(detail, separators=(",", ":"))).bytes()
