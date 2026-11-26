@@ -4,7 +4,7 @@ local PetSend = {}
 local NetMgr = require("src.Net.NetMgr")
 
 function PetSend.sendCG_QueryPokemons_Req()
-    local endID = PokemonInfo.getEndIndex()+5
+    local endID = PokemonInfo.getEndIndex() + 100
     if endID>PokemonInfo.getUnactivePetNum() then
         endID = PokemonInfo.getUnactivePetNum()
     end

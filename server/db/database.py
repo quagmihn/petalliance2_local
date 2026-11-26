@@ -231,8 +231,9 @@ class Database:
 
     async def buy_market_item(self, char_id: int, market: dict, count: int):
         """Apply a configured MarketInfo purchase and its weekly counter."""
-        from character_values import validate_character_values
         from client_config import table
+        from local_play import storage_limits
+        from reward_service import fits_wire_stack
         from vip_config import unlimited_shop
 
         vip_offer = market["marketType"] == 4
@@ -255,11 +256,14 @@ class Database:
                 if char is None or char["vip_level"] < market["vip"]:
                     return None
                 values = json.loads(char["game_values"])
-                capacity = validate_character_values(["itemPacketNum"], values)["itemPacketNum"]
-                bag = await conn.fetchrow(
-                    """SELECT count(*) AS occupied, bool_or(item_id=$2) AS has_stack
-                       FROM inventory WHERE char_id=$1 AND count>0""", char_id, item_id)
-                if not bag["has_stack"] and bag["occupied"] >= capacity:
+                _, capacity = storage_limits(values)
+                if capacity is not None:
+                    bag = await conn.fetchrow(
+                        """SELECT count(*) AS occupied, bool_or(item_id=$2) AS has_stack
+                           FROM inventory WHERE char_id=$1 AND count>0""", char_id, item_id)
+                    if not bag["has_stack"] and bag["occupied"] >= capacity:
+                        return None
+                if not await fits_wire_stack(conn, char_id, {item_id: quantity}):
                     return None
                 counters = {}
                 if limit:
@@ -913,7 +917,6 @@ class Database:
         supplies MonstrosityInfo.petnumber, not the encounter's mID.
         """
         from battle_group_config import tutorial_wild_requirements
-        from character_values import validate_character_values
         from client_config import table
         import secrets
 
@@ -966,9 +969,12 @@ class Database:
                 values = owner["game_values"] or {}
                 if isinstance(values, str):
                     values = json.loads(values)
-                capacity = validate_character_values(["petPacketNum"], values)["petPacketNum"]
-                occupied = await conn.fetchval("SELECT count(*) FROM pets WHERE char_id=$1", char_id)
-                if occupied >= capacity:
+                from local_play import storage_limits
+
+                capacity, _ = storage_limits(values)
+                if capacity is not None and await conn.fetchval(
+                    "SELECT count(*) FROM pets WHERE char_id=$1", char_id
+                ) >= capacity:
                     return None
                 inventory = await conn.fetchrow(
                     "SELECT count FROM inventory WHERE char_id=$1 AND item_id=$2 FOR UPDATE",
@@ -1625,6 +1631,7 @@ class Database:
 
     async def character_values(self, char_id: int, keys: list[str]) -> dict[str, Any]:
         from character_values import validate_character_values, vip_info_id
+        from local_play import enabled, freedom
         row = await self.pool.fetchrow(
             "SELECT gold,diamond,vip_level,stamina,vip_points,recharge_total,currencies_json,game_values,created_at,world_id "
             "FROM characters WHERE char_id=$1", char_id,
@@ -1657,6 +1664,10 @@ class Database:
                 raw_values[key] = recharge
             elif normalized in ("viplevel", "vip_level"):
                 raw_values[key] = aliases[normalized]
+            elif normalized == "local_freedom":
+                raw_values[key] = freedom(stored)
+            elif normalized in ("local_unlimited_pet_storage", "local_unlimited_item_storage"):
+                raw_values[key] = enabled(normalized.upper())
             elif key in stored:
                 raw_values[key] = stored[key]
             elif normalized in stored:
@@ -1713,7 +1724,7 @@ class Database:
             remaining = count - amount
             granted = await receive_rewards(
                 conn, char_id, char["game_values"], rewards, self._grant_character_exp,
-                removed_item=item_id if remaining == 0 else None)
+                removed_item=item_id if remaining == 0 else None, debits={item_id: amount})
             if granted is None:
                 return None
             final = int(granted["counts"].get(item_id, count)) - amount
@@ -1777,25 +1788,30 @@ class Database:
                 pet_uid, json.dumps(active), json.dumps(passive))
             return target["id"], counts, pet_json(updated)
 
-    async def claim_seven_day_gift(self, char_id, gift_id, open_day, now, rewards):
+    async def claim_seven_day_gift(self, char_id, gift, now, rewards, *, diamond_price=0):
         from reward_service import receive_rewards
+        from seven_day_config import eligible
 
-        key = f"seven{gift_id}"
+        key = f"seven{gift['id']}"
         async with self.pool.acquire() as conn, conn.transaction():
             char = await conn.fetchrow(
-                "SELECT created_at,game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
-            if char is None:
+                "SELECT created_at,game_values,diamond,level FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+            if char is None or char["diamond"] < diamond_price:
                 return None
             age = now - char["created_at"].timestamp()
             values = json.loads(char["game_values"])
-            if not (open_day - 1) * 86400 <= age < 7 * 86400 or values.get(key) == 1:
+            if not (gift["openDay"] - 1) * 86400 <= age < 7 * 86400 or values.get(key) == 1:
+                return None
+            if not await eligible(conn, char_id, char["level"], gift["sevenQuestType"], gift["needCondition"]):
                 return None
             state = await receive_rewards(conn, char_id, values, rewards, self._grant_character_exp)
             if state is None:
                 return None
-            await conn.execute(
-                "UPDATE characters SET game_values=game_values || jsonb_build_object($2::text,1) WHERE char_id=$1",
-                char_id, key)
+            updated = await conn.fetchrow(
+                """UPDATE characters SET game_values=game_values || jsonb_build_object($2::text,1),
+                   diamond=diamond-$3 WHERE char_id=$1 RETURNING *""", char_id, key, diamond_price)
+            if diamond_price:
+                state["wallet"] = updated
             return state
 
     @staticmethod

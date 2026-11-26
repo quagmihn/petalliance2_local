@@ -10,12 +10,12 @@ from functools import cache
 from pathlib import Path
 from secrets import randbelow
 
-from character_values import validate_character_values
+from local_play import storage_limits
 from client_config import CONFIG, table
 from pet_config import acquisition_skill_pools, pokemon
 from quest_config import GACHA_GUIDE_PET_ID, GACHA_GUIDE_QUEST_ID, load_quests
 from reward_config import resolve_award_element
-from reward_service import grant_rewards
+from reward_service import grant_rewards, MAX_STACK
 from skill_config import SKILL_BOOK, skill_book
 
 SERVER_ROOT = Path(__file__).resolve().parent
@@ -27,7 +27,7 @@ LOCAL_PLAY_SOURCE = "local-play-v1"
 LOCAL_ITEM_TYPES = {1: {7, 9, 14, 16, 19}, 2: {9, 22}, 3: {SKILL_BOOK, 2}}
 DRAW_SOURCE_TABLES = ("CapsuleEggInfo", "CapsuleEggAwardInfo", "AwardElementInfo",
                       "ConsumeElementInfo", "ItemInfo", "PokemonInfo", "GeneInfo",
-                      "GeneProbabilityInfo")
+                      "GeneProbabilityInfo", "PetSkillInfo", "CustomSkillBookInfo", "FashionItemInfo")
 
 
 @dataclass(frozen=True)
@@ -89,8 +89,12 @@ def _original_pool(pool_id):
 def parse_catalog(raw, *, complete=False):
     local = json.loads(raw)
     machines = table("CapsuleEggInfo")
-    local_play = isinstance(local, dict) and local.get("source") == LOCAL_PLAY_SOURCE
-    if local_play:
+    source = local.get("source") if isinstance(local, dict) else None
+    local_play = source in (LOCAL_PLAY_SOURCE, "local-play-v2")
+    if source == "local-play-v2":
+        from draw_expansion import expanded_pools
+        local = expanded_pools(local)
+    elif local_play:
         local = local.get("machines")
     if local == TARGET_NORMAL:
         local = {str(machine_id): _original_pool(machine["normalEggAwardIndex"])
@@ -186,17 +190,20 @@ def catalog_report(configured_path):
     path, digest, machines = startup_catalog(configured_path)
     guide, goal = tutorial_guide()
     source = json.loads(path.read_bytes()).get("source")
+    effective = [[i, machine.prizes] for i, machine in sorted(machines.items())]
     return {
         "source": str(path), "sha256": digest,
+        "effective_pool_sha256": sha256(json.dumps(effective).encode()).hexdigest(),
         "environment": os.getenv("GAME_ENV"), "expected_database": os.getenv("MONSTER2_EXPECTED_DB"),
         "machine_ids": sorted(machines), "machines": len(machines), "pools": len(machines),
         "rewards": sum(len(machine.prizes) for machine in machines.values()),
         "prize_kinds": sorted({prize[0] for m in machines.values() for prize in m.prizes}),
-        "senior_max_pet_rarity": SENIOR_MAX_PET_RARITY,
+        "senior_max_pet_rarity": 3 if source == "local-play-v2" else SENIOR_MAX_PET_RARITY,
         "effective_weight_sums": {i: sum(prize[3] for prize in machine.prizes)
                                   for i, machine in machines.items()},
         "modes": {i: (["free"] if i in (1, 2) else []) + ["x1", "x10"] for i in machines},
         "pool_rules": {TARGET_NORMAL["source"]: "target-normal-independent",
+                       "local-play-v2": "local-play-v2-independent",
                        LOCAL_PLAY_SOURCE: "local-play-v1-independent"}.get(source, "local-independent"),
         "source_tables": {name: sha256((CONFIG / f"{name}.dat").read_bytes()).hexdigest()
                           for name in DRAW_SOURCE_TABLES},
@@ -353,12 +360,13 @@ async def execute(db, char_id, machine_id, machine, count, free, request_key=Non
             pet_count = sum(amount for (kind, _), amount in additions.items() if kind == "pet")
             inventory = dict(await conn.fetch(
                 "SELECT item_id,count FROM inventory WHERE char_id=$1 AND count>0", char_id))
-            capacity = validate_character_values(["itemPacketNum", "petPacketNum"], values)
-            if item_ids and len(inventory.keys() | set(item_ids)) > capacity["itemPacketNum"]:
+            pet_limit, item_limit = storage_limits(values)
+            if (any(inventory.get(item, 0) + additions["item", item] > MAX_STACK for item in item_ids)
+                    or (item_limit is not None and item_ids and len(inventory.keys() | set(item_ids)) > item_limit)):
                 return 422, None
-            if pet_count and pet_count + await conn.fetchval(
+            if pet_limit is not None and pet_count and pet_count + await conn.fetchval(
                 "SELECT count(*) FROM pets WHERE char_id=$1", char_id,
-            ) > capacity["petPacketNum"]:
+            ) > pet_limit:
                 return 123, None
 
             if cost:

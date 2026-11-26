@@ -84,6 +84,89 @@ class ItemEventRewards(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.db.character_values(self.char_id, ["seven1", "seven24", "seven110"]),
                          {"seven1": 1, "seven24": 1, "seven110": 0})
 
+    async def test_all_seven_days_gifts_and_diamond_offers(self):
+        from client_config import table
+
+        stored = await self.db.pool.fetchval("SELECT created_at FROM characters WHERE char_id=$1", self.char_id)
+        await self.db.pool.execute("UPDATE characters SET diamond=799 WHERE char_id=$1", self.char_id)
+        with patch("handlers.events.time.time", return_value=stored.timestamp() + 3600):
+            offer = Writer().u32(23).u32(0).bytes()
+            self.assertEqual(await self.send(391, offer), [(390, b"\x01\x00")])
+            self.assertEqual(await self.db.pool.fetchval(
+                "SELECT diamond FROM characters WHERE char_id=$1", self.char_id), 799)
+        balance = 20000
+        await self.db.pool.execute("UPDATE characters SET diamond=$2 WHERE char_id=$1", self.char_id, balance)
+        for day in range(1, 8):
+            gifts = [row for row in table("SevenDayInfo").values()
+                     if row["openDay"] == day and row["sevenQuestType"] in (1, 7)]
+            self.assertEqual(len(gifts), 2)
+            with patch("handlers.events.time.time", return_value=stored.timestamp() + 3600 + (day - 1) * 86400):
+                for gift in gifts:
+                    request = Writer().u32(gift["id"]).u32(0).bytes()
+                    result = await self.send(391, request)
+                    self.assertEqual(result[-1][0], 390)
+                    self.assertEqual(Reader(result[-1][1]).u16(), 0)
+                    self.assertEqual(await self.send(391, request), [(390, b"\x01\x00")])
+                    if gift["sevenQuestType"] == 7:
+                        balance -= gift["needCondition"][1]
+                        wallet = next(body for msg, body in result if msg == 473)
+                        self.assertEqual(json.loads(Reader(wallet).string())["m_cash"], balance)
+                self.assertEqual(await self.db.pool.fetchval(
+                    "SELECT diamond FROM characters WHERE char_id=$1", self.char_id), balance)
+        for item in (70014, 70015, 70016):
+            self.assertEqual(await self.stack(item), 1)
+        self.assertEqual(await self.db.pool.fetchval(
+            "SELECT count(*) FROM pets WHERE char_id=$1 AND pet_template_id=116", self.char_id), 4)
+
+    async def test_selectable_box_grants_selected_amount_and_consumes_one_box(self):
+        await self.db.grant_item(self.char_id, 254, 2)
+        await self.db.grant_item(self.char_id, 36905)
+        def use(choice, amount):
+            return Writer().u32(254).u32(choice).string("").u32(amount).bytes()
+        for invalid in (use(0, 1), use(100, 10)):
+            self.assertEqual(await self.send(516, invalid), [(526, b"\x01\x00")])
+        self.assertEqual(await self.stack(254), 2)
+        self.assertEqual(await self.send(516, Writer().u32(36905).u32(0).string("").u32(10).bytes()),
+                         [(526, b"\x01\x00")])
+        self.assertEqual(await self.stack(36905), 1)
+        success = await self.send(516, use(0, 10))
+        self.assertEqual([msg for msg, _ in success], [112, 262, 526])
+        self.assertEqual((await self.stack(254), await self.stack(38078)), (1, 10))
+        ack = Reader(success[-1][1])
+        self.assertEqual((ack.u16(), ack.u32(), ack.u32(), ack.u8()), (0, 254, 1, 0))
+
+    async def test_seven_day_objectives_use_authoritative_level_collection_and_clears(self):
+        from client_config import table
+        from pet_config import insert_owned_pet
+        from reward_config import reward_options
+        from seven_day_config import SUPPORTED_TYPES
+
+        gifts = table("SevenDayInfo")
+        for gift in gifts.values():
+            if gift["sevenQuestType"] in SUPPORTED_TYPES:
+                for reward_id in gift["rewardInfos"]:
+                    self.assertTrue(reward_options(reward_id))
+        created = await self.db.pool.fetchval("SELECT created_at FROM characters WHERE char_id=$1", self.char_id)
+        for gift_id in (10, 35, 117):
+            gift = gifts[gift_id]
+            now = created.timestamp() + 30 + (gift["openDay"] - 1) * 86400
+            request = Writer().u32(gift_id).u32(0).bytes()
+            with patch("handlers.events.time.time", return_value=now):
+                self.assertEqual(await self.send(391, request), [(390, b"\x01\x00")])
+                if gift_id == 10:
+                    await self.db.pool.execute(
+                        """INSERT INTO character_adventure_clears VALUES($1,7,8),($1,10007,12)""",
+                        self.char_id)
+                elif gift_id == 35:
+                    await self.db.pool.execute("UPDATE characters SET level=5 WHERE char_id=$1", self.char_id)
+                else:
+                    async with self.db.pool.acquire() as connection:
+                        for _ in range(15):
+                            await insert_owned_pet(connection, self.char_id, 1)
+                result = await self.send(391, request)
+                self.assertEqual((result[-1][0], Reader(result[-1][1]).u16()), (390, 0))
+                self.assertEqual(await self.send(391, request), [(390, b"\x01\x00")])
+
     async def test_shard_only_talent_upgrade_checks_slot_and_uses_packaged_cost(self):
         from pet_config import starting_skills
 

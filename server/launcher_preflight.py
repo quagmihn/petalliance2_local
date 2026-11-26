@@ -13,6 +13,7 @@ from arena_shop import pools as arena_pools
 from client_config import CONFIG, ROOT, table
 from db.database import Database
 from local_draw import catalog_report
+from local_play import enabled
 from market_config import enabled_offers
 from quest_config import load_quests
 from recharge_config import normal_families
@@ -83,6 +84,8 @@ async def check_database():
 
 def main():
     payment = payment_mode()
+    report("local_features", {flag: enabled(flag) for flag in (
+        "LOCAL_FREEDOM_MODE", "LOCAL_UNLIMITED_PET_STORAGE", "LOCAL_UNLIMITED_ITEM_STORAGE")})
     path = os.environ["MONSTER2_DRAW_CATALOG"]
     try:
         report("gacha_catalog", catalog_report(path))

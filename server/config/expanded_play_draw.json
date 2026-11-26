@@ -1,0 +1,9 @@
+{
+  "source": "local-play-v2",
+  "pet_grade_weights": {
+    "1": {"1": 1250, "2": 850, "3": 450},
+    "2": {"3": 1600, "4": 750, "5": 250, "6": 75}
+  },
+  "supreme_fashion_weight": 3800,
+  "skill_class_weights": {"0": 1800, "1": 900, "6": 1300}
+}

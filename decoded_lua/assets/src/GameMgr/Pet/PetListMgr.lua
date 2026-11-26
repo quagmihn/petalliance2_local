@@ -463,6 +463,7 @@ function PetListMgr.open(scene, btnCallback, resetCallback, closeCallback, pos, 
         end)
 
         CSResourceMgr.clickEventBinding(resName,"pnumEx",function()
+            if CharInfo.get().local_unlimited_pet_storage == true then return end
             if CharInfo.get().petpacketnum < 200 then
                 local price = SystemInfo.getGlobalConfigAddInfoByID(6702).values[1]
                 local bagnum = SystemInfo.getGlobalConfigAddInfoByID(6703).values[1]
@@ -659,7 +660,7 @@ function PetListMgr.changeTab(tabid, isFirst)
         CSResourceMgr.getNodeByName(resName, "freeBtn"):setVisible(false)
         -- CSResourceMgr.getNodeByName(resName, "saveBtn"):setVisible(false)
         CSResourceMgr.getNodeByName(resName, "CheckBox"):setVisible(false)
-        CSResourceMgr.getNodeByName(resName, "pnumEx"):setVisible(true)
+        CSResourceMgr.getNodeByName(resName, "pnumEx"):setVisible(CharInfo.get().local_unlimited_pet_storage ~= true)
         
         PetListMgr.changePetClickCallback(function(petInfo)
             PetEducationMgr.show(SceneMgr.getRunningScene, petInfo.objID, 1, function()
@@ -1925,7 +1926,11 @@ end
 function PetListMgr.setBnum()
     local myPets = PokemonInfo.getAllPets(nil, true)
     local pnum_max = CharInfo.get().petpacketnum + (CharInfo.get().furniturecomputervaluerate or 0)
-    CSResourceMgr.setLabelString(resName, "pnum", #myPets.."/"..pnum_max, "", CSResourceMgr.DEFAULT_LABEL_OUTLINE_PARAMS)
+    local countLabel = tostring(#myPets)
+    if CharInfo.get().local_unlimited_pet_storage ~= true then
+        countLabel = countLabel.."/"..pnum_max
+    end
+    CSResourceMgr.setLabelString(resName, "pnum", countLabel, "", CSResourceMgr.DEFAULT_LABEL_OUTLINE_PARAMS)
 end
 
 

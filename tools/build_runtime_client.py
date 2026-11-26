@@ -58,8 +58,11 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--input", type=Path, default=Path("dist/monster2_patched.apk"))
     p.add_argument("--output", type=Path, default=Path("dist/monster2_runtime-unsigned.apk"))
-    p.add_argument("--pet-economy-overlay", action="store_true",
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--pet-economy-overlay", action="store_true",
                    help="replace only the Pet default-tab and economy Lua on an already patched APK")
+    mode.add_argument("--freedom-overlay", action="store_true",
+                      help="overlay private-local access gates and safe storage UI on the Pet economy APK")
     args = p.parse_args()
     if args.pet_economy_overlay:
         overlay = {
@@ -68,9 +71,22 @@ def main():
             "assets/src/GameMgr/Item/VipShopViewMgr.lua",
             "assets/src/Utils/pay/PayConfig.lua",
         }
+    if args.freedom_overlay:
+        overlay = {"assets/src/" + name for name in (
+            "GameMgr/Common/BasicMenuMgr.lua",
+            "GameMgr/Common/GameGuideMgr.lua",
+            "GameMgr/Common/LoginMsgMgr.lua",
+            "GameMgr/Common/StatusBarMgr.lua",
+            "GameMgr/Player/PersonalCenterMgr.lua",
+            "GameMgr/Pet/PetEducationMgr.lua",
+            "GameMgr/Pet/PetListMgr.lua",
+            "GameMgr/Item/BagViewMgr.lua",
+            "Net/Send/PetSend.lua",
+        )}
+    if args.pet_economy_overlay or args.freedom_overlay:
         with zipfile.ZipFile(args.input) as source, zipfile.ZipFile(args.output, "w") as output:
             if not overlay <= set(source.namelist()):
-                raise ValueError("the input APK is missing one or more Pet/economy Lua modules")
+                raise ValueError("the input APK is missing one or more Lua modules in the selected overlay")
             for info in source.infolist():
                 if info.filename.upper().startswith("META-INF/"):
                     continue

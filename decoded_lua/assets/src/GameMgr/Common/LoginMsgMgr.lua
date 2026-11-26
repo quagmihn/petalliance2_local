@@ -78,7 +78,7 @@ function LoginMsgMgr.request()
                         local LoginSend = require("src.Net.Send.LoginSend")
                         --第一批请求字段
                         --分成两段的原因:1.有些数据有前后级关系;2.防止回复的协议长度过长而被截          
-                        LoginSend.sendCG_GetCharacterValues_Req({"map_lock", "isMArenaOn", 
+                        LoginSend.sendCG_GetCharacterValues_Req({"map_lock", "isMArenaOn", "local_freedom", "local_unlimited_pet_storage", "local_unlimited_item_storage",
                             "sciencePoint", "resetScienceConsumeTime", "resetScienceConsumeNum","scienceLevel","todayWArenaFightTimes","todayWArenaFightRefreshTimes","wArenaUpdateTime"})
                     end, function()
                         CharInfo.set({maplock=CharInfo.get().map_lock or 0})
@@ -299,7 +299,8 @@ function LoginMsgMgr.request()
 
     local function checkPets()
         print("当前未激活宠物信息获取进度：", PokemonInfo.getEndIndex().."/"..PokemonInfo.getUnactivePetNum())
-        LoginMsgMgr.updateUI(PokemonInfo.getEndIndex()/PokemonInfo.getUnactivePetNum())
+        local reserveCount = PokemonInfo.getUnactivePetNum()
+        LoginMsgMgr.updateUI(reserveCount > 0 and PokemonInfo.getEndIndex()/reserveCount or 1)
 
         if PokemonInfo.getUnactivePetNum()>PokemonInfo.getEndIndex() then
             reqPets(checkPets)

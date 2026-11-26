@@ -2,7 +2,20 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from collections.abc import Awaitable, Callable
+
+from local_play import storage_limits
+
+MAX_STACK = (1 << 32) - 1
+
+
+async def fits_wire_stack(conn, char_id, additions, *, debits=None):
+    present = dict(await conn.fetch(
+        "SELECT item_id,count FROM inventory WHERE char_id=$1 AND item_id=ANY($2::int[])",
+        char_id, list(additions))) if additions else {}
+    return all(present.get(item, 0) + amount - (debits or {}).get(item, 0) <= MAX_STACK
+               for item, amount in additions.items())
 
 
 async def grant_rewards(conn, char_id: int, rewards: list[dict],
@@ -46,24 +59,29 @@ async def grant_rewards(conn, char_id: int, rewards: list[dict],
     return {"item_ids": sorted(items), "wallet_changed": wallet_changed, "pets": pets}
 
 
-async def receive_rewards(conn, char_id, values, rewards, grant_character_exp, *, removed_item=None):
+async def receive_rewards(conn, char_id, values, rewards, grant_character_exp, *,
+                          removed_item=None, debits=None):
     """Check capacities and return authoritative notices within the transaction."""
-    from character_values import validate_character_values
-
     if isinstance(values, str):
         values = json.loads(values)
-    capacities = validate_character_values(["itemPacketNum", "petPacketNum"], values or {})
+    pet_limit, item_limit = storage_limits(values or {})
     pet_count = sum(int(r["num"]) for r in rewards if r["kind"] == "pet")
-    if pet_count and pet_count + await conn.fetchval(
-            "SELECT count(*) FROM pets WHERE char_id=$1", char_id) > capacities["petPacketNum"]:
+    if pet_count and pet_limit is not None and pet_count + await conn.fetchval(
+            "SELECT count(*) FROM pets WHERE char_id=$1", char_id) > pet_limit:
         return None
     item_ids = {r["id"] for r in rewards if r["kind"] == "item"}
-    if item_ids:
+    if item_limit is not None and item_ids:
         owned = {row["item_id"] for row in await conn.fetch(
             "SELECT item_id FROM inventory WHERE char_id=$1", char_id)}
         owned.discard(removed_item)
-        if len(owned | item_ids) > capacities["itemPacketNum"]:
+        if len(owned | item_ids) > item_limit:
             return None
+    item_adds = Counter()
+    for reward in rewards:
+        if reward["kind"] == "item":
+            item_adds[reward["id"]] += reward["num"]
+    if not await fits_wire_stack(conn, char_id, item_adds, debits=debits):
+        return None
     granted = await grant_rewards(conn, char_id, rewards, grant_character_exp)
     wallet = await conn.fetchrow("SELECT * FROM characters WHERE char_id=$1", char_id) if (
         granted["wallet_changed"] or any(r["kind"] == "exp" for r in rewards)) else None

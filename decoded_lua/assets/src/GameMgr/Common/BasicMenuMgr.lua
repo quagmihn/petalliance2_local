@@ -232,7 +232,8 @@ function BasicMenuMgr.checkMapLockInfo(boolAnimate)
             charLock = CharInfo.getLevel()
         end
         --print("BasicMenuMgr.checkMapLockInfo", charLock, lockInfo[var])
-        if charLock>=lockInfo[var] then
+        local accessible = CharInfo.get().local_freedom == true or charLock >= lockInfo[var]
+        if accessible then
             if boolAnimate then
                 --CocosModuleMgr.showUnlockAnimation(CSResourceMgr.getNodeByName(resName, menuTag[var]))
             else
@@ -250,7 +251,7 @@ function BasicMenuMgr.checkMapLockInfo(boolAnimate)
         --新加解锁TIPS
         local btn = CSResourceMgr.getNodeByName(resName,menuTag[var])
         local tipsBtn = CSResourceMgr.seekNodeByName(btn,"UnLockTipsBtn")
-        tipsBtn:setVisible(charLock<lockInfo[var])
+        tipsBtn:setVisible(not accessible)
         CSResourceMgr.clickEventBindingByNode(tipsBtn, function()
             DialogBoxMgr.showSmallDialogBox(self, 1, LuaSqlite.getLanguageByKey("unlockTips10"..var))
         end)

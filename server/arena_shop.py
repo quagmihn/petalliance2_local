@@ -5,6 +5,7 @@ import time
 from functools import cache
 
 from client_config import table
+from local_play import freedom
 from reward_config import resolve_award_element
 from reward_service import receive_rewards
 
@@ -55,9 +56,11 @@ def refresh_window(now):
 async def transact(db, char_id, *, refresh=False, purchase=None):
     async with db.pool.acquire() as conn, conn.transaction():
         char = await conn.fetchrow("SELECT * FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
-        if char is None or char["level"] < table("GlobalConfigAddInfo")[24002]["values"][0]:
+        if char is None:
             return None
         values = json.loads(char["game_values"])
+        if not freedom(values) and char["level"] < table("GlobalConfigAddInfo")[24002]["values"][0]:
+            return None
         now = int(time.time())
         start, _ = refresh_window(now)
         state = values.get("arena_shop")

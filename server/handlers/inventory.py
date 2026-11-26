@@ -3,7 +3,8 @@ import logging
 
 from protocol import Reader, Writer
 from client_config import table
-from reward_config import resolve_reward
+from reward_config import resolve_reward, selectable_reward
+from reward_service import MAX_STACK
 from skill_config import skill_book
 
 log = logging.getLogger("game_socket.inventory")
@@ -64,7 +65,8 @@ async def get_items(session, payload: bytes):
     fragments = sum(int(row["count"]) for row in rows if row["item_id"] in pieces)
     books = sum(int(row["count"]) for row in rows if skill_book(row["item_id"]))
     total = sum(int(row["count"]) for row in rows) - fragments - books
-    ack = Writer().u16(0).u32(total).u32(0).u32(0).u32(books).u32(fragments).bytes()
+    ack = (Writer().u16(0).u32(min(total, MAX_STACK)).u32(0).u32(0)
+           .u32(min(books, MAX_STACK)).u32(min(fragments, MAX_STACK)).bytes())
     responses = [(37, ack)]
     for start in range(0, len(rows) or 1, 255):
         batch = rows[start:start + 255]
@@ -98,10 +100,16 @@ async def use_item(session, payload: bytes):
                 (2105, Writer().string(json.dumps(state, separators=(",", ":"))).bytes()),
                 (526, Writer().u16(0).u32(item_id).u32(remaining).vector_strings([]).bytes()),
             ]
-        if item["itemType"] in (10, 18):
-            if pet_uid or item["paramA"] <= 0 or any(item[k] for k in ("paramB", "paramC", "paramD", "paramE")):
+        if item["itemType"] in (10, 18, 28):
+            if item["paramA"] <= 0:
                 return error
-            if item["itemType"] == 10:
+            if item["itemType"] == 28:
+                # MultiItemBoxView sends the choice's reward quantity in useNum.
+                rewards = [selectable_reward(item["paramA"], pet_uid, use_count)]
+                use_count = 1
+            elif pet_uid or any(item[k] for k in ("paramB", "paramC", "paramD", "paramE")):
+                return error
+            elif item["itemType"] == 10:
                 rewards = [{"kind": "goldCoin", "id": 0, "num": item["paramA"] * use_count}]
             else:
                 rewards = [resolve_reward(item["paramA"]) for _ in range(use_count)]
@@ -109,7 +117,9 @@ async def use_item(session, payload: bytes):
             if state is None:
                 return error
             remaining = state["counts"][item_id]
-            ack = Writer().u16(0).u32(item_id).u32(remaining).vector_strings(award_strings(rewards))
+            # The selectable-box client builds its own reward popup after ACK.
+            shown = [] if item["itemType"] == 28 else award_strings(rewards)
+            ack = Writer().u16(0).u32(item_id).u32(remaining).vector_strings(shown)
             return [*reward_packets(state), (526, ack.bytes())]
         configured = table("GlobalConfigAddInfo")[9]["values"][:-1]
         if item_id not in configured or item["itemType"] != 19:

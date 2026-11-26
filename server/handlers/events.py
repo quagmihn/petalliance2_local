@@ -7,7 +7,8 @@ from client_config import table
 from handlers.economy import local_payment_enabled
 from handlers.inventory import award_strings, reward_packets
 from protocol import Reader, Writer
-from reward_config import resolve_award_element, resolve_reward
+from reward_config import RewardConfigError, resolve_award_element, resolve_reward
+from seven_day_config import SUPPORTED_TYPES
 
 
 def first_recharge():
@@ -25,11 +26,23 @@ async def get_seven_day_award(session, payload):
     r.finish()
     error = (390, Writer().u16(1).bytes())
     gift = table("SevenDayInfo").get(gift_id)
-    if (session.char_id is None or not gift or choice or gift["sevenQuestType"] != 1
+    if (session.char_id is None or not gift or choice or gift["sevenQuestType"] not in SUPPORTED_TYPES
             or gift["wayToGetReward"] != [0] or not 1 <= gift["openDay"] <= 7):
         return error
-    rewards = [resolve_reward(reward) for reward in gift["rewardInfos"]]
-    state = await session.db.claim_seven_day_gift(session.char_id, gift_id, gift["openDay"], time.time(), rewards)
+    price = 0
+    if gift["sevenQuestType"] == 7:
+        prices = gift["needCondition"]
+        if len(prices) != 2 or type(prices[1]) is not int or prices[1] <= 0:
+            return error
+        price = prices[1]
+    try:
+        rewards = [resolve_reward(reward) for reward in gift["rewardInfos"]]
+    except RewardConfigError:
+        return error
+    if not rewards or any(reward is None for reward in rewards):
+        return error
+    state = await session.db.claim_seven_day_gift(
+        session.char_id, gift, time.time(), rewards, diamond_price=price)
     if state is None:
         return error
     # The original callback renders acquired Pets from 3141. Its award

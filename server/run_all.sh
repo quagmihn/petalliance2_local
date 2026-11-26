@@ -38,6 +38,9 @@ if [[ "$profile" != local && "$profile" != test ]]; then
 fi
 export LOCAL_PAYMENT_SANDBOX="${LOCAL_PAYMENT_SANDBOX:-0}" PAYMENT_PROVIDER="${PAYMENT_PROVIDER:-none}"
 export VIP_SHOP_UNLIMITED="${VIP_SHOP_UNLIMITED:-0}"
+export LOCAL_FREEDOM_MODE="${LOCAL_FREEDOM_MODE:-0}"
+export LOCAL_UNLIMITED_PET_STORAGE="${LOCAL_UNLIMITED_PET_STORAGE:-0}"
+export LOCAL_UNLIMITED_ITEM_STORAGE="${LOCAL_UNLIMITED_ITEM_STORAGE:-0}"
 if [[ "$mode" == production && -z "${DATABASE_URL:+set}" ]]; then
     DATABASE_URL='postgresql://monster2@/monster2_db?host=/run/postgresql'
 fi

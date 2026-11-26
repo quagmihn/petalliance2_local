@@ -566,7 +566,7 @@ function StatusBarMgr.addRedPoint(type, boolFirst)
         charLock = CharInfo.getLevel()
     end
     if lockInfo[type] then
-        if charLock<lockInfo[type] then
+        if CharInfo.get().local_freedom ~= true and charLock < lockInfo[type] then
             return 
         end
     end
@@ -607,7 +607,8 @@ function StatusBarMgr.checkMapLockInfo(boolAnimate)
             charLock = CharInfo.getLevel()
         end
         --print("StatusBarMgr.checkMapLockInfo", charLock, lockInfo[var])
-        if charLock>=value then
+        local accessible = CharInfo.get().local_freedom == true or charLock >= value
+        if accessible then
             if boolAnimate then
                 --CocosModuleMgr.showUnlockAnimation(CSResourceMgr.getNodeByName(resNameBtns, btnNames[var]))
             else
@@ -623,7 +624,7 @@ function StatusBarMgr.checkMapLockInfo(boolAnimate)
         --新加解锁TIPS
         local btn = CSResourceMgr.getNodeByName(resNameBtns,btnNames[var])
         local tipsBtn = CSResourceMgr.seekNodeByName(btn,"UnLockTipsBtn")
-        tipsBtn:setVisible(charLock<value)
+        tipsBtn:setVisible(not accessible)
         CSResourceMgr.clickEventBindingByNode(tipsBtn, function()
             DialogBoxMgr.showSmallDialogBox(nil, 1, LuaSqlite.getLanguageByKey("unlockTips"..var))
         end)

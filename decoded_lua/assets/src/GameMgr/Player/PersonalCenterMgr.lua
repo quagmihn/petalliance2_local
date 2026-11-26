@@ -220,7 +220,7 @@ function PersonalCenterMgr.open(scene, charID)
 
         local charLock = CharInfo.get().maplock
         local val = SystemInfo.getGlobalConfigAddInfoByID(21012).values[1]
-        if charLock<val then
+        if CharInfo.get().local_freedom ~= true and charLock < val then
             CSResourceMgr.setButtonEnabledByNode(fashionBtn, false)
         end
         local level = CharInfo.getLevel()

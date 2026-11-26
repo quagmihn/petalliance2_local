@@ -340,7 +340,9 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         if exc.partial:
             log.warning("truncated_frame connection_id=%s session_id=%s peer=%s received=%d expected=%d",
                         session.connection_id, session.session_id, peer, len(exc.partial), exc.expected)
-    except (ConnectionError, asyncio.CancelledError):
+    except ConnectionError:
+        close_reason = "transport_error"
+    except asyncio.CancelledError:
         close_reason = "transport_error"
         raise
     except ValueError as exc:
@@ -355,7 +357,10 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                       session.connection_id, session.session_id, peer)
     finally:
         writer.close()
-        await writer.wait_closed()
+        try:
+            await writer.wait_closed()
+        except ConnectionError:
+            pass
         log.info("disconnected connection_id=%s session_id=%s peer=%s account_id=%s char_id=%s reason=%s",
                  session.connection_id, session.session_id, peer,
                  session.account_id, session.char_id, close_reason)

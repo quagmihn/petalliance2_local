@@ -1,3 +1,9 @@
+local function bagCapacityLabel()
+    local char = CharInfo.get()
+    if char.local_unlimited_item_storage == true then return "" end
+    return "/"..(char.itempacketnum + (char.furnituresuitcasevaluerate or 0))
+end
+
 local BagViewMgr = {}
 
 BagViewMgr.RANK_NUM = 4
@@ -178,12 +184,14 @@ function BagViewMgr.show(scene)
         local bagSizeTwo = CSResourceMgr.getNodeByName(resName, "bagsize2")
         bagSizeTwo:removeAllChildren()
         CSResourceMgr.setLabelColor(resName, "bagsize2", {r=254,g=243,b=57,a=255})
-        CSResourceMgr.setLabelString(resName, "bagsize2", "/"..CharInfo.get().itempacketnum+(CharInfo.get().furnituresuitcasevaluerate or 0), "", {r=0,g=0,b=0,a=255,w=1,s=1})
+        CSResourceMgr.setLabelString(resName, "bagsize2", bagCapacityLabel(), "", {r=0,g=0,b=0,a=255,w=1,s=1})
         -- CSResourceMgr.setLabelColor(resName, "bagsize", {r=255,g=255,b=255,a=255})
         CSResourceMgr.setLabelString(resName, "title", "menu2", "", {r=26,g=37,b=48,a=255,s=1})
         CSResourceMgr.setLabelColor(resName, "title", {r=214,g=245,b=251,a=255})
         -- CSResourceMgr.setButtonString(resName, "expandbag", "bag6", "", {r=0,g=126,b=162,a=255})
+        CSResourceMgr.getNodeByName(resName, "expandbag"):setVisible(CharInfo.get().local_unlimited_item_storage ~= true)
         CSResourceMgr.clickEventBinding(resName, "expandbag", function()
+            if CharInfo.get().local_unlimited_item_storage == true then return end
             local price = SystemInfo.getGlobalConfigAddInfoByID(6602).values[1]
             local bagnum = SystemInfo.getGlobalConfigAddInfoByID(6603).values[1]
             if price>CharInfo.getMCash() then
@@ -211,7 +219,7 @@ function BagViewMgr.show(scene)
                         local bagSizeTwo = CSResourceMgr.getNodeByName(resName, "bagsize2")
                         bagSizeTwo:removeAllChildren()
                         CSResourceMgr.setLabelColor(resName, "bagsize2", {r=254,g=243,b=57,a=255})
-                        CSResourceMgr.setLabelString(resName, "bagsize2", "/"..CharInfo.get().itempacketnum+(CharInfo.get().furnituresuitcasevaluerate or 0), "", {r=0,g=0,b=0,a=255})
+                        CSResourceMgr.setLabelString(resName, "bagsize2", bagCapacityLabel(), "", {r=0,g=0,b=0,a=255})
                     -- CSResourceMgr.setLabelString(resName, "bagsize", CocosModuleMgr.createStringWithFormat({"<1>/<2>", 
                     --     itemNum, CharInfo.get().itempacketnum}))
                     -- local richtext = CocosModuleMgr.createRichLabel(bagSize, CocosModuleMgr.createRichLabelString({{color="00FF00", text=itemNum},
@@ -379,7 +387,7 @@ function BagViewMgr.update(id, num, noReset)
         local bagSizeTwo = CSResourceMgr.getNodeByName(resName, "bagsize2")
         bagSizeTwo:removeAllChildren()
         CSResourceMgr.setLabelColor(resName, "bagsize2", {r=254,g=243,b=57,a=255})
-        CSResourceMgr.setLabelString(resName, "bagsize2", "/"..CharInfo.get().itempacketnum+(CharInfo.get().furnituresuitcasevaluerate or 0), "", {r=0,g=0,b=0,a=255})
+        CSResourceMgr.setLabelString(resName, "bagsize2", bagCapacityLabel(), "", {r=0,g=0,b=0,a=255})
         -- local richtext = CocosModuleMgr.createRichLabel(bagSize, CocosModuleMgr.createRichLabelString({{color="00FF00", text=itemNum},
         --     {color="FFFFFF", text="/"..CharInfo.get().itempacketnum}}), 20, "cuyuan_GBK.ttf", 640)
         BagViewMgr.reset()

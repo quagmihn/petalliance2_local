@@ -1106,7 +1106,7 @@ function PetEducationMgr.show(scene, objid, pageIndex, closeCallback)
             if var == 3 then
                 local pInfo = starter
                 local pokeInfo = PokemonInfo.getPokemonInfoByID(pInfo.pokeID)
-                if pInfo.Stage < 5 then
+                if CharInfo.get().local_freedom ~= true and pInfo.Stage < 5 then
                     tab:setColor({r=70,g=70,b=70,a=255})
                     CSResourceMgr.clickEventBinding(resName_base, "tab"..var, function()
                         local str = CocosModuleMgr.createStringWithFormat({"lwjl1", LuaSqlite.getLanguageByKey(pokeInfo.name)})
@@ -1116,7 +1116,7 @@ function PetEducationMgr.show(scene, objid, pageIndex, closeCallback)
             elseif var == 4 then
                 local pInfo = starter
                 local pokeInfo = PokemonInfo.getPokemonInfoByID(pInfo.pokeID)
-                if pInfo.level < 12 then
+                if CharInfo.get().local_freedom ~= true and pInfo.level < 12 then
                     tab:setColor({r=70,g=70,b=70,a=255})
                     CSResourceMgr.clickEventBinding(resName_base, "tab"..var, function()
                         local str = CocosModuleMgr.createStringWithFormat({"lwjl2", LuaSqlite.getLanguageByKey(pokeInfo.name)})
@@ -1126,7 +1126,7 @@ function PetEducationMgr.show(scene, objid, pageIndex, closeCallback)
             elseif var == 5 then
                 local flag = false
                 local needLv = SystemInfo.getGlobalConfigAddInfoByID(24011).values[1]
-                if CharInfo.getLevel() < needLv then
+                if CharInfo.get().local_freedom ~= true and CharInfo.getLevel() < needLv then
                     tab:setColor({r=70,g=70,b=70,a=255})
                     CSResourceMgr.clickEventBinding(resName_base, "tab"..var, function()
                         DialogBoxMgr.showDialogBox(SceneMgr.getRunningScene, 2, "train98")
@@ -1135,7 +1135,7 @@ function PetEducationMgr.show(scene, objid, pageIndex, closeCallback)
             elseif var == 6 then
                 local flag = false
                 local needLv = SystemInfo.getGlobalConfigAddInfoByID(24012).values[1]
-                if CharInfo.getLevel() < needLv then
+                if CharInfo.get().local_freedom ~= true and CharInfo.getLevel() < needLv then
                     tab:setColor({r=70,g=70,b=70,a=255})
                     CSResourceMgr.clickEventBinding(resName_base, "tab"..var, function()
                         DialogBoxMgr.showDialogBox(SceneMgr.getRunningScene, 2, "train99")

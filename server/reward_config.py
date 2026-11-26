@@ -17,12 +17,10 @@ class RewardConfigError(ValueError):
     pass
 
 
-_KINDS = {1: "g_cash", 2: "m_cash", 3: "item", 4: "exp", 5: "pet"}
+_KINDS = {1: "g_cash", 2: "m_cash", 3: "item", 4: "exp", 5: "pet", 11: "goldCoin"}
 
 
-def resolve_reward(reward_id: int, *, draw: int | None = None) -> dict | None:
-    if reward_id == 0:
-        return None
+def reward_options(reward_id: int) -> list[tuple[int, dict]]:
     reward = table("RewardInfo").get(reward_id)
     if reward is None:
         raise RewardConfigError(f"missing RewardInfo id {reward_id}")
@@ -33,24 +31,36 @@ def resolve_reward(reward_id: int, *, draw: int | None = None) -> dict | None:
         raise RewardConfigError(f"malformed RewardInfo vectors for id {reward_id}")
     if any(type(weight) is not int or weight < 0 for weight in weights) or sum(weights) <= 0:
         raise RewardConfigError(f"invalid probability weights for RewardInfo id {reward_id}")
+    return [(weight, resolve_award_element(element_id, amount))
+            for element_id, amount, weight in zip(element_ids, amounts, weights) if weight > 0]
+
+
+def resolve_reward(reward_id: int, *, draw: int | None = None) -> dict | None:
+    if reward_id == 0:
+        return None
+    options = reward_options(reward_id)
+    total = sum(weight for weight, _ in options)
     if draw is None:
-        draw = secrets.randbelow(sum(weights))
-    if type(draw) is not int or draw < 0 or draw >= sum(weights):
+        draw = secrets.randbelow(total)
+    if type(draw) is not int or not 0 <= draw < total:
         raise ValueError("reward draw is outside the configured weight range")
-    selected = 0
-    for i, weight in enumerate(weights):
+    for weight, reward in options:
         if draw < weight:
-            selected = i
-            break
+            return reward
         draw -= weight
-    element_id = element_ids[selected]
-    amount = amounts[selected]
-    if type(amount) is not int or amount <= 0:
-        raise RewardConfigError(f"invalid amount in RewardInfo id {reward_id}")
-    return resolve_award_element(element_id, amount)
 
 
-def resolve_award_element(element_id: int, amount: int) -> dict:
+def selectable_reward(box_id: int, selection: int, displayed_amount: int) -> dict:
+    box = table("SelectableAwardInfo").get(box_id)
+    if not box or len(box["elements"]) != len(box["nums"]) or not 0 <= selection < len(box["nums"]):
+        raise RewardConfigError(f"invalid selection for SelectableAwardInfo id {box_id}")
+    amount = box["nums"][selection]
+    if displayed_amount != amount:
+        raise RewardConfigError(f"amount does not match SelectableAwardInfo id {box_id}")
+    return resolve_award_element(box["elements"][selection], amount, pet_gene=True)
+
+
+def resolve_award_element(element_id: int, amount: int, *, pet_gene: bool = False) -> dict:
     if type(amount) is not int or amount <= 0:
         raise RewardConfigError(f"invalid amount for AwardElementInfo id {element_id}")
     element = table("AwardElementInfo").get(element_id)
@@ -61,12 +71,17 @@ def resolve_award_element(element_id: int, amount: int) -> dict:
         raise RewardConfigError(
             f"unsupported AwardElementInfo type {element['elementType']} (id {element_id})")
     target = int(element["elementID"])
-    if kind in ("g_cash", "m_cash", "exp"):
+    if kind in ("g_cash", "m_cash", "exp", "goldCoin"):
         target = 0
     elif kind == "item":
         if target <= 0 or table("ItemInfo").get(target) is None:
             raise RewardConfigError(f"unknown reward item id {target}")
     elif kind == "pet":
+        if pet_gene:
+            gene = table("GeneInfo").get(target)
+            if not gene:
+                raise RewardConfigError(f"missing reward Pet gene id {target}")
+            target = gene["petID"]
         try:
             acquisition_skill_pools(target)
         except ValueError as exc:

@@ -28,6 +28,9 @@ function GameGuideMgr.Init()
 end
 
 function GameGuideMgr.checkProcess()
+    if CharInfo.get().local_freedom == true then
+        return
+    end
     print("检查新手引导")
     if isGuiding then
         print("当前有其他引导")
@@ -194,6 +197,9 @@ function GameGuideMgr.checkGuideFinishByID(process)
 end
 
 function GameGuideMgr.checkProcessInTown(boolCheckLevelUp)
+    if CharInfo.get().local_freedom == true then
+        return
+    end
     print("检查城镇新手引导")
     local townMissionIDs = {10031, 10041, 10042, 10035, 10036}
     local guideVec = QuestInfo.getCurGuideIDs()
@@ -276,6 +282,9 @@ function GameGuideMgr.checkProcessInTown(boolCheckLevelUp)
 end
 
 function GameGuideMgr.checkStory()
+    if CharInfo.get().local_freedom == true then
+        return
+    end
     if isGuiding then
         print("当前有其他引导")
         return

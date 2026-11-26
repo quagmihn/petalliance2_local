@@ -7,8 +7,12 @@ import re
 
 from protocol import Reader, Writer
 from pet_config import json_value, untrained_hp, validate_pet
+from local_play import enabled
 
 log = logging.getLogger("game_socket")
+PET_PAGE_SIZE = 24
+# Keep frames conservative for legacy clients during initial scene loading.
+PET_FRAME_LIMIT = 16 * 1024
 
 
 class PetDataError(ValueError):
@@ -55,16 +59,26 @@ def pet_json(row) -> str:
 
 async def query_pets(session, payload: bytes):
     r = Reader(payload)
-    _requested_char_id, start, _end = r.u64(), r.u32(), r.u32()
+    _requested_char_id, start, requested_end = r.u64(), r.u32(), r.u32()
     r.finish()
     if session.char_id is None: raise ValueError("pet query before character login")
     rows = await session.db.pool.fetch("SELECT * FROM pets WHERE char_id=$1 ORDER BY slot_index,pet_uid", session.char_id)
     active = [row for row in rows if 0 <= row["slot_index"] < 3]
     helpers = [row for row in rows if 3 <= row["slot_index"] < 6]
     inactive = [row for row in rows if row["slot_index"] < 0 or row["slot_index"] >= 6]
+    # The client cursor counts reserve Pets alone. Return the current active
+    # and support groups on every page because its cache replaces those arrays.
+    paged = enabled("LOCAL_UNLIMITED_PET_STORAGE") or len(inactive) > PET_PAGE_SIZE
+    if paged:
+        if start > len(inactive):
+            return 3139, Writer().u16(1).bytes()
+        limit = min(PET_PAGE_SIZE, requested_end - start) if requested_end > start else PET_PAGE_SIZE
+        page = inactive[start:start + limit]
+    else:
+        page = inactive
     serialized = {}
     invalid = []
-    for row in rows:
+    for row in (*active, *page, *helpers):
         try:
             serialized[row["pet_uid"]] = pet_json(row)
         except PetDataError as exc:
@@ -77,10 +91,26 @@ async def query_pets(session, payload: bytes):
         # QueryPokemons_Ack contains only the WORD error code on nonzero status.
         # Do not send a partial Pet vector or raise through the TCP session loop.
         return 3139, Writer().u16(1).bytes()
-    w = Writer().u16(0).u64(session.char_id).u32(start).u32(start + len(rows))
-    w.vector_strings([serialized[row["pet_uid"]] for row in active])
-    w.vector_strings([serialized[row["pet_uid"]] for row in inactive])
-    w.u32(len(inactive)).vector_strings([serialized[row["pet_uid"]] for row in helpers])
+    active_json = [serialized[row["pet_uid"]] for row in active]
+    helper_json = [serialized[row["pet_uid"]] for row in helpers]
+    budget = PET_FRAME_LIMIT - 29 - sum(len(value.encode()) + 1 for value in (*active_json, *helper_json))
+    if budget < 0 or len(active_json) > 255 or len(helper_json) > 255:
+        return 3139, Writer().u16(1).bytes()
+    page_json = []
+    for row in page:
+        value = serialized[row["pet_uid"]]
+        size = len(value.encode()) + 1
+        if size > budget:
+            break
+        page_json.append(value)
+        budget -= size
+    if page and not page_json:
+        return 3139, Writer().u16(1).bytes()
+    end = start + (len(page_json) if paged or len(page_json) != len(page) else len(rows))
+    w = Writer().u16(0).u64(session.char_id).u32(start).u32(end)
+    w.vector_strings(active_json)
+    w.vector_strings(page_json)
+    w.u32(len(inactive)).vector_strings(helper_json)
     return 3139, w.bytes()
 
 
