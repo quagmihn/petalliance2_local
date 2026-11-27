@@ -1,5 +1,23 @@
 # Execution checkpoint
 
+## 2026-11-27 · Chest, Market and Adventure economy
+
+The official launcher started clean source revision `4d088379d84067b4a06deb420273059e0a708ef7` from `/home/quagmihn/Project/monster2_rebuild`. HTTP PID 3602 and TCP PID 3603 both authenticated to `monster2_db` as `monster2`. The installed APK is `com.petalliance2.sea` version code 7, SHA256 `dafb7f8c1dd5a877d6c6d07e440f5c504cb5bb125aa2389f0bd6a9cb24f4f2e3`. The owner identity is `6:2:minh`, Level 50 and VIP 20. The installed APK and previous APK share the same signing certificate and either can be installed with data preservation.
+
+| Area | Verified evidence |
+| --- | --- |
+| Chest rewards | 236/251 Bag chest plans resolve correctly. Actual Taurus and Cancer chest results on Waydroid match the configured templates and database UIDs. The final build writes a replay-safe receipt. |
+| Market | 90/90 offers passed protocol and real PostgreSQL purchase tests. Waydroid bought Dye twice with zero stored silver and retained the items after cold login. |
+| Sweep | Waydroid x1 and x10 on three-crown Puzzle recorded 11 runs, +792 EXP and −110 stamina, with crowns and rewards persisted. The loader validates 270 stages. |
+| Movement | Town walk and subsequent position reports returned 45 → 35/code 0. Unsupported chat remains explicit. |
+| Adventure interactions | Tree skill and run-scoped flute validated by PostgreSQL and protocol; Android obstacle acceptance remains pending. Capture is transaction-tested, with no authored Adventure cell linked to a positive-attempt encounter in the audited target data. |
+| Skills and assets | 3235/3730 skill descriptions exist in English, including 360/420 top-grade. The client uses configured tags as a fallback. No alternate resource records were promoted. |
+| Regression | 150 tests passed with PostgreSQL integration and zero skips. Changed Lua passed syntax validation. Signed installed APK hash matches the manifest. |
+
+Evidence, the SHA-verified production dump and isolated restore logs are in `artifacts/adventure-economy-20261126/`. Restore contained `minh` at Level 50, 150 Pets and 184 inventory rows overall. This release includes no schema migration and uses existing transaction tables and character JSON fields. The QA character was `848:834:QArichadventure`. Destructive and purchasing scenarios during development used `monster2_test_db`.
+
+Resume with [the independent work queue](IMPLEMENTATION_BACKLOG.md), [launcher evidence](LAUNCHER_PARITY_REPORT.md), and [the content delta](NEW_CONTENT_COVERAGE.md).
+
 ## 2026-11-26 · Level 50 and private freedom
 
 The official source is `/home/quagmihn/Project/monster2_rebuild`. The play database resolves to `monster2_db` as `monster2`; destructive QA ran against `monster2_test_db` as `quagmihn`. The deployed gameplay revision is `822403b93b73b337e49dff208a56222dfe426287`, which adds the profile appearance correction to `4768edb6afe0e1e6ae9ed7ac155a1496a649c3d6`. The current serving processes are HTTP 13990 and TCP 13991. The installed version-7 APK SHA256 is `e0c0fb48914610f158de5368cd45218534bdac77b9495bfe16032f74628cf10c`.

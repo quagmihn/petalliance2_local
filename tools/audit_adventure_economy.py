@@ -26,6 +26,44 @@ def digest(data):
     return sha256(data).hexdigest()
 
 
+def english_text(config):
+    database = config / "db/lang_en.db"
+    if not database.is_file():
+        return {}
+    with sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True) as language:
+        return dict(language.execute("SELECT code,lang FROM tbl_lang"))
+
+
+def candidate_pet_links(root, pet_ids):
+    source = root / "assets/res/Config"
+    genes = table("GeneInfo", source)
+    probabilities = table("GeneProbabilityInfo", source)
+    skills = table("PetSkillInfo", source)
+    english = english_text(source)
+    result = {}
+    for pet_id in pet_ids:
+        pet = table("PokemonInfo", source)[pet_id]
+        matching = [gene for gene in genes.values() if gene["petID"] == pet_id]
+        groups = {
+            group for gene in matching
+            for group in [*(gene[field] for field in ("skill_1", "skill_2", "skill_3", "profound")),
+                          *(skill["passiveSkillID"] for skill in gene["passiveSkills"])]
+        }
+        skill_ids = {entry["prob_skillID"] for group in groups
+                     for entry in probabilities.get(group, {}).get("geneGroup", [])
+                     if entry["prob"] and entry["prob_skillID"]}
+        result[pet_id] = {
+            "gene_ids": [gene["id"] for gene in matching],
+            "absent_candidate_probability_groups": sorted(groups - probabilities.keys()),
+            "absent_target_probability_groups": sorted(groups - table("GeneProbabilityInfo").keys()),
+            "absent_candidate_skill_ids": sorted(skill_ids - skills.keys()),
+            "absent_target_skill_ids": sorted(skill_ids - table("PetSkillInfo").keys()),
+            "english_name": english.get(pet["name"]),
+            "english_description": english.get(pet["desc"]),
+        }
+    return result
+
+
 def compatibility(apk, candidates):
     report = {}
     with ZipFile(apk) as target:
@@ -53,7 +91,8 @@ def compatibility(apk, candidates):
                     "added_ids": added, "removed_ids": removed, "changed_ids": changed,
                 }
             assets = root / "assets/res"
-            for item_id in stats.get("PokemonInfo", {}).get("added_ids", []):
+            new_pet_ids = stats.get("PokemonInfo", {}).get("added_ids", [])
+            for item_id in new_pet_ids:
                 pet = table("PokemonInfo", source)[item_id]
                 skin = pet["fightSkin"]
                 resources = [f"Spine/pet/{skin}{suffix}" for suffix in
@@ -61,13 +100,15 @@ def compatibility(apk, candidates):
                 resources.append(f"Pet/PetIcon/{pet['icon']}.png")
                 stats["PokemonInfo"].setdefault("missing_candidate_assets", {})[item_id] = [
                     resource for resource in resources if not (assets / resource).is_file()]
+            if new_pet_ids and all((source / f"{name}.dat").is_file() for name in
+                                   ("GeneInfo", "GeneProbabilityInfo", "PetSkillInfo")):
+                stats["PokemonInfo"]["candidate_pet_links"] = candidate_pet_links(root, new_pet_ids)
             report[str(root)] = stats
     return report
 
 
 def skills_and_chests():
-    with sqlite3.connect(f"file:{CONFIG / 'db/lang_en.db'}?mode=ro", uri=True) as language:
-        english = dict(language.execute("SELECT code,lang FROM tbl_lang"))
+    english = english_text(CONFIG)
     skills = table("SkillInfo")
     tags = table("SkillTagInfo")
     templates = table("SkillTemplateInfo")

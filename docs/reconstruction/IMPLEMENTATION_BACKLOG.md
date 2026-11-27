@@ -1,8 +1,17 @@
 # Implementation backlog
 
+## After chest and Adventure economy
+
+1. Use a separate QA Android user and restart the official `test` profile for a real Tunnel (Adventure 4) obstacle session. Test skill absence, owned reserve, fighting/support, flute before pickup, flute across floors, and re-entry. Compare 722/746 and the persisted per-run marker. Restore the local profile after using fixed APK ports.
+2. Locate an authored Adventure encounter that links to a positive-attempt group outside the direct/disposable cell configuration. If none is recoverable, use an expressly QA-only map fixture for runtime capture; retain the verified world capture separately. Resolve the third argument of `PokemonBallInfo` against original source before changing odds.
+3. Trace Gold Key 169 to the original non-Bag Gold Chest interaction. For the 15 remaining Bag chests, resolve the four Pet/gene dependencies and `AwardElementInfo` classes 17/18 before enabling grants. Exercise selection item 254 and representative fixed, random and multi-reward chests in Android.
+4. Exercise distinct high-rarity effect families with deterministic battle fixtures. Use `SkillInfo` and action templates to verify effects and descriptions at the same skill level. Audit the 12 top-grade families whose English name and description keys are absent.
+5. Locate the separate phone export and identify its original APK and resource manifest. Start a versioned overlay from the verified target package for alternate Pets 20018–20022. Recover localization and verify gene references, animations and skill behavior before enabling rewards or collection.
+6. Run an elite and Hero sweep at the configured daily boundary. Resolve the five missing sweep DropInfo plans and keep the 15 stages without authored geometry blocked. Test Market Mall and VIP in the new APK and address the separate Market Shop/Stall and equipment-instance lifecycle.
+
 ## After the private freedom and catalog release
 
-1. Exercise Bag item 254 in Waydroid and capture the selected reward and its post-login stock. Use the audit to separate the 115 chest mappings missing valid award kinds or references from the 136 currently enabled. Trace type-8 stamina restoration and the separate equipment, crafting and furniture paths.
+1. Exercise Bag item 254 in Waydroid and capture the selected reward and its post-login stock. Trace type-8 stamina restoration and the separate equipment, crafting and furniture paths.
 2. Run a Rage/Profound combat action, active replacement and passive replacement using an eligible Pet. Check runtime effect and ownership. Resolve the 58 Fight templates only where a source proves a valid starting group, and locate target-compatible battle resources for templates 157 and 10000.
 3. Run the remaining Seven-Day types from `TaskWatcherManager` against known server mutations. Track original event-specific counters for the 80 unimplemented rows. UI-derived counters require authoritative backing before awards are enabled.
 4. Run the four other normal recharge price tiers in Android and resolve the Wish Tree Seed reward for N10/N11. Preserve first-vs-repeat and separate claims.

@@ -70,3 +70,14 @@ The official `./server/run_all.sh` started the clean milestone `4768edb6afe0e1e6
 - The installed APK is package `com.petalliance2.sea`, version code 7, SHA256 `e0c0fb48914610f158de5368cd45218534bdac77b9495bfe16032f74628cf10c`. `apksigner verify` confirmed signer SHA256 `f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a`. The previous APK remains in `dist/` for rollback.
 - The production dump `artifacts/freedom-level50-20261126/monster2_db-before.dump` has SHA256 `5a8f7db861ecae098a6f11fdd32092dace91cf48e7216d30bfce17ffb4266111`. It was restored in a separate socket-only cluster under a non-superuser role. The restore contained 207 constraints, 5 characters, 72 Pets, 83 inventory rows, and the matching owner state.
 - The release suite passed 141 tests with `TEST_DATABASE_URL=postgresql:///monster2_test_db` and zero skips. The APK overlay's Lua files also passed `luac -p`. Deployment uses existing DB tables and the character JSON field.
+
+## 2026-11-27 · Chest, Market and Adventure economy
+
+`./server/run_all.sh doctor` verified the local profile, release APK, target content hashes, 90 Market offers, 236 chest plans and 270 sweep configurations. The local startup exposed HTTP 8080 and TCP 5568 on `192.168.240.1`. HTTP PID 3602 and TCP PID 3603 independently connected to `monster2_db` as `monster2`. The startup recorded clean code `4d088379d84067b4a06deb420273059e0a708ef7` and the official project source path. QA ran the same source through the launcher's `test` profile, connecting to `monster2_test_db` as `quagmihn`.
+
+- Installed package `com.petalliance2.sea`, version code 7. Installed APK SHA256 `dafb7f8c1dd5a877d6c6d07e440f5c504cb5bb125aa2389f0bd6a9cb24f4f2e3`. The existing signer SHA256 `f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a` allowed updating in place, with app data retained.
+- `minh` was verified in PostgreSQL and on cold Waydroid login as account 6, character 2, Level 50 and VIP 20. Live Market displays 999999999 silver; the genuine stored balance remains 10600. Ground taps in the live Town also produced 45 → 35/code 0. Owner purchase resources were preserved during acceptance.
+- Backup SHA256 `9ddee5cfad95db65aaede4185b4df33e4b3488963bde58a1990924abf2889dca`. The backup was restored as a non-superuser in an isolated PostgreSQL cluster before deployment. No schema migration was needed. Source and APK rollback points are `822403b93b73b337e49dff208a56222dfe426287` and `dist/monster2_local-freedom-runtime.apk`. Keep newer player state if rolling back source or APK.
+- PostgreSQL regression passed 150 tests with no skips. Changed Lua files passed `luac -p`, and the APK passed signature and alignment checks.
+
+Artifacts under `artifacts/adventure-economy-20261126/` include `live.log`, `doctor-final.log`, `live-minh-cold-login.png`, `live-minh-market-silver.png`, both QA logs, and the isolated backup verification. The artifact directory is local to the project machine.
