@@ -352,15 +352,21 @@ async def commit_quest(session, payload: bytes):
     quest = config.get(quest_id)
     ok, children, awards, pet_payloads = False, [], [], []
     if session.char_id is not None and quest is not None:
-        from reward_config import RewardConfigError, resolve_reward
+        from reward_config import RewardConfigError, drop_plan, resolve_reward, roll_drop
         try:
-            configured_reward = resolve_reward(quest.award_id)
+            configured_rewards = []
+            if quest.award_id in client_table("RewardInfo"):
+                # Historical releases used RewardInfo for these overlapping IDs.
+                # Keep their established rewards while resolving DropInfo-only quests.
+                configured_rewards = [resolve_reward(quest.award_id)]
+            elif quest.award_id:
+                configured_rewards = roll_drop(drop_plan(quest.award_id), 1)
         except RewardConfigError as exc:
             log.warning("quest_reward_config_rejected char_id=%s quest_id=%s award_id=%s reason=%s",
                         session.char_id, quest_id, quest.award_id, exc)
             return 726, Writer().u16(1).bytes()
         ok, children, awards, pet_payloads = await session.db.commit_configured_tutorial_quest(
-            session.char_id, quest, config, configured_reward)
+            session.char_id, quest, config, configured_rewards)
     if not ok:
         return 726, Writer().u16(1).bytes()
     wire_awards = [json.dumps({"elementType": row["kind"], "elementID": row["id"],
@@ -378,10 +384,10 @@ async def commit_quest(session, payload: bytes):
             "SELECT item_id,count FROM inventory WHERE char_id=$1 AND item_id=ANY($2::int[])",
             session.char_id, item_ids)
         responses.append(item_counts_update((row["item_id"], row["count"]) for row in counts))
-    if any(row["kind"] in ("g_cash", "m_cash") for row in awards):
+    if any(row["kind"] in ("g_cash", "m_cash", "goldCoin") for row in awards):
         from handlers.economy import wallet_update
         wallet = await session.db.pool.fetchrow(
-            "SELECT gold,diamond,stamina,vip_level,vip_points,currencies_json FROM characters WHERE char_id=$1",
+            "SELECT * FROM characters WHERE char_id=$1",
             session.char_id)
         responses.append(wallet_update(wallet))
     ack = Writer().u16(0).u32(quest_id).vector_strings(wire_awards).bytes()

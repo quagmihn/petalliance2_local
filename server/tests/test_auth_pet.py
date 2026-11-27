@@ -279,7 +279,7 @@ class PostgreSQLIntegrationTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(await db.finish_tutorial_battle(char_id, battle_session, True))
             from reward_config import resolve_reward
             result = await db.commit_configured_tutorial_quest(
-                char_id, quests[10001], quests, resolve_reward(quests[10001].award_id, draw=0))
+                char_id, quests[10001], quests, [resolve_reward(quests[10001].award_id, draw=0)])
             self.assertEqual(result[:2], (True, [2, 10002]))
             self.assertEqual(result[2][0], {"kind": "g_cash", "id": 0, "num": 2000})
             self.assertEqual(result[2][-1], {"kind": "pet", "id": 116, "num": 1})

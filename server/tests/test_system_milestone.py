@@ -22,6 +22,33 @@ class SystemMilestone(unittest.IsolatedAsyncioTestCase):
     send = test_item_event_rewards.ItemEventRewards.send
     stack = test_item_event_rewards.ItemEventRewards.stack
 
+    async def test_story_drop_only_award_fails_atomically_then_commits_once(self):
+        # A persisted, completed objective is required before a story claim.
+        await self.db.pool.executemany(
+            "INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,$2,$3,$4::jsonb)",
+            [(self.char_id, 2004, 1, "[1]"), (self.char_id, 2005, 0, "[1]")])
+        await self.db.pool.execute("INSERT INTO inventory(char_id,item_id,count) VALUES($1,10002,$2)",
+                                   self.char_id, (1 << 32) - 1)
+        request = Writer().u32(2005).bytes()
+        self.assertEqual(await self.send(400, request), [(726, b"\x01\x00")])
+        self.assertEqual(await self.db.pool.fetch(
+            "SELECT quest_id FROM quests WHERE char_id=$1 AND quest_id=20002", self.char_id), [])
+        await self.db.pool.execute("UPDATE inventory SET count=0 WHERE char_id=$1 AND item_id=10002",
+                                   self.char_id)
+        packets = await self.send(400, request)
+        reader = Reader(dict(packets)[726])
+        self.assertEqual((reader.u16(), reader.u32(), reader.u8()), (0, 2005, 1))
+        self.assertEqual(json.loads(reader.string()), {"elementType": "item", "elementID": 10002, "num": 2})
+        reader.finish()
+        self.assertIn(404, dict(packets))
+        self.session = Session(self.db)
+        self.session.char_id = self.char_id
+        self.assertEqual(dict(await self.send(400, request))[726], dict(packets)[726])
+        self.assertEqual(await self.stack(10002), 2)
+        quests = dict(await self.db.pool.fetch(
+            "SELECT quest_id,status FROM quests WHERE char_id=$1", self.char_id))
+        self.assertEqual(quests, {2004: 1, 2005: 1, 20002: 0})
+
     async def test_stamina_purchase_and_daily_claim_commit_once(self):
         await self.db.pool.execute("UPDATE characters SET diamond=1000,stamina=190,vip_level=20 WHERE char_id=$1",
                                    self.char_id)

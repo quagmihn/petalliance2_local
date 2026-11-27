@@ -106,7 +106,7 @@ class QuestDB:
         config = "MonstrosityInfo" if battle[2] == 1 else "MonsterGroupManInfo"
         return (int(table(config)[battle[1]]["exp"]) if won else 0), []
 
-    async def commit_configured_tutorial_quest(self, char_id, quest, all_quests, configured_reward=None):
+    async def commit_configured_tutorial_quest(self, char_id, quest, all_quests, configured_rewards=()):
         row = self.quests.get(quest.quest_id)
         if row is None:
             return False, [], [], []
@@ -134,8 +134,7 @@ class QuestDB:
             if child and child not in self.quests:
                 self.quests[child] = {"status": 0, "progress": [0] * max(1, len(all_quests[child].objectives))}
                 children.append(child)
-        rewards = [configured_reward] if configured_reward else []
-        return True, children, rewards, []
+        return True, children, list(configured_rewards), []
 
     async def home_state(self, char_id):
         return {"level": 1, "homeName": "starter", "furnitures": {}} if char_id == 2 else None

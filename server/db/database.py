@@ -1437,7 +1437,7 @@ class Database:
 
     async def commit_configured_tutorial_quest(self, char_id: int, quest,
                                                all_quests: dict[int, Any],
-                                               configured_reward: dict | None = None
+                                               configured_rewards: list[dict] | tuple = ()
                                                ) -> tuple[bool, list[int], list[dict], list[str]]:
         """Atomically validate, complete, reward, unlock, and activate configured children."""
         objectives = quest.objectives
@@ -1531,10 +1531,32 @@ class Database:
                          for value, objective in zip(progress, objectives)):
                     return False, [], [], []
 
+                gold = int(quest.gold_reward) if quest.gold_reward.isdigit() else 0
+                exp = int(quest.exp_reward) if quest.exp_reward.isdigit() else 0
+                awards: list[dict] = []
+                if gold:
+                    awards.append({"kind": "g_cash", "id": 0, "num": gold})
+                if quest.diamond_reward:
+                    awards.append({"kind": "m_cash", "id": 0, "num": quest.diamond_reward})
+                if exp:
+                    awards.append({"kind": "exp", "id": 0, "num": exp})
+                awards.extend(configured_rewards)
+                claim = {"awards": awards}
+                if quest.quest_id == 10005 and starter["training_stage"] == 0:
+                    material = await self._starter_training_material(conn, char_id, starter["pet_template_id"])
+                    if material is not None:
+                        if material["num"]:
+                            awards.append(material)
+                        claim["starter_training_supplied"] = True
+                from reward_service import receive_rewards
+                grant_result = await receive_rewards(
+                    conn, char_id, char["game_values"], awards, self._grant_character_exp)
+                if grant_result is None:
+                    return False, [], [], []
+                pet_payloads = grant_result["pets"]
+                claim["pets"] = pet_payloads
                 new_children = []
                 for child_id in quest.child_ids:
-                    if not child_id:
-                        continue
                     child = all_quests.get(child_id)
                     if child is None:
                         continue
@@ -1545,30 +1567,6 @@ class Database:
                         char_id, child_id, json.dumps([0] * max(1, len(child.objectives))))
                     if inserted is not None:
                         new_children.append(child_id)
-
-
-                gold = int(quest.gold_reward) if quest.gold_reward.isdigit() else 0
-                exp = int(quest.exp_reward) if quest.exp_reward.isdigit() else 0
-                awards: list[dict] = []
-                if gold:
-                    awards.append({"kind": "g_cash", "id": 0, "num": gold})
-                if quest.diamond_reward:
-                    awards.append({"kind": "m_cash", "id": 0, "num": quest.diamond_reward})
-                if exp:
-                    awards.append({"kind": "exp", "id": 0, "num": exp})
-                if configured_reward is not None:
-                    awards.append(dict(configured_reward))
-                claim = {"awards": awards}
-                if quest.quest_id == 10005 and starter["training_stage"] == 0:
-                    material = await self._starter_training_material(conn, char_id, starter["pet_template_id"])
-                    if material is not None:
-                        if material["num"]:
-                            awards.append(material)
-                        claim["starter_training_supplied"] = True
-                from reward_service import grant_rewards
-                grant_result = await grant_rewards(conn, char_id, awards, self._grant_character_exp)
-                pet_payloads = grant_result["pets"]
-                claim["pets"] = pet_payloads
                 values = char["game_values"] or {}
                 if isinstance(values, str): values = json.loads(values)
                 map_lock = _merge_map_unlock(
