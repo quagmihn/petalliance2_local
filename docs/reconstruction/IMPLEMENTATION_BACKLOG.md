@@ -1,5 +1,15 @@
 # Implementation backlog
 
+## After Arena lobby and shared rewards
+
+1. Reproduce a real Arena replay with the original BattleMgr in a headless harness. Follow BattleMapMgr, BattleCotroller and the 831/ntf.mxmevo.battleNtf command. Verify per-turn snapshots, termination and reconnect in a headless harness. Then verify the distinct history notification 278 and snapshot parts 645/642/643. Once Android plays the stream, enable the official challenge, transactionally settle attempts, rank, score and missions, then buy an Arena Shop item with earned score.
+2. Use the existing QA offers to buy a star material, consume an EXP potion and redeem/equip a style voucher by their normal controls. Trace separate furniture and decoration acquisition and placement before enabling the corresponding Market tabs. Test the seasonal stock refresh paths.
+3. Expand Daily Mission reporting from the nine wired rows. Trace all unsupported event types and filters (including Arena). Exercise 1794/1798 activity milestones and collection claims on Android. Backfill achievement stats only when durable source rows support the same semantics.
+4. Verify Pet Train overflow and reset and Pet Relation remove/replace after cold relogin. Run a normal battle with newly attached Chubby and compare the effective HP to the configured yoke bonus. Check additional multi-helper bindings and changes to their minimum star level.
+5. Use the Adventure batch JSON to resolve the 23 rows with structural blockers, then perform a normal, elite and hero path from actual UI. Exercise three consecutive clears and trace crown calculation, per-run exits and remaining event variants before treating a map family as fully verified.
+6. Reuse the simulated order fixtures to verify available additional recharge banners when their configured time windows support testing. Preserve prior time windows and require their own authoritative claim records.
+
+
 ## After chest and Adventure economy
 
 1. Use a separate QA Android user and restart the official `test` profile for a real Tunnel (Adventure 4) obstacle session. Test skill absence, owned reserve, fighting/support, flute before pickup, flute across floors, and re-entry. Compare 722/746 and the persisted per-run marker. Restore the local profile after using fixed APK ports.

@@ -1,5 +1,27 @@
 # Execution checkpoint
 
+## 2026-11-27 · Market, daily rewards, Pet Train and Relation
+
+Serving commit `e4dc8e12b38f6499d0d1bc4e2b4e5d0d26169f2e` started through the repository's `server/run_all.sh`. HTTP PID 81769 and TCP PID 81770 identify `monster2_db` as `monster2`, on Waydroid bridge 192.168.240.1:8080 and :5568. The installed `com.petalliance2.sea` 1.0.0 (version code 7), SHA256 `dafb7f8c1dd5a877d6c6d07e440f5c504cb5bb125aa2389f0bd6a9cb24f4f2e3`, passed signature verification. No replacement APK was installed.
+
+| System | Coverage and runtime evidence |
+| --- | --- |
+| [Market Shop](MARKET_CATALOG_COMPLETE.md) | 607 local products plus the existing 90 Commerce/Mall definitions. Android bought a Skill Book, style voucher, medium EXP potions and Super Evolution Stones in the QA account. |
+| [Daily Mission](MISSION_REWARD_ENGINE.md) | 9/18 visible missions wired to real actions. Android mission 1011 granted 400 character EXP and 15 activity points. |
+| [Story quest rewards](MISSION_REWARD_ENGINE.md) | Resolves 349 previously rejected DropInfo-only links while retaining historical payouts for overlapping IDs. The official APK automatically claimed completed quest 2005, awarded two small EXP potions and opened child 20002. PostgreSQL tests checked overflow and replay. |
+| [Achievement](ACHIEVEMENT_REWARD_ENGINE.md) | 55/150 regular tiers have progress sources, plus 25 parsed collection entries with ownership-based eligibility. Android claimed achievement 1000 for five diamonds and five points. |
+| [Stamina](STAMINA_PURCHASE.md) | Android bought 120 stamina with 50 diamonds and the state survived cold relogin. |
+| [Recharge](RECHARGE_BANNER_CLAIMS.md) | Android simulated a repeatable N3 purchase, then claimed the Daily Recharge gift from town mail. Both the wallet and claim survived cold relogin. |
+| [Arena and Shop](ARENA_NPC_AND_SHOP.md) | Android saw the NPC roster and purchased two Wulbertroy fragments for 2,000 seeded QA score. The ranked challenge is blocked until server replay records can be generated. |
+| [Train](PET_TRAIN_SYSTEM.md) and [Relation](PET_RELATION_SYSTEM.md) | Android trained Panda's HP, then linked Chubby for +195 HP. Saved training, link, final HP 5,845 and power 4,783 were visible after cold relogin. |
+| [Adventure](ADVENTURE_BATCH_COVERAGE.md) | 290 structures audited, 275 have authored geometry, 270 have geometry and resolvable clear rewards, 267 have no identified structural dependency error in the audit. A 1–3 sequence passed TCP/PostgreSQL tests. |
+| Regression | 157 automated tests including PostgreSQL and TCP, zero skips. Thirteen relevant Lua source files compiled in LuaJIT, launcher syntax and diff checks passed. |
+
+The deployment adds `pets.development_json` with a non-null empty JSON default. The production backup was checksummed and restored to an isolated PostgreSQL cluster before deployment. The restore log identifies `6:2:minh` at Level 50. The backup, logs, protocol records, authoritative data snapshots and screenshots stay under `artifacts/arena-missions-20261127/`. Spending, training and Relation acceptance used Android user 12 and test character `848:834:QArichadventure` in `monster2_test_db`. Official Waydroid login showed `6:2:minh` at Level 50 and VIP 20 and displayed the existing outfit, Town and Arena lobby. The only change to the audited gameplay records was the normal client claim of the already-earned quest 2005, which raised the map flag from 9 to 10. Wallet, Pet rows, previous inventory and quest records, Adventure clears and purchases matched their pre-deploy fingerprints after accounting for the new award and child quest.
+
+The next steps are ordered in the [implementation backlog](IMPLEMENTATION_BACKLOG.md). [Launcher parity](LAUNCHER_PARITY_REPORT.md) records the connection and catalog evidence.
+
+
 ## 2026-11-27 · Chest, Market and Adventure economy
 
 The official launcher started clean source revision `4d088379d84067b4a06deb420273059e0a708ef7` from `/home/quagmihn/Project/monster2_rebuild`. HTTP PID 3602 and TCP PID 3603 both authenticated to `monster2_db` as `monster2`. The installed APK is `com.petalliance2.sea` version code 7, SHA256 `dafb7f8c1dd5a877d6c6d07e440f5c504cb5bb125aa2389f0bd6a9cb24f4f2e3`. The owner identity is `6:2:minh`, Level 50 and VIP 20. The installed APK and previous APK share the same signing certificate and either can be installed with data preservation.

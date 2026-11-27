@@ -1,0 +1,7 @@
+# Market Shop catalog
+
+The Market Shop tab uses AuctionMgrNew's 492/520 search and 481/471 buy protocol. The former backend returned an empty search result. The adapter lists 607 validated offers with the product identifier, item template ID, character ID, quantity and unit price expected by the APK. The existing 90 Commerce/Mall offers are unchanged.
+
+The local Market includes 384 Skill Books (222 active, 82 passive, 80 special), 172 wardrobe vouchers across five appearance slots, and 51 progression, fragment and skill material offers. General consumables use the visible STYLE → MATERIAL category (17/4), with 17/1 accepted for compatible client variants. The Market uses original silver prices for six existing silver offers and a documented local price schedule for other offers. Furniture remains pending its own ownership protocol.
+
+The server locks the offer and expected balance in the purchase path, consumes the session quote once and uses the shared inventory grant. Unlimited silver applies only to the configured player in the private local profile. Waydroid bought 99 Mindpower books (79,200 silver) one Innocent style voucher (600 silver), 99 medium EXP potions (14,850 silver) and 99 Super Evolution Stones (14,850 silver) on the test account. Screenshots and matching TCP records are in `artifacts/arena-missions-20261127/`. Costume equipment and other product families need separate Android acceptance.

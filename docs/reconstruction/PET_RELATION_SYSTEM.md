@@ -1,0 +1,5 @@
+# Pet Relation
+
+Relation uses YokeInfo, YokeEffect, YokeScore and YokeEffectPos. Attach 2010/2035, remove 1966/1973, replace 2037/1991 and updates 2041 are implemented. Required species and ownership are validated. A helper must be a reserve Pet without another binding. Once all slots are filled, the relation stage uses the least-starred helper and the resolved stat effects feed both the collection and the battle Pet snapshot. Bound helpers cannot be added to the fighting formation or consumed as star-up materials.
+
+The PostgreSQL regression binds a valid reserve helper, checks calculated health and combat power and verifies restrictions and saved state. Waydroid bound Chubby UID 10272 to Panda UID 1347 through 2010/2035. The Relation tab immediately showed +195 HP, with HP 5,650 → 5,845 and power 4,755 → 4,783. PostgreSQL recorded both the binding and the calculated yoke values. The same Chubby, HP and power were present after a cold relogin. Separate combat-effect acceptance remains open.

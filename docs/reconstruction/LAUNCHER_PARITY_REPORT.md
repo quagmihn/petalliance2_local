@@ -81,3 +81,17 @@ The official `./server/run_all.sh` started the clean milestone `4768edb6afe0e1e6
 - PostgreSQL regression passed 150 tests with no skips. Changed Lua files passed `luac -p`, and the APK passed signature and alignment checks.
 
 Artifacts under `artifacts/adventure-economy-20261126/` include `live.log`, `doctor-final.log`, `live-minh-cold-login.png`, `live-minh-market-silver.png`, both QA logs, and the isolated backup verification. The artifact directory is local to the project machine.
+
+## Arena lobby, Market and Pet progression · 2026-11-27
+
+The active official invocation is `./server/run_all.sh` from `/home/quagmihn/Project/monster2_rebuild`. Revision `e4dc8e12b38f6499d0d1bc4e2b4e5d0d26169f2e` serves from its tracked server tree. The startup dirty flag was caused by contemporaneous documentation edits. At 16:43 ICT, HTTP 81769 and TCP 81770 independently verified `monster2_db` as `monster2`; both ports bind to 192.168.240.1. The QA test profile verified the same catalogs against `monster2_test_db` as `quagmihn` and was stopped before the local profile started.
+
+| Checked value | Recorded identity |
+| --- | --- |
+| APK SHA256 | `dafb7f8c1dd5a877d6c6d07e440f5c504cb5bb125aa2389f0bd6a9cb24f4f2e3` |
+| Installed signing certificate SHA256 | `f6a9b74ac979b6f3c221eb0b21789619b1238c89ca813b9033a60425cf489a3a` |
+| Market pricing SHA256 | `5b1acca7265f6d0b6b689914ba25180166bf21a8aab9330e911197a0290257e1` |
+| NPC catalog SHA256 | `3058108688d9739e898edb30473bd64634f285093e68e17478296735a56724db` |
+| Effective Gacha pool SHA256 | `a145820735be48148e59543dfee6e4cce7fc6fa52a1329f793f8ec0de33ac677` |
+
+The backup and isolated restore preceded the additive Pet training and Relation column. For rollback, restart the previous server revision with the same configuration and leave the additive column in place to retain any new Pet progression. If an individual data correction is necessary, use a targeted transaction against the recorded affected rows. The safety evidence is in `artifacts/arena-missions-20261127/`.

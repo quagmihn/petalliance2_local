@@ -1,0 +1,9 @@
+# Arena initialization and Android replay
+
+The installed version 7 APK opens Arena with 277/51, loads the formation with 460/416, and renders three opponents from 317/356. Ranking uses 1175/1239, opponent inspection 1235/1305, and battle history 267/265. Each response follows its Lua decoder. Eight stable local profiles use configured MonsterGroupManInfo and MonstrosityInfo opponents with valid Pokémon, skills and formation.
+
+Waydroid loaded the NPC list and reached Arena BattleScene on the isolated replay probe (517/589). Both sides rendered, but BattleCotroller requested the first missing combat record. Arena marks the scene as replay-driven, so BattleMapMgr does not create its local BattleMgr. Live rounds arrive on 831 (GC_MESSAGE_NTF) as command `ntf.mxmevo.battleNtf` plus a parameter containing `turnIndex` and a Lua-serialized `report`. 278 and 645/642/643 serve recorded history and its Pet snapshots. The retry path asks 11/12, but the shipped ACK callback leaves replay insertion commented out. Sending only the formation and battle ID leaves Android waiting, as recorded in `qa-android.log` and `qa-arena-battle.png` under `artifacts/arena-missions-20261127/`.
+
+The official profile exposes the lobby and shop. Challenge returns a protocol rejection until a validated replay implementation exists. NPC victories, rank changes, battle attempts, Arena mission progress, ranking rewards, daily rewards and score issuance are pending. The next step is to run the target BattleMgr in a headless test harness and compare 831 playback and the distinct recorded history encoders against the shipped parsers before enabling settlement.
+
+The owner subsequently opened the NPC roster through the official launcher on monster2_db. The client initialized rank 9 and rendered the generated profile cards, without spending any Arena currency.
