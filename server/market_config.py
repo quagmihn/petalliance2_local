@@ -27,7 +27,9 @@ def enabled_offers():
 @cache
 def local_offers():
     from draw_expansion import compatible_books, compatible_fashion_vouchers, compatible_pets
+    from pet_config import SS_STAR_SUBSTITUTE
     from pet_development import overflow_materials
+    from reward_config import selectable_reward
     from skill_config import skill_upgrade_costs
 
     policy = json.loads(Path(__file__).with_name("config").joinpath("local-market.json").read_text())
@@ -35,7 +37,7 @@ def local_offers():
     assets = ROOT / "unpacked/assets/res"
     offers = {}
 
-    def add(item_id, price, category=None):
+    def add(item_id, price, category=None, *, select_id=None):
         item = items[item_id]
         if not item["icon"] or not (assets / item["icon"]).is_file():
             return
@@ -45,6 +47,7 @@ def local_offers():
         offers[f"local:{item_id}"] = {
             "id": item_id, "itemID": item_id, "marketType": 1, "coinType": 3,
             "num": price, "buyMax": 0, "vip": 0, "category": (item_type, subtype),
+            "select_id": item["selectID"] if select_id is None else select_id,
         }
 
     # Installed Shop keeps the Style material filter but no longer renders
@@ -61,6 +64,7 @@ def local_offers():
     materials = {consume[cost]["elementID"] for cost in cost_ids if
                  cost in consume and consume[cost]["elementType"] == 3}
     materials.update(item for row in table("PetStarUpInfo").values() for item in row["costItem"])
+    materials.update(item for row in table("PetStrengthenInfo").values() for item in row["consumeType"])
     materials.update(overflow_materials())
     for item_id in sorted(materials & items.keys()):
         add(item_id, policy["material_silver"], material)
@@ -74,9 +78,15 @@ def local_offers():
     for item_id, fragment in table("PetPieceInfo").items():
         if item_id in items and genes.get(fragment["pokeID"], {}).get("petID") in eligible_pets:
             add(item_id, policy["fragment_silver"], material)
-    for bucket in compatible_books().values():
+    for kind, bucket in compatible_books().items():
+        subtype = {0: 1, 6: 2, 1: 3}[kind]
         for item_id in bucket:
-            add(item_id, policy["book_silver_per_grade"] * max(items[item_id]["itemRare"], 1))
+            item = items[item_id]
+            selector = item["selectID"]
+            if selector and item["itemTypeID"] != subtype:
+                selector = f"1_{subtype}_{selector.split('_', 2)[2]}"
+            add(item_id, policy["book_silver_per_grade"] * max(item["itemRare"], 1),
+                (1, subtype), select_id=selector)
     for item_id in compatible_fashion_vouchers():
         if 1 <= items[item_id]["itemTypeID"] <= 5:
             add(item_id, policy["fashion_silver_per_grade"] * max(items[item_id]["itemRare"], 1))
@@ -85,6 +95,16 @@ def local_offers():
         item_id = offer["itemID"]
         if offer["coinType"] == 3:
             add(item_id, offer["num"], material)
+
+    box_config = policy["star_substitute_box"]
+    box_id = box_config["item_id"]
+    box = items[box_id]
+    prize = selectable_reward(box["paramA"], box_config["choice"], 1)
+    if (box["itemType"] != 28 or box["bUse"] != 1 or not prize
+            or (prize["kind"], prize["id"]) != ("pet", SS_STAR_SUBSTITUTE)
+            or not (assets / box["icon"]).is_file()):
+        raise ValueError("Market star substitute box has no usable configured SS Pet choice")
+    add(box_id, box_config["silver"], material)
     return offers
 
 
@@ -93,8 +113,8 @@ def search_local_offers(item_type, subtype, item_id, sort, start, count, label):
     category = (17, 4) if (item_type, subtype) == (17, 1) else (item_type, subtype)
     offers = [offer for offer in local_offers().values() if
               offer["category"] == category and (not item_id or offer["itemID"] == item_id)
-              and (not label or items[offer["itemID"]]["selectID"] == label
-                   or items[offer["itemID"]]["selectID"].startswith(f"{label}_"))]
+              and (not label or offer["select_id"] == label
+                   or offer["select_id"].startswith(f"{label}_"))]
     offers.sort(key=lambda offer: (offer["num"] if sort == 1 else items[offer["itemID"]]["name"],
                                    offer["itemID"]))
     return [{"productID": f"local:{offer['itemID']}", "itemID": offer["itemID"],

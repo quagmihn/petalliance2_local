@@ -7,8 +7,8 @@ import test_item_event_rewards
 from client_config import table
 from game_socket import Session
 from handlers.arena import opponents
-from market_config import local_offers
-from pet_config import insert_owned_pet
+from market_config import local_offers, search_local_offers
+from pet_config import SS_STAR_SUBSTITUTE, insert_owned_pet, star_steps
 from protocol import Reader, Writer
 from recharge_config import normal_families
 
@@ -104,6 +104,58 @@ class SystemMilestone(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await self.stack(10002), 2)
             wallet = await self.db.character_values(self.char_id, ["goldCoin"])
             self.assertEqual(wallet["goldCoin"], 500 - 2 * card["unitPrice"])
+
+    def test_market_catalog_covers_each_configured_book_and_all_supported_potion_sizes(self):
+        from draw_expansion import compatible_books
+
+        expected = {subtype: set(compatible_books()[kind]) for subtype, kind in ((1, 0), (2, 6), (3, 1))}
+        for subtype, books in expected.items():
+            visible = set()
+            for start in range(0, len(books), 6):
+                visible.update(row["itemID"] for row in search_local_offers(1, subtype, 0, 0, start, 6, ""))
+            self.assertEqual(visible, books)
+        self.assertEqual(len(expected[2]), 95)
+        self.assertEqual(search_local_offers(1, 2, 20555, 0, 0, 6, "1_2_3_ATTR_COMMON")[0]["itemID"], 20555)
+        self.assertEqual(search_local_offers(1, 1, 20555, 0, 0, 6, ""), [])
+        materials = {offer["itemID"] for offer in local_offers().values() if offer["category"] == (17, 4)}
+        self.assertTrue(set(table("GlobalConfigAddInfo")[9]["values"][:-1]) <= materials)
+        self.assertTrue({131, 137, 248, 11000, 11001, 154, 157, 231, 232} <= materials)
+
+    async def test_market_box_delivers_ss_star_material_that_only_valid_ss_targets_can_consume(self):
+        await self.db.pool.execute("UPDATE characters SET level=30,currencies_json=$2::jsonb WHERE char_id=$1",
+                                   self.char_id, '{"goldCoin":10000}')
+        with patch.dict(os.environ, PRIVATE):
+            query = Writer().u32(17).u32(4).u32(248).u32(1).u32(0).u32(6).string("").bytes()
+            listing = Reader((await self.send(492, query))[0][1])
+            self.assertEqual((listing.u16(), listing.u8()), (0, 1))
+            card = json.loads(listing.string())
+            purchase = Writer().string(card["productID"]).u32(1).bytes()
+            self.assertEqual((await self.send(481, purchase))[-1], (471, b"\0\0"))
+            self.assertEqual(await self.stack(248), 1)
+            use = Writer().u32(248).u32(2).string("").u32(1).bytes()
+            self.assertEqual([message for message, _ in await self.send(516, use)], [112, 3141, 526])
+            self.assertEqual(await self.stack(248), 0)
+        substitute = await self.db.pool.fetchval(
+            "SELECT pet_uid FROM pets WHERE char_id=$1 AND pet_template_id=$2", self.char_id, SS_STAR_SUBSTITUTE)
+        self.assertIsNotNone(substitute)
+        lower, target = [await insert_owned_pet(self.db.pool, self.char_id, template, level=10, stage=5)
+                         for template in (1, 116)]
+        step = star_steps(116)[0]
+        await self.db.grant_item(self.char_id, step.item, step.count)
+        self.assertFalse(await self.db.update_primary_army(self.char_id, [substitute], []))
+        self.assertIsNone(await self.db.advance_pet_training_stage(self.char_id, substitute))
+        self.assertIsNone(await self.db.feed_pet_exp(self.char_id, substitute, 10002, 1, 100))
+        self.assertEqual(await self.send(1596, Writer().u32(lower["pet_uid"]).u8(1).u32(substitute).bytes()),
+                         [(1650, b"\x01\x00")])
+        self.assertEqual(await self.stack(step.item), step.count)
+        action = Writer().u32(target["pet_uid"]).u8(1).u32(substitute).bytes()
+        result = await self.send(1596, action)
+        self.assertEqual([message for message, _ in result], [112, 3138, 3141, 1650])
+        self.assertEqual(result[-1][1], b"\0\0")
+        self.assertEqual(await self.send(1596, action), [(1650, b"\x01\x00")])
+        self.assertEqual(await self.stack(step.item), 0)
+        pets = dict(await self.db.pool.fetch("SELECT pet_uid,star FROM pets WHERE char_id=$1", self.char_id))
+        self.assertEqual(pets, {lower["pet_uid"]: 0, target["pet_uid"]: 1})
 
     async def test_achievement_collection_and_level_rewards(self):
         for template in (10, 11, 12):

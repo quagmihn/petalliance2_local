@@ -5,6 +5,7 @@ from client_config import table
 from handlers.economy import wallet_update
 from handlers.inventory import item_counts_update
 from handlers.pet import pet_json
+from pet_config import is_star_material
 from pet_development import ATTRIBUTES, OVERFLOW, OVERFLOW_FOR, state, totals, yoke_values
 from progress import record
 from protocol import Reader, Writer
@@ -42,7 +43,7 @@ async def train(session, request, payload):
     async with session.db.pool.acquire() as conn, conn.transaction():
         wallet = await conn.fetchrow("SELECT * FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
         pet = await conn.fetchrow("SELECT * FROM pets WHERE char_id=$1 AND pet_uid=$2 FOR UPDATE", char_id, uid)
-        if not wallet or not pet:
+        if not wallet or not pet or is_star_material(pet["pet_template_id"]):
             return fail
         saved = state(pet)
         used = sum(saved.get(key, 0) for key in ATTRIBUTES)
@@ -117,7 +118,8 @@ async def relation(session, request, payload):
         await conn.fetchval("SELECT char_id FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
         pets = {row["pet_uid"]: row for row in await conn.fetch("SELECT * FROM pets WHERE char_id=$1", char_id)}
         main = pets.get(uid)
-        if not main or relation_id not in table("PokemonInfo")[main["pet_template_id"]]["yokeVec"]:
+        if (not main or is_star_material(main["pet_template_id"])
+                or relation_id not in table("PokemonInfo")[main["pet_template_id"]]["yokeVec"]):
             return fail
         saved = state(main)
         main_yoke = saved.get("yoke", {})
@@ -132,7 +134,8 @@ async def relation(session, request, payload):
             return fail
         if helper:
             candidate = pets.get(helper)
-            if not candidate or candidate["slot_index"] >= 0 or candidate["pet_template_id"] != plan["pets"][slot]:
+            if (not candidate or candidate["slot_index"] >= 0 or is_star_material(candidate["pet_template_id"])
+                    or candidate["pet_template_id"] != plan["pets"][slot]):
                 return fail
             candidate_state = state(candidate)
             if candidate_state.get("yoke"):

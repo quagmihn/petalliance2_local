@@ -75,6 +75,7 @@ class Database:
 
     async def update_primary_army(self, char_id: int, members: list[int], support: list[int]) -> bool:
         from client_config import table
+        from pet_config import is_star_material
 
         config = table("GlobalConfigAddInfo")
         unlocks = [max(config[index]["values"]) for index in range(9001, 9005)]
@@ -92,6 +93,8 @@ class Database:
                     char_id, list(slots),
                 )
                 if len(pets) != len(slots) or len({pet["pet_template_id"] for pet in pets}) != len(slots):
+                    return False
+                if any(is_star_material(pet["pet_template_id"]) for pet in pets):
                     return False
                 if await conn.fetchval(
                     """SELECT EXISTS (SELECT 1 FROM pets WHERE char_id=$1 AND pet_uid=ANY($2::bigint[])
@@ -159,11 +162,14 @@ class Database:
     def _pet_exp_progress(char_level, pet, exp_gain, *, allow_capped_gain=False):
         """Apply the same cumulative thresholds and cap for feeding and battle EXP."""
         from client_config import table
+        from pet_config import is_star_material
 
         exp_rows = table("ExperienceInfo")
         template = table("PokemonInfo").get(int(pet["pet_template_id"]))
         if template is None:
             raise ValueError(f"unknown Pet template {pet['pet_template_id']}")
+        if is_star_material(template["id"]):
+            return None
         rare = int(template["rarePoint"])
         max_level = min(int(char_level), int(template["topLevel"]))
         if max_level < 1 or rare < 1:
@@ -1272,8 +1278,9 @@ class Database:
                 char_id, quest.quest_id, json.dumps(values))
 
     async def advance_pet_star(self, char_id, pet_uid, material_uids):
+        from client_config import table
         from handlers.pet import pet_json
-        from pet_config import json_value, star_steps
+        from pet_config import SS_STAR_SUBSTITUTE, is_star_material, json_value, star_steps
         from pet_development import state, yoke_values
 
         if pet_uid in material_uids or 1 in material_uids or len(set(material_uids)) != len(material_uids):
@@ -1285,7 +1292,8 @@ class Database:
                 "SELECT * FROM pets WHERE char_id=$1 AND pet_uid=ANY($2::bigint[]) FOR UPDATE",
                 char_id, [pet_uid, *material_uids])}
             target = owned.get(pet_uid)
-            if target is None or len(owned) != len(material_uids) + 1:
+            if (target is None or len(owned) != len(material_uids) + 1
+                    or is_star_material(target["pet_template_id"])):
                 return None
             steps = star_steps(target["pet_template_id"])
             star = target["star"]
@@ -1300,6 +1308,11 @@ class Database:
                         or state(material).get("yoke")
                         or material["pet_template_id"] not in (step.substitutes | {step.pet})):
                     return None
+                if material["pet_template_id"] == SS_STAR_SUBSTITUTE:
+                    species = table("PokemonInfo")
+                    if (SS_STAR_SUBSTITUTE not in step.substitutes
+                            or species[target["pet_template_id"]]["rarePoint"] != species[SS_STAR_SUBSTITUTE]["rarePoint"]):
+                        return None
             # Capture retries need the owned UID and live fights use an issuance snapshot.
             if await conn.fetchval(
                 """SELECT EXISTS(SELECT 1 FROM tutorial_battle_sessions WHERE char_id=$1 AND
@@ -1335,7 +1348,7 @@ class Database:
     async def advance_pet_training_stage(self, char_id: int, pet_uid: int):
         """Atomically charge and persist one configured Pet Stage increase."""
         from client_config import table
-        from pet_config import stage_costs
+        from pet_config import is_star_material, stage_costs
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 char = await conn.fetchrow(
@@ -1345,7 +1358,7 @@ class Database:
                 pet = await conn.fetchrow(
                     "SELECT pet_uid,pet_template_id,level,training_stage FROM pets "
                     "WHERE pet_uid=$1 AND char_id=$2 FOR UPDATE", pet_uid, char_id)
-                if char is None or pet is None:
+                if char is None or pet is None or is_star_material(pet["pet_template_id"]):
                     return None
                 pokemon = table("PokemonInfo").get(pet["pet_template_id"])
                 if pokemon is None:
@@ -1833,6 +1846,7 @@ class Database:
         """Validate and commit the slot change and its costs together."""
         from client_config import table
         from handlers.pet import pet_json
+        from pet_config import is_star_material
         from skill_config import replacement_skill, skill_book, skill_upgrade_costs
 
         if not 0 <= slot < 9:
@@ -1842,7 +1856,7 @@ class Database:
             await conn.fetchval("SELECT char_id FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
             pet = await conn.fetchrow("SELECT * FROM pets WHERE char_id=$1 AND pet_uid=$2 FOR UPDATE",
                                       char_id, pet_uid)
-            if pet is None:
+            if pet is None or is_star_material(pet["pet_template_id"]):
                 return None
             active = json.loads(pet["skills_json"])
             passive = json.loads(pet["passive_skills_json"])

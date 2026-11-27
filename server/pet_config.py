@@ -69,6 +69,15 @@ def skill_ids():
     return frozenset(struct.unpack_from("<I", raw)[0] for raw in rows("PetSkillInfo"))
 
 
+SS_STAR_SUBSTITUTE = 10001
+
+
+def is_star_material(template_id):
+    from client_config import table
+
+    return table("PokemonInfo").get(template_id, {}).get("useType") == 1
+
+
 @functools.cache
 def acquisition_skill_pools(template_id, *, gene_id=None):
     """Resolve and validate every possible skill before a Pet can be granted."""
@@ -99,6 +108,8 @@ def starting_skills(template_id, *, gene_id=None):
 
 
 async def insert_owned_pet(conn, char_id, template_id, *, slot=-1, level=1, stage=0, star=0, gene_id=None):
+    if slot >= 0 and is_star_material(template_id):
+        raise ValueError("Pet star materials cannot occupy a formation slot")
     skills, passive = starting_skills(template_id, gene_id=gene_id)
     return await conn.fetchrow(
         """INSERT INTO pets(char_id,pet_template_id,slot_index,level,training_stage,star,
