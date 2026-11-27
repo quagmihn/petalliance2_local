@@ -104,8 +104,33 @@ async def arena_shop_catalog(session, payload, ack_id):
     return [wallet_update(wallet), ack] if ack_id == 1876 and wallet is not None else ack
 
 
+async def reset_arena_shop(session, payload):
+    from arena_shop import transact
+
+    reader = Reader(payload)
+    shop_type = reader.u32()
+    reader.finish()
+    result = await transact(session.db, session.char_id) if shop_type == 1 and session.char_id is not None else None
+    return 1737, Writer().u16(0 if result else 1).bytes()
+
+
 async def buy_product(session, payload: bytes):
+    from handlers.inventory import inventory_packets
+    from local_play import enabled
+    from market_config import local_offers
+
     r = Reader(payload); product_id, count = r.string(), r.u32(); r.finish()
+    if (session.char_id is not None and enabled("LOCAL_MARKET_SHOP") and 1 <= count <= 99
+            and product_id in session.local_market_quotes and product_id in local_offers()):
+        product = local_offers()[product_id]
+        purchase = await session.db.buy_market_item(session.char_id, product, count)
+        if purchase is None:
+            return 471, Writer().u16(1).bytes()
+        session.local_market_quotes.discard(product_id)
+        log.info("local_market_purchase char_id=%s product=%s quantity=%s price_silver=%s virtual=%s",
+                 session.char_id, product_id, count, product["num"] * count, purchase["virtual_silver"])
+        return [*inventory_packets([(purchase["item_id"], purchase["item_count"])]),
+                wallet_update(purchase["character"]), (471, Writer().u16(0).bytes())]
     return reject_unmapped_purchase(session, 481, "CG_BUYPRODUCT_REQ", 471,
                                     "GC_BUYPRODUCT_ACK", product_id=product_id,
                                     count=count)
@@ -121,18 +146,18 @@ async def get_my_market(session, payload: bytes):
 
 
 async def search_market_products(session, payload: bytes):
+    from local_play import enabled
+    from market_config import search_local_offers
+
     r = Reader(payload)
-    r.u32()  # itemType
-    r.u32()  # itemSubType
-    r.u32()  # itemID
-    r.u32()  # sortType
-    r.u32()  # startIndex
-    r.u32()  # searchNum
-    r.string()  # selectID
+    category, subtype, item_id, sort, start, count = (r.u32() for _ in range(6))
+    label = r.string(limit=96)
     r.finish()
     if session.char_id is None:
         return 520, Writer().u16(1).bytes()
-    return 520, Writer().u16(0).vector_strings([]).bytes()
+    offers = search_local_offers(category, subtype, item_id, sort, start, count, label) if enabled("LOCAL_MARKET_SHOP") else []
+    session.local_market_quotes = {offer["productID"] for offer in offers}
+    return 520, Writer().u16(0).vector_strings([json.dumps(offer) for offer in offers]).bytes()
 
 
 async def buy_market(session, payload: bytes):
@@ -187,9 +212,14 @@ async def buy_packet(session, payload: bytes):
 
 
 async def buy_power(session, payload: bytes):
+    from stamina import purchase
+
     Reader(payload).finish()
-    return reject_unmapped_purchase(session, 1242, "CG_BUYPOWER_REQ", 991,
-                                    "GC_BUYPOWER_ACK")
+    result = await purchase(session.db, session.char_id, session.stamina_quote)
+    if result is None:
+        return 991, Writer().u16(1).bytes()
+    row, counters, session.stamina_quote = result
+    return [wallet_update(row, counters), (991, Writer().u16(0).bytes())]
 
 
 async def buy_gcash(session, payload: bytes):

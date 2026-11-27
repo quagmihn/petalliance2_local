@@ -5,6 +5,7 @@ not a replacement for validation of untrusted network messages.
 """
 import functools
 import re
+import struct
 import sys
 from pathlib import Path
 from pet_config import CONFIG, rows
@@ -58,6 +59,7 @@ def parse(r, kind):
     if kind in ("QWORD", "TIME_SEC", "CharacterID"): return r.u64()
     if kind in ("String", "string", "LifeNick", "NickName", "UserName"): return r.string()
     if kind == "FloatString": return float(r.string())
+    if kind in ("float", "Float"): return struct.unpack("<f", r.take(4))[0]
     fields = decoders().get(kind)
     if fields is None:
         raise ValueError(f"unsupported Lua config type {kind}")

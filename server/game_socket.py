@@ -10,6 +10,7 @@ import uuid
 
 from db.database import Database
 from handlers import treasure
+from handlers import arena, pet_development, progression
 from handlers import character_state
 from handlers import (auth, battle, chat, economy, events, inventory, map as map_handler,
                       pet, player, territory, world_boss)
@@ -126,7 +127,12 @@ EXPECTED_ACKS = {
     3133: (3132,), 400: (726, 404), 632: (630,), 45: (35,),
     1644: (1664,), 1819: (1901,), 501: (498,),
     2075: (2102,), 2121: (2109,), 2098: (2066,),
-    1283: (1261,),
+    1283: (1261,), 481: (112, 133, 262, 473, 471), 1242: (473, 991, 404),
+    72: (74,), 268: (837,), 73: (112, 133, 262, 3141, 473, 67),
+    328: (112, 133, 262, 3141, 473, 485), 1794: (112, 133, 262, 3141, 473, 1798),
+    869: (1737,), 296: (112, 133, 262, 3141, 473, 299), **{request: (ack,) for request, ack in arena.ACKS.items()},
+    **{request: (112, 473, 3141, ack) for request, ack in pet_development.TRAIN_ACKS.items()},
+    **{request: (2041, 3141, ack) for request, ack in pet_development.RELATION_ACKS.items()},
     1038: (112, 473, 1032), 1282: (133, 3141, 1369), 1302: (112, 133, 3141, 1371),
     2996: (3080,), 3078: (3081, 1749),
     2998: (3079,),
@@ -158,9 +164,32 @@ class Session:
         self.user_token = ""
         self.channel = ""
         self.town_position = None
+        self.local_market_quotes = set()
+        self.stamina_quote = None
+        self.daily_entries = None
 
 
 async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, bytes] | None:
+    if msg_id in arena.ACKS:
+        return await arena.handle(session, msg_id, payload)
+    if msg_id in pet_development.TRAIN_ACKS:
+        return await pet_development.train(session, msg_id, payload)
+    if msg_id in pet_development.RELATION_ACKS:
+        return await pet_development.relation(session, msg_id, payload)
+    if msg_id == 869:
+        return await economy.reset_arena_shop(session, payload)
+    if msg_id == 296:
+        return await events.claim_recharge_banner(session, payload)
+    if msg_id in (72, 268):
+        Reader(payload).finish()
+        return await progression.list_achievements(session, msg_id == 72)
+    if msg_id in (73, 328, 1794):
+        reader = Reader(payload)
+        key = reader.u32() if msg_id == 1794 else reader.u16()
+        reader.finish()
+        if msg_id == 1794:
+            return await progression.daily_claim(session, key, gift=True)
+        return await progression.claim_achievement(session, key, msg_id == 73)
     if msg_id == CMD["compound_pet_piece"]:
         return await inventory.compound_pet_piece(session, payload)
     # Native CommandL.SYSPING_ACK shares numeric ID 4 with the Lua command
@@ -210,11 +239,6 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["get_capsule_cds"]: return await pet.get_capsule_egg_cds(session, payload)
     if msg_id == CMD["get_character_values"]: return await player.get_character_values(session, payload)
     if msg_id == CMD["buy_goods"]: return await economy.buy_goods(session, payload)
-    if msg_id == CMD["query_arena"]:
-        Reader(payload).finish()
-        # The exchange is implemented independently. The combat lobby needs
-        # verified opponents and rank data before a success response is valid.
-        return 51, Writer().u16(1).bytes()
     if msg_id == CMD["get_shop"]: return await economy.arena_shop_catalog(session, payload, 1746)
     if msg_id == CMD["system_refresh_goods"]: return await economy.arena_shop_catalog(session, payload, 859)
     if msg_id == CMD["refresh_goods"]: return await economy.arena_shop_catalog(session, payload, 1876)
@@ -327,6 +351,12 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 progress = await db.committed_character_progress(session.char_id)
                 answers.append((473, Writer().string(json.dumps(progress)).bytes()))
                 answers.extend(await map_handler.adventure_clear_notifications(session))
+            if msg_id in (15, 400, 516, 1038, 1242, 1392, 1738, 2996, 3082) and session.daily_entries is not None:
+                notices = await progression.daily_updates(session)
+                if notices:
+                    answers.extend(notices)
+                    if expected_acks is not None:
+                        expected_acks = (*expected_acks, 404)
             packet_sizes = []
             for ack_id, ack_body in answers:
                 packet = frame(ack_id, ack_body)

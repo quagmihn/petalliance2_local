@@ -140,6 +140,7 @@ CREATE TABLE IF NOT EXISTS pets (
 -- Evolution changes species; it must not be reused as a strengthening level.
 ALTER TABLE pets ADD COLUMN IF NOT EXISTS training_stage INTEGER NOT NULL DEFAULT 0 CHECK (training_stage >= 0);
 ALTER TABLE pets ADD COLUMN IF NOT EXISTS passive_skills_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS development_json JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS inventory (
     id BIGSERIAL PRIMARY KEY,

@@ -81,8 +81,10 @@ class AdventureEventProtocolTests(unittest.IsolatedAsyncioTestCase):
         }
         session = SimpleNamespace(db=SimpleNamespace(finish_adventure=finish), char_id=22,
                                   current_adventure_id=1)
-        with patch("handlers.map.client_table", side_effect=lambda name: tables[name]):
+        plan = ((1, [(1, {"kind": "item", "id": 10002, "num": 1})]),)
+        with patch("handlers.map.client_table", side_effect=lambda name: tables[name]), patch("reward_config.drop_plan", return_value=plan) as drop:
             ack, body = await dispatch(session, 3082, Writer().u16(12).bytes())
+        drop.assert_called_once_with(1)
         response = Reader(body)
         self.assertEqual((ack, response.u16()), (2995, 0))
         self.assertEqual([response.string() for _ in range(response.u8())], [

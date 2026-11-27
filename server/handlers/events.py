@@ -8,6 +8,8 @@ from handlers.economy import local_payment_enabled
 from handlers.inventory import award_strings, reward_packets
 from protocol import Reader, Writer
 from reward_config import RewardConfigError, resolve_award_element, resolve_reward
+from reward_service import receive_rewards
+import recharge_events
 from seven_day_config import SUPPORTED_TYPES
 
 
@@ -77,23 +79,52 @@ async def get_recharge_mail(session):
 
 async def get_activities(session, payload):
     Reader(payload).finish()
-    mail = await get_recharge_mail(session)
     data = {}
-    if mail:
-        # RechargeViewMgr expects an hour string and switches to the daily
-        # recharge promotion when the first-purchase token is set.
-        from datetime import datetime, timedelta, timezone
-
-        zone = timezone(timedelta(hours=7))
-        hour = datetime.fromtimestamp(mail["sendTime"], zone).strftime("%Y%m%d%H")
-        data["recharge"] = {"3": {"1": {"token": True, "time": hour}}}
+    if session.char_id is not None and local_payment_enabled():
+        async with session.db.pool.acquire() as conn:
+            values = json.loads(await conn.fetchval(
+                "SELECT game_values FROM characters WHERE char_id=$1", session.char_id))
+            state = await recharge_events.progress(conn, session.char_id, values, time.time())
+        if state:
+            data["recharge"] = state
     return 152, Writer().u16(0).json_string(data).bytes()
+
+
+async def claim_recharge_banner(session, payload):
+    r = Reader(payload)
+    key, amount = r.u32(), r.u32()
+    r.finish()
+    result = (await recharge_events.claim_campaign(session.db, session.char_id, key, amount, time.time())
+              if session.char_id is not None and local_payment_enabled() else None)
+    if result is None:
+        return 299, Writer().u16(1).bytes()
+    return [*reward_packets(result), (299, Writer().u16(0).bytes())]
+
+
+def daily_mail_payload(daily):
+    if not daily or daily["state"].get("deleted"):
+        return None
+    order, state = daily["receipt"], daily["state"]
+    mail = mail_payload({"created_at": order["created_at"], "is_read": state.get("read", False),
+                         "first_charge_claimed": state.get("claim", False)}, daily["awards"], daily["end"])
+    return {**mail, "_id": f"local-daily:{order['transaction_id']}", "title": "Daily Recharge Reward",
+            "content": "Your daily local recharge reward is attached."}
+
+
+async def get_daily_mail(session):
+    if session.char_id is None or not local_payment_enabled():
+        return None
+    async with session.db.pool.acquire() as conn:
+        values = json.loads(await conn.fetchval(
+            "SELECT game_values FROM characters WHERE char_id=$1", session.char_id))
+        return daily_mail_payload(await recharge_events.daily_mail(conn, session.char_id, values, time.time()))
 
 
 async def check_unread_mail(session, payload):
     Reader(payload).finish()
     mail = await get_recharge_mail(session)
-    unread = bool(mail and not mail["isRead"])
+    daily = await get_daily_mail(session)
+    unread = any(message and not message["isRead"] for message in (mail, daily))
     return 1077, Writer().u16(0).u16(0).u16(unread).bytes()
 
 
@@ -102,14 +133,53 @@ async def list_mail(session, payload):
     r.string()
     personal_count, requested = r.u32(), r.u16()
     r.finish()
-    mail = await get_recharge_mail(session) if not personal_count and requested else None
-    return 274, Writer().u16(0).json_string({"0": mail} if mail else {}).bytes()
+    messages = []
+    if not personal_count and requested:
+        messages = [mail for mail in (await get_recharge_mail(session), await get_daily_mail(session)) if mail]
+    return 274, Writer().u16(0).json_string({str(i): mail for i, mail in enumerate(messages)}).bytes()
+
+
+async def update_daily_mail(session, index, message_id):
+    error = (message_id, Writer().u16(1).bytes())
+    if session.char_id is None or not local_payment_enabled():
+        return error
+    async with session.db.pool.acquire() as conn, conn.transaction():
+        values = json.loads(await conn.fetchval(
+            "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", session.char_id))
+        daily = await recharge_events.daily_mail(conn, session.char_id, values, time.time())
+        mail = daily_mail_payload(daily)
+        if mail is None or index != mail["_id"]:
+            return error
+        state = daily["state"]
+        granted = None
+        if message_id == 1106:
+            if state.get("claim"):
+                return error
+            granted = await receive_rewards(conn, session.char_id, values, daily["awards"], session.db._grant_character_exp)
+            if granted is None:
+                return error
+            state["claim"] = True
+        elif message_id == 271:
+            if not state.get("claim"):
+                return error
+            state["deleted"] = True
+        state["read"] = True
+        await conn.execute("""UPDATE characters SET game_values=game_values ||
+                           jsonb_build_object('recharge_daily_mail',$2::jsonb) WHERE char_id=$1""",
+                           session.char_id, json.dumps(state))
+    body = Writer().u16(0)
+    if message_id == 305:
+        body.json_string(daily_mail_payload(daily))
+    ack = message_id, body.bytes()
+    return [*reward_packets(granted), ack] if granted is not None else ack
 
 
 async def update_mail(session, payload, message_id):
     r = Reader(payload)
     index, mail_type = r.string(), r.u16()
     r.finish()
+    if mail_type == 0 and index.startswith("local-daily:"):
+        return await update_daily_mail(session, index, message_id)
     mail = await get_recharge_mail(session) if mail_type == 0 else None
     error = (message_id, Writer().u16(1).bytes())
     if not mail or mail["_id"] != index:

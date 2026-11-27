@@ -93,6 +93,10 @@ class Database:
                 )
                 if len(pets) != len(slots) or len({pet["pet_template_id"] for pet in pets}) != len(slots):
                     return False
+                if await conn.fetchval(
+                    """SELECT EXISTS (SELECT 1 FROM pets WHERE char_id=$1 AND pet_uid=ANY($2::bigint[])
+                       AND development_json->'yoke' ? 'bindTo')""", char_id, list(slots)):
+                    return False
                 await conn.execute(
                     "UPDATE pets SET slot_index=-1 WHERE char_id=$1 AND slot_index BETWEEN 0 AND 5",
                     char_id,
@@ -226,6 +230,8 @@ class Database:
                     char_id, pet_uid)
                 from handlers.pet import pet_json
                 serialized = pet_json(updated)
+                from progress import record
+                await record(conn, char_id, "PET_FED", item_count)
                 return {"remaining": remaining, "pet": dict(updated),
                         "pet_json": serialized}
 
@@ -314,6 +320,8 @@ class Database:
                         """INSERT INTO vip_shop_purchases(char_id,sku,item_id,quantity,coin_type,cost,unlimited)
                            VALUES($1,$2,$3,$4,$5,$6,$7)""",
                         char_id, market["id"], item_id, quantity, coin_type, price, unlimited)
+                from progress import record
+                await record(conn, char_id, "ITEM_PURCHASED", quantity)
                 return {"character": updated, "virtual_silver": virtual_silver,
                         "item_id": item_id, "item_count": int(inventory["count"]), "counters": counters}
 
@@ -382,6 +390,8 @@ class Database:
                        VALUES($1,$2,$3,$4,$5,$6::jsonb,TRUE)""",
                     char_id, order_key, package_kind, package_id, paid_amount,
                     json.dumps(rewards, separators=(",", ":")))
+                from progress import record
+                await record(conn, char_id, "RECHARGE_COMPLETED")
                 updated = await conn.fetchrow(
                     "SELECT * FROM characters WHERE char_id=$1", char_id)
                 return {"character": updated, "duplicate": False,
@@ -1029,6 +1039,8 @@ class Database:
                         "UPDATE tutorial_battle_sessions SET captured_pet_uid=$2 WHERE battle_id=$1",
                         battle["battle_id"], pet["pet_uid"])
                     result.update(pet_uid=int(pet["pet_uid"]), pet_json=serialized)
+                    from progress import record
+                    await record(conn, char_id, "PET_CAPTURED")
                     requirement = (tutorial_wild_requirements().get(int(battle["group_id"]))
                                    if battle["battle_type"] == 1 else None)
                     if requirement is None:
@@ -1131,6 +1143,8 @@ class Database:
                     """UPDATE tutorial_battle_sessions SET state=$2,finished_at=now(),session_id=$3
                        WHERE battle_id=$1""", battle["battle_id"], "won" if won else "lost", session_id)
                 if won:
+                    from progress import record
+                    await record(conn, char_id, "BATTLE_WON")
                     from battle_group_config import tutorial_requirements
                     requirement = tutorial_requirements().get(battle["group_id"])
                     tutorial_handled = False
@@ -1260,6 +1274,7 @@ class Database:
     async def advance_pet_star(self, char_id, pet_uid, material_uids):
         from handlers.pet import pet_json
         from pet_config import json_value, star_steps
+        from pet_development import state, yoke_values
 
         if pet_uid in material_uids or 1 in material_uids or len(set(material_uids)) != len(material_uids):
             return None
@@ -1282,6 +1297,7 @@ class Database:
             for uid in material_uids:
                 material = owned[uid]
                 if (material["slot_index"] != -1 or json_value(material["equips_json"])
+                        or state(material).get("yoke")
                         or material["pet_template_id"] not in (step.substitutes | {step.pet})):
                     return None
             # Capture retries need the owned UID and live fights use an issuance snapshot.
@@ -1303,6 +1319,17 @@ class Database:
                                char_id, material_uids)
             updated = await conn.fetchrow(
                 "UPDATE pets SET star=star+1 WHERE pet_uid=$1 RETURNING *", pet_uid)
+            parent_id = state(updated).get("yoke", {}).get("bindTo")
+            if parent_id:
+                pets = {pet["pet_uid"]: pet for pet in await conn.fetch(
+                    "SELECT * FROM pets WHERE char_id=$1", char_id)}
+                main = state(pets[parent_id])
+                detail = main["yoke"]["yokeDetail"]
+                main["yoke"]["yokeValues"] = yoke_values(detail, pets)
+                await conn.execute("UPDATE pets SET development_json=$2::jsonb WHERE pet_uid=$1",
+                                   parent_id, json.dumps(main))
+            from progress import record
+            await record(conn, char_id, "PET_STAR_UP")
             return pet_json(updated), step.item, remaining
 
     async def advance_pet_training_stage(self, char_id: int, pet_uid: int):
@@ -1370,6 +1397,8 @@ class Database:
                 await conn.execute(
                     "UPDATE pets SET training_stage=$3 WHERE char_id=$1 AND pet_uid=$2",
                     char_id, pet_uid, new_stage)
+                from progress import record
+                await record(conn, char_id, "PET_ENHANCED")
                 return new_stage, wallet if wallet_changed else None, item_counts
 
     @staticmethod
@@ -1646,9 +1675,13 @@ class Database:
 
     async def character_values(self, char_id: int, keys: list[str]) -> dict[str, Any]:
         from character_values import validate_character_values, vip_info_id
+        from handlers.progression import PROGRESS_FIELDS, achievement_progress
         from local_play import enabled, freedom, silver_override
+        from progress import daily_state
+        from stamina import balance_at
+        from time import time
         row = await self.pool.fetchrow(
-            "SELECT account_id,char_id,name,gold,diamond,vip_level,stamina,vip_points,recharge_total,currencies_json,game_values,created_at,world_id "
+            "SELECT account_id,char_id,name,level,gold,diamond,vip_level,stamina,vip_points,recharge_total,currencies_json,game_values,created_at,world_id "
             "FROM characters WHERE char_id=$1", char_id,
         )
         if row is None:
@@ -1660,12 +1693,17 @@ class Database:
             stored = json.loads(stored)
         if isinstance(currencies, str):
             currencies = json.loads(currencies)
+        now = int(time())
+        stamina, stamina_time = balance_at(row, stored, now)
+        daily = daily_state(stored, now)
+        achievement = (await achievement_progress(self.pool, row, stored)
+                       if PROGRESS_FIELDS.intersection(key.lower() for key in keys) else {})
         silver = silver_override(row)
         aliases = {
             "gold": row["gold"], "diamond": row["diamond"],
             "viplevel": vip_info_id(row["vip_level"]),
-            "vip_level": row["vip_level"], "actionvalue": row["stamina"],
-            "stamina": row["stamina"], "vip_points": row["vip_points"],
+            "vip_level": row["vip_level"], "actionvalue": stamina,
+            "stamina": stamina, "lastactionvaluechangetime": stamina_time, "vip_points": row["vip_points"],
             "map_lock": stored.get("map_lock", "0"),
             "create_time": int(row["created_at"].timestamp()),
             "world": row["world_id"],
@@ -1678,8 +1716,14 @@ class Database:
                 recharge = dict(recharge) if isinstance(recharge, dict) else {}
                 recharge["totalMoney"] = int(row["recharge_total"])
                 raw_values[key] = recharge
-            elif normalized in ("viplevel", "vip_level"):
+            elif normalized in ("viplevel", "vip_level", "actionvalue", "stamina", "lastactionvaluechangetime"):
                 raw_values[key] = aliases[normalized]
+            elif normalized in achievement:
+                raw_values[key] = achievement[normalized]
+            elif normalized == "dailyquestpower":
+                raw_values[key] = daily["power"]
+            elif normalized in ("dailyquestgift0", "dailyquestgift1", "dailyquestgift2"):
+                raw_values[key] = int(int(normalized[-1]) + 1 in daily["gifts"])
             elif normalized == "local_freedom":
                 raw_values[key] = freedom(stored)
             elif normalized in ("local_unlimited_pet_storage", "local_unlimited_item_storage"):
@@ -1958,6 +2002,8 @@ class Database:
                 await conn.execute(
                     "DELETE FROM adventure_fired_events WHERE char_id=$1 AND adventure_id=$2 AND event_id<0",
                     char_id, adventure_id)
+                from progress import record
+                await record(conn, char_id, "ADVENTURE_ENTERED")
 
     async def clear_skill_obstacle(self, char_id, adventure_id, scene_id, families):
         async with self.pool.acquire() as conn, conn.transaction():
@@ -2048,6 +2094,8 @@ class Database:
     async def finish_adventure(self, char_id: int, adventure_id: int, star: int,
                                rewards: list[dict]) -> tuple[list[str], list[tuple[int, int, list[int]]]] | None:
         """Complete an adventure once, grant its configured rewards, and retain ACK data."""
+        from reward_service import receive_rewards
+
         encoded = [json.dumps(reward, separators=(",", ":")) for reward in rewards]
         quest_updates = []
         async with self.pool.acquire() as conn:
@@ -2064,27 +2112,11 @@ class Database:
                     return list(previous), quest_updates
                 if star == 0:
                     encoded = []
-                for reward in rewards if star else []:
-                    kind, element_id, amount = reward["kind"], reward["id"], reward["num"]
-                    if type(amount) is not int or amount < 0:
-                        raise ValueError("invalid adventure reward amount")
-                    if kind == "g_cash":
-                        await conn.execute("UPDATE characters SET gold=gold+$2 WHERE char_id=$1",
-                                           char_id, amount)
-                    elif kind == "m_cash":
-                        await conn.execute("UPDATE characters SET diamond=diamond+$2 WHERE char_id=$1",
-                                           char_id, amount)
-                    elif kind == "exp":
-                        await self._grant_character_exp(conn, char_id, amount)
-                    elif kind == "item":
-                        await conn.execute(
-                            """INSERT INTO inventory(char_id,item_id,count) VALUES($1,$2,$3)
-                               ON CONFLICT(char_id,item_id) DO UPDATE
-                               SET count=inventory.count+EXCLUDED.count""",
-                            char_id, element_id, amount,
-                        )
-                    else:
-                        raise ValueError(f"unsupported adventure reward kind: {kind}")
+                elif rewards:
+                    values = await conn.fetchval(
+                        "SELECT game_values FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
+                    if await receive_rewards(conn, char_id, values, rewards, self._grant_character_exp) is None:
+                        return None
                 await conn.execute(
                     """UPDATE character_adventures
                        SET completed_at=now(),completion_star=$2,completion_awards_json=$3::jsonb
@@ -2094,6 +2126,9 @@ class Database:
                 # transaction as the clear and its rewards so the story quest
                 # is claimable after relogin and cannot advance on a failed run.
                 if star & 8:
+                    from progress import record
+                    difficulty = ("NORMAL", "ELITE", "HERO")[adventure_id // 10000]
+                    await record(conn, char_id, f"ADVENTURE_{difficulty}_CLEARED")
                     await conn.execute(
                         """INSERT INTO character_adventure_clears(char_id,adventure_id,star_mask)
                            VALUES($1,$2,$3) ON CONFLICT (char_id,adventure_id)

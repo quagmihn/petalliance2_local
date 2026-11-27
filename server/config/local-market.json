@@ -1,0 +1,8 @@
+{
+  "material_silver": 150,
+  "fragment_silver": 450,
+  "skill_upgrade_silver": 300,
+  "exp_silver_by_potion_order": [50, 150, 450, 1350, 4050],
+  "book_silver_per_grade": 400,
+  "fashion_silver_per_grade": 600
+}

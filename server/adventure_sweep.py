@@ -6,13 +6,10 @@ import time
 from adventure_config import scene_cells
 from client_config import table
 from local_play import freedom
+from progress import local_day, record
 from reward_config import drop_plan, roll_drop
 from reward_service import receive_rewards
-
-
-def reset_day(epoch):
-    offset = 25200 - table("GlobalConfigAddInfo")[6900]["values"][0]
-    return (epoch + offset) // 86400
+from stamina import balance_at
 
 
 def sweep_config(adventure_id):
@@ -36,10 +33,10 @@ async def sweep(db, char_id, adventure_id, request_count, operation=None):
     if not 1 <= count <= maximum:
         return None
     now = int(time.time())
-    today = reset_day(now)
+    today = local_day(now)
     if operation is not None:
         token = re.fullmatch(r"([a-f0-9]{8})[a-f0-9]{16}", operation)
-        if not token or reset_day(int(token[1], 16)) != today:
+        if not token or local_day(int(token[1], 16)) != today:
             return None
     async with db.pool.acquire() as conn, conn.transaction():
         char = await conn.fetchrow("SELECT * FROM characters WHERE char_id=$1 FOR UPDATE", char_id)
@@ -70,7 +67,8 @@ async def sweep(db, char_id, adventure_id, request_count, operation=None):
             "SELECT star_mask FROM character_adventure_clears WHERE char_id=$1 AND adventure_id=$2",
             char_id, adventure_id)
         cost = adventure["power"] * count
-        if star != 15 or cost <= 0 or char["stamina"] < cost:
+        stamina, changed_at = balance_at(char, values, now)
+        if star != 15 or cost <= 0 or stamina < cost:
             return None
         awards = roll_drop(drop_plan(adventure["rewards"]), count)
         if adventure["Exp_rewards"]:
@@ -83,7 +81,9 @@ async def sweep(db, char_id, adventure_id, request_count, operation=None):
         if operation:
             orders[operation] = [adventure_id, count, awards]
         state["wallet"] = await conn.fetchrow(
-            """UPDATE characters SET stamina=stamina-$2,
-               game_values=game_values || jsonb_build_object('adventure_sweeps',$3::jsonb)
-               WHERE char_id=$1 RETURNING *""", char_id, cost, json.dumps(saved))
+            """UPDATE characters SET stamina=$2,
+               game_values=game_values || jsonb_build_object('adventure_sweeps',$3::jsonb,'lastactionvaluechangetime',$4::bigint)
+               WHERE char_id=$1 RETURNING *""", char_id, stamina - cost, json.dumps(saved), changed_at)
+        difficulty = ("NORMAL", "ELITE", "HERO")[adventure_id // 10000]
+        await record(conn, char_id, f"ADVENTURE_{difficulty}_CLEARED", count, now=now)
         return {"awards": awards, "state": state, "clear": entry}

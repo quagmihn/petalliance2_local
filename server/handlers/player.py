@@ -72,6 +72,8 @@ async def create_character(session, payload: bytes):
 
 
 async def get_character_values(session, payload: bytes):
+    from progress import local_day
+    from stamina import QUOTE_KEYS, purchases_today
     from vip_config import unlimited_shop
 
     r = Reader(payload)
@@ -81,6 +83,10 @@ async def get_character_values(session, payload: bytes):
         raise ValueError("character values requested before character selection")
     raw_values = await session.db.character_values(session.char_id, keys)
     values = validate_character_values(keys, raw_values)
+    if {key.lower() for key in keys} == QUOTE_KEYS:
+        now = int(time.time())
+        lower_values = {k.lower(): v for k, v in values.items()}
+        session.stamina_quote = (session.char_id, local_day(now), purchases_today(lower_values, now))
     if "vipShopUnlimited" in keys:
         values["vipShopUnlimited"] = unlimited_shop()
     logger = logging.getLogger("game_socket")
@@ -177,7 +183,9 @@ async def change_character_info(session, payload: bytes):
             or normalized in ("fashion_info", "curfashion", "vip_local_awards", "vipshopunlimited",
                               "arena_shop", "arenascore", "local_freedom",
                               "local_unlimited_pet_storage", "local_unlimited_item_storage", "adventure_sweeps", "chest_receipts",
-                              "goldcoin")
+                              "goldcoin", "todaybuypowercount", "lastbuypowertime", "lastactionvaluechangetime",
+                              "gameplay_daily", "gameplay_lifetime", "achievement_claims", "pet_achievement_claims",
+                              "achievementpoint", "local_arena", "recharge_daily_mail", "recharge_campaign_claims")
             or re.fullmatch(r"seven[0-9]+", normalized)
             or normalized.startswith("first_recharge_mail_")
             or normalized.startswith(("buymarketitemnum_", "buymarketitemtime_"))):

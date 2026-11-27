@@ -400,6 +400,8 @@ async def execute(db, char_id, machine_id, machine, count, free, request_key=Non
                 char_id, machine_id, count, free, day, machine.currency, cost, json.dumps(awards), now,
                 request_key,
             )
+            from progress import record
+            await record(conn, char_id, "GACHA_COMPLETED", count, now=now)
             wallet = await conn.fetchrow("SELECT * FROM characters WHERE char_id=$1", char_id)
             item_counts = {row["item_id"]: row["count"] for row in await conn.fetch(
                 "SELECT item_id,count FROM inventory WHERE char_id=$1 AND item_id=ANY($2::int[])",

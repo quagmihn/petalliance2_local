@@ -16,7 +16,7 @@ from client_config import CONFIG, ROOT, table
 from db.database import Database
 from local_draw import catalog_report
 from local_play import enabled
-from market_config import enabled_offers
+from market_config import enabled_offers, local_offers
 from quest_config import load_quests
 from recharge_config import normal_families
 from reward_config import RewardConfigError, drop_plan
@@ -37,7 +37,8 @@ def runtime_content():
     groups = {
         "pets": ("PokemonInfo.dat", "GeneInfo.dat", "GeneProbabilityInfo.dat", "PetSkillInfo.dat",
                  "PetAdvanceInfo.dat", "PetStarUpInfo.dat", "PetEvoInfo.dat", "GlobalConfigAddInfo.dat",
-                 "SkillInfo.dat", "SkillTagInfo.dat", "SkillTemplateInfo.dat", "db/lang_en.db"),
+                 "SkillInfo.dat", "SkillTagInfo.dat", "SkillTemplateInfo.dat", "db/lang_en.db",
+                 "PetStrengthenInfo.dat", "YokeInfo.dat", "YokeEffect.dat", "YokeEffectPos.dat", "YokeScore.dat"),
         "items": ("ItemInfo.dat", "PetPieceInfo.dat", "DropInfo.dat", "RewardInfo.dat", "AwardElementInfo.dat",
                   "FashionItemInfo.dat", "PokemonBallInfo.dat"),
         "market": ("MarketInfo.dat", "ShopInfo.dat", "ShopPoolInfo.dat", "ArenaAwardInfo.dat",
@@ -47,7 +48,8 @@ def runtime_content():
                  "obstruction.txt", "fbpickup.txt"),
         "events": ("ActivityInfoClient.dat", "SevenDayInfo.dat", "FirstRechargeAwardInfo.dat",
                    "RewardInfo.dat", "NormalRechargeInfo.dat", "MonthCardRechargeInfo.dat", "firstRecharge.txt"),
-        "quests": ("NewQuestInfo.dat", "story.txt"),
+        "quests": ("NewQuestInfo.dat", "story.txt", "AchievementInfo.dat", "PokemonAchievementInfo.dat",
+                   "ExperienceInfo.dat", "BuyPowerInfo.dat"),
     }
     resolved = {}
     for group, names in groups.items():
@@ -105,7 +107,7 @@ def main():
     payment = payment_mode()
     report("local_features", {flag: enabled(flag) for flag in (
         "LOCAL_FREEDOM_MODE", "LOCAL_UNLIMITED_PET_STORAGE", "LOCAL_UNLIMITED_ITEM_STORAGE",
-        "LOCAL_UNLIMITED_SILVER")})
+        "LOCAL_UNLIMITED_SILVER", "LOCAL_MARKET_SHOP", "LOCAL_NPC_ARENA")})
     path = os.environ["MONSTER2_DRAW_CATALOG"]
     try:
         report("gacha_catalog", catalog_report(path))
@@ -113,7 +115,17 @@ def main():
         raise SystemExit(f"Invalid Gacha catalog {path!r}: {exc}. Correct MONSTER2_DRAW_CATALOG before starting.") from None
     try:
         report("market_catalog", {"enabled_offers": len(enabled_offers())})
+        if enabled("LOCAL_MARKET_SHOP"):
+            report("market_shop_catalog", {"offers": len(local_offers()),
+                   "pricing_sha256": digest(ROOT / "server/config/local-market.json")})
+        if enabled("LOCAL_NPC_ARENA"):
+            from handlers.arena import opponents
+            report("local_arena_catalog", {"opponents": len(opponents()),
+                   "sha256": digest(ROOT / "server/config/local-arena.json"), "mode": "lobby"})
         report_reward_catalogs()
+        from recharge_events import campaigns
+        report("recharge_campaigns", {str(key): {"mode": row[0], "tiers": len(row[3])}
+                                     for key, row in campaigns().items()})
         report("pet_economy_catalogs", {"pets": len(table("PokemonInfo")), "skills": len(table("PetSkillInfo")),
                "items": len(table("ItemInfo")), "star_rows": len(table("PetStarUpInfo")),
                "vip_max": max_vip()["viplevel"], "vip_shop_unlimited": unlimited_shop(),

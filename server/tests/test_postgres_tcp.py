@@ -468,10 +468,16 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             finish = await send(3082, Writer().u16(12).bytes(), 2995)
             self.assertEqual(finish.u16(), 0)
             awards = [finish.string() for _ in range(finish.u8())]; finish.finish()
-            self.assertEqual(awards, [
-                '{"elementType":"exp","elementID":0,"num":60}',
-                '{"elementType":"item","elementID":10002,"num":1}',
-            ])
+            from reward_config import drop_plan
+            expected = [(count, [reward for _, reward in alternatives]) for count, alternatives in drop_plan(1)]
+            self.assertEqual(json.loads(awards[0]), {"elementType": "exp", "elementID": 0, "num": 60})
+            cursor = 1
+            for count, options in expected:
+                for raw in awards[cursor:cursor + count]:
+                    award = json.loads(raw)
+                    self.assertIn({"kind": award["elementType"], "id": award["elementID"], "num": award["num"]}, options)
+                cursor += count
+            self.assertEqual(len(awards), cursor)
             self.assertIsNotNone(await db.pool.fetchval(
                 "SELECT completed_at FROM character_adventures WHERE char_id=$1", char_id))
             self.assertEqual(await db.pool.fetchval(
@@ -591,6 +597,8 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
             notice.finish()
             self.assertEqual((await receive())[0], 473)
             self.assertEqual((await receive())[0], 1749)
+            daily_notice, _, _ = await receive()
+            self.assertEqual(daily_notice, 404)
             story_progress = await db.pool.fetchval(
                 "SELECT progress FROM quests WHERE char_id=$1 AND quest_id=2", char_id)
             self.assertEqual(json.loads(story_progress) if isinstance(story_progress, str)
@@ -863,11 +871,17 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual((dismissed["type"], dismissed["eventID"]), (0, 0))
                     self.assertEqual((await send(136, wild_scene, 210)).u16(), 1)
                 cleared = await send(3082, Writer().u16(8).bytes(), 2995)
-                self.assertEqual((cleared.u16(), cleared.u8()), (0, 2))
+                from client_config import table
+                plan = drop_plan(table("AdventureInfo")[adv_id]["rewards"])
+                self.assertEqual((cleared.u16(), cleared.u8()), (0, 1 + sum(count for count, _ in plan)))
                 self.assertEqual(json.loads(cleared.string()),
                                  {"elementType": "exp", "elementID": 0, "num": exp})
-                self.assertEqual(json.loads(cleared.string()),
-                                 {"elementType": "item", "elementID": item, "num": amount})
+                for count, options in plan:
+                    allowed = [reward for _, reward in options]
+                    for _ in range(count):
+                        result = json.loads(cleared.string())
+                        self.assertIn({"kind": result["elementType"], "id": result["elementID"],
+                                       "num": result["num"]}, allowed)
                 cleared.finish()
                 if adv_id in (2, 3):
                     quest_notice, quest_body, _ = await receive()
@@ -878,6 +892,7 @@ class PostgreSQLTCPFlow(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual((quest.u8(), quest.u32()), (1, 1))
                     quest.finish()
                 self.assertEqual([(await receive())[0], (await receive())[0]], [473, 1749])
+                self.assertEqual((await receive())[0], 404)
             self.assertEqual(await db.pool.fetchval(
                 "SELECT exp FROM characters WHERE char_id=$1", char_id), before_maps + 186)
             self.assertEqual([tuple(r) for r in await db.adventure_clears(char_id)],

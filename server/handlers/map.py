@@ -30,7 +30,6 @@ EMPTY_STARTUP_ACKS = {
     18: (17, lambda: Writer().u16(0).bytes()),                                   # tower recovery
     55: (54, lambda: Writer().u16(0).u32(0).bytes()),                            # pet wiki
     96: (97, lambda: Writer().u16(0).u8(0).bytes()),                             # wishing trees
-    72: (74, lambda: Writer().u16(0).u8(0).bytes()),                             # pokemon achievements
     69: (70, lambda: Writer().u16(0).u8(0).bytes()),                             # potentials
     347: (253, lambda: Writer().u16(0).u32(0).bytes()),                          # friends
     2999: (2997, lambda: Writer().u16(0).u32(0).string("").bytes()),             # current adventure
@@ -256,32 +255,12 @@ async def finish_adventure(session, payload: bytes):
         if exp > 0:
             rewards.append({"kind": "exp", "id": 0, "num": exp})
         reward_id = int(adventure.get("rewards", 0))
-        reward = client_table("RewardInfo").get(reward_id)
-        if reward is None:
+        from reward_config import RewardConfigError, drop_plan, roll_drop
+        try:
+            rewards.extend(roll_drop(drop_plan(reward_id), 1))
+        except RewardConfigError as exc:
+            log.warning("adventure_clear_reward_rejected id=%s reason=%s", adventure_id, exc)
             return 2995, Writer().u16(1).bytes()
-        elements = client_table("AwardElementInfo")
-        vectors = (reward["element"], reward["nReward"], reward["probability"])
-        if not (len(vectors[0]) == len(vectors[1]) == len(vectors[2])):
-            raise ValueError(f"malformed adventure reward vectors for reward {reward_id}")
-        total = sum(int(value) for value in vectors[2])
-        if total <= 0:
-            return 2995, Writer().u16(1).bytes()
-        roll = random.randrange(total)
-        cumulative = 0
-        selected = len(vectors[2]) - 1
-        for index, chance in enumerate(vectors[2]):
-            cumulative += int(chance)
-            if roll < cumulative:
-                selected = index
-                break
-        element_id = int(vectors[0][selected])
-        element = elements.get(element_id)
-        kinds = {1: "g_cash", 2: "m_cash", 3: "item", 4: "exp"}
-        kind = kinds.get(int(element["elementType"])) if element else None
-        if kind is None:
-            return 2995, Writer().u16(1).bytes()
-        rewards.append({"kind": kind, "id": int(element["elementID"]),
-                        "num": int(vectors[1][selected])})
     completed = await session.db.finish_adventure(session.char_id, adventure_id, star, rewards)
     if completed is None:
         return 2995, Writer().u16(1).bytes()
@@ -309,6 +288,8 @@ def quest_notifications(entries):
 
 
 async def get_quests(session, payload: bytes):
+    from handlers.progression import daily_rows, values_for
+
     rows = []
     if session.char_id is not None:
         await session.db.repair_completed_quest_unlocks(session.char_id, _quests())
@@ -324,6 +305,10 @@ async def get_quests(session, payload: bytes):
         if isinstance(progress, dict): progress = progress.get("progressList", [])
         if not isinstance(progress, list): progress = []
         entries.append((row["quest_id"], row["status"], progress))
+    if session.char_id is not None and hasattr(session, "daily_entries") and hasattr(session.db, "character_values"):
+        session.daily_entries = daily_rows(await values_for(session), time.time())
+        daily_ids = {entry[0] for entry in session.daily_entries}
+        entries = [entry for entry in entries if entry[0] not in daily_ids] + session.daily_entries
     ack = Writer().u16(0).u32(len(entries)).bytes()
     return [(26, ack), *quest_notifications(entries)]
 
@@ -360,6 +345,9 @@ async def commit_quest(session, payload: bytes):
     r = Reader(payload)
     quest_id = r.u32()
     r.finish()
+    from handlers.progression import daily_claim, daily_missions
+    if quest_id in daily_missions():
+        return await daily_claim(session, quest_id)
     config = _quests()
     quest = config.get(quest_id)
     ok, children, awards, pet_payloads = False, [], [], []

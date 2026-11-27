@@ -26,7 +26,7 @@ def town_position(content):
         return None
     map_resource, position = data.get("mapres"), data.get("posx")
     if (isinstance(map_resource, str) and map_resource in TOWN_MAPS
-            and type(position) in (int, float) and 0 <= position <= 100_000
+            and type(position) in (int, float) and (position == -999 or 0 <= position <= 100_000)
             and isinstance(data.get("nickname"), str)):
         return map_resource, position
     return None
@@ -41,8 +41,9 @@ async def send_chat(session, payload: bytes):
             and re.fullmatch(r"zhucheng_[0-9]{1,5}", channel)):
         position = town_position(content)
         if position is not None:
-            moved = session.town_position != position
-            session.town_position = position
+            new_position = None if position[1] == -999 else position
+            moved = session.town_position != new_position
+            session.town_position = new_position
             log.info("town_position char_id=%s channel=%s resource=%s x=%s changed=%s",
                      session.char_id, channel, *position, moved)
             return 35, Writer().u16(0).bytes()

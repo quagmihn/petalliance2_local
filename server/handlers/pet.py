@@ -41,6 +41,16 @@ def pet_json(row) -> str:
             "paSkills": json_value(row["passive_skills_json"]),
             "equips": json_value(row["equips_json"]),
         }
+        from pet_development import ATTRIBUTES, OVERFLOW, max_points, state, stats
+        saved = state(row)
+        data["maxStreng"] = max_points(row["pet_template_id"])
+        if saved:
+            for key in (*ATTRIBUTES, *OVERFLOW):
+                data[key] = saved.get(key, 0)
+            if saved.get("yoke"):
+                data["yoke"] = saved["yoke"]
+            data["hp"], data["fc"] = stats(row, saved)
+            data["hpmax"] = data["hp"]
         field = "skills"
         validate_pet(data)
         return json.dumps(data, separators=(",", ":"))
