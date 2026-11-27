@@ -49,6 +49,26 @@ class SystemMilestone(unittest.IsolatedAsyncioTestCase):
             "SELECT quest_id,status FROM quests WHERE char_id=$1", self.char_id))
         self.assertEqual(quests, {2004: 1, 2005: 1, 20002: 0})
 
+    async def test_story_gates_use_prior_full_clear_without_requiring_a_replay(self):
+        await self.db.pool.executemany(
+            "INSERT INTO quests(char_id,quest_id,status,progress) VALUES($1,$2,$3,$4::jsonb)",
+            [(self.char_id, 2005, 1, "[1]"), (self.char_id, 20002, 0, "[0]")])
+        request = Writer().u32(20002).bytes()
+        self.assertEqual(await self.send(400, request), [(726, b"\x01\x00")])
+        await self.db.pool.execute(
+            "INSERT INTO character_adventure_clears(char_id,adventure_id,star_mask) VALUES($1,3,15)",
+            self.char_id)
+        self.assertEqual(await self.send(400, request), [(726, b"\x01\x00")])
+        await self.db.pool.execute(
+            "INSERT INTO character_adventure_clears(char_id,adventure_id,star_mask) VALUES($1,4,8)",
+            self.char_id)
+        packets = dict(await self.send(400, request))
+        self.assertEqual(packets[726], Writer().u16(0).u32(20002).u8(0).bytes())
+        self.assertIn(404, packets)
+        quests = dict(await self.db.pool.fetch(
+            "SELECT quest_id,status FROM quests WHERE char_id=$1", self.char_id))
+        self.assertEqual(quests, {2005: 1, 20002: 1, 30004: 0, 2006: 0})
+
     async def test_stamina_purchase_and_daily_claim_commit_once(self):
         await self.db.pool.execute("UPDATE characters SET diamond=1000,stamina=190,vip_level=20 WHERE char_id=$1",
                                    self.char_id)

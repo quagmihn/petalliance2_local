@@ -1527,9 +1527,24 @@ class Database:
                 elif guide_marker:
                     progress = [max(value, objective.amount)
                                 for value, objective in zip(progress, objectives)]
-                elif any(value < objective.amount
-                         for value, objective in zip(progress, objectives)):
-                    return False, [], [], []
+                else:
+                    pending_clears = {
+                        index: objective.main_id for index, objective in enumerate(objectives)
+                        if progress[index] < objective.amount and objective.event_type == 19
+                        and objective.main_id > 0 and not objective.sub_id and not objective.final_id
+                        and objective.amount == 1
+                    }
+                    if pending_clears:
+                        cleared = {row["adventure_id"] for row in await conn.fetch(
+                            """SELECT adventure_id FROM character_adventure_clears
+                               WHERE char_id=$1 AND adventure_id=ANY($2::int[])
+                                   AND star_mask & 8 <> 0""",
+                            char_id, sorted(set(pending_clears.values())))}
+                        for index, map_id in pending_clears.items():
+                            if map_id in cleared:
+                                progress[index] = 1
+                    if any(value < objective.amount for value, objective in zip(progress, objectives, strict=True)):
+                        return False, [], [], []
 
                 gold = int(quest.gold_reward) if quest.gold_reward.isdigit() else 0
                 exp = int(quest.exp_reward) if quest.exp_reward.isdigit() else 0
