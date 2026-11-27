@@ -1,5 +1,14 @@
 # Execution checkpoint
 
+## 2026-11-27 · Minh Level 70 and Pet Market
+
+The official launcher serves `7276a6cd3f111162e1f085df41a4682ea9510196` from the project source, with HTTP PID 96321 and TCP PID 96322 on the Waydroid bridge. Both use `monster2_db` as `monster2`. The current unchanged version-7 APK SHA256 is `dafb7f8c1dd5a877d6c6d07e440f5c504cb5bb125aa2389f0bd6a9cb24f4f2e3`.
+
+The verified character `6:2:minh` moved from Level 50 with 193,430 EXP to Level 70 with 873,260 EXP. The PostgreSQL backup was restored in an isolated cluster before the transaction. The guarded per-character snapshot and before/after fingerprints are in `artifacts/minh-level70-market-20261127/`. VIP 20, current stamina, balances, Pet rows, inventory, quests, Adventure and saved appearance matched before and after the update. Waydroid cold relogin displayed Level 70 and opened both Market skill tabs. The usual login callback claimed the already-completed quest 2006 and granted one Milchick Cookie.
+
+The [Market listing and rules](MARKET_CATALOG_COMPLETE.md#pet-progression-and-skill-books-for-level-70) cover 610 offers, including 54 materials and 384 actual books. Waydroid on QA bought selectable box 248 from the live Market screen, chose its third option, and consumed Pet 10001 with five stones to add one star to orange SS Whittiger. The server additionally checks formation, action restrictions and same-grade configured eligibility. PostgreSQL regression passed all 160 tests.
+
+
 ## 2026-11-27 · Market, daily rewards, Pet Train and Relation
 
 Serving commit `31363ce4fdd686735024ff437131554c1d660571` started through the repository's `server/run_all.sh`. HTTP PID 86388 and TCP PID 86389 identify `monster2_db` as `monster2`, on Waydroid bridge 192.168.240.1:8080 and :5568. The installed `com.petalliance2.sea` 1.0.0 (version code 7), SHA256 `dafb7f8c1dd5a877d6c6d07e440f5c504cb5bb125aa2389f0bd6a9cb24f4f2e3`, passed signature verification. No replacement APK was installed.
