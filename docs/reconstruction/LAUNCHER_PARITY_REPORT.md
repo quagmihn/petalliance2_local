@@ -84,7 +84,7 @@ Artifacts under `artifacts/adventure-economy-20261126/` include `live.log`, `doc
 
 ## Arena lobby, Market and Pet progression · 2026-11-27
 
-The active official invocation is `./server/run_all.sh` from `/home/quagmihn/Project/monster2_rebuild`. Revision `e4dc8e12b38f6499d0d1bc4e2b4e5d0d26169f2e` serves from its tracked server tree. The startup dirty flag was caused by contemporaneous documentation edits. At 16:43 ICT, HTTP 81769 and TCP 81770 independently verified `monster2_db` as `monster2`; both ports bind to 192.168.240.1. The QA test profile verified the same catalogs against `monster2_test_db` as `quagmihn` and was stopped before the local profile started.
+The active official invocation is `./server/run_all.sh` from `/home/quagmihn/Project/monster2_rebuild`. Revision `31363ce4fdd686735024ff437131554c1d660571` serves from its tracked server tree. The launcher reported a clean checkout. At 16:47 ICT, HTTP 86388 and TCP 86389 independently verified `monster2_db` as `monster2`; both ports bind to 192.168.240.1. The QA test profile verified the same catalogs against `monster2_test_db` as `quagmihn` and was stopped before the local profile started.
 
 | Checked value | Recorded identity |
 | --- | --- |
