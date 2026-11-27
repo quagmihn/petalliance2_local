@@ -84,11 +84,15 @@ async def use_item(session, payload: bytes):
     item_id, pet_uid, target_text, use_count = reader.u32(), reader.u32(), reader.string(), reader.u32()
     reader.finish()
     error = (526, Writer().u16(1).bytes())
-    if session.char_id is None or use_count < 1 or use_count > 99:
+    if session.char_id is None or use_count < 1:
         return error
     try:
         item = table("ItemInfo").get(item_id)
         if item is None or item["bUse"] != 1:
+            return error
+        # The Pet FEED/MAX UI sends a DWORD stack count in a single request.
+        # Chests and other item commands still use their small action limit.
+        if use_count > 99 and (item["itemType"] != 19 or not pet_uid):
             return error
         operation = None
         if target_text:

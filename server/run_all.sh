@@ -99,7 +99,9 @@ if ! "$doctor"; then
     fi
 fi
 
-"$python_bin" -B launcher_preflight.py
+# Both doctor and the play launcher verify the installed client's level 70
+# thresholds and report which Evolution routes are backed by its assets.
+"$python_bin" -B launcher_preflight.py --pet-level 70
 
 revision=$(git rev-parse HEAD)
 dirty=$(git status --porcelain --untracked-files=no)

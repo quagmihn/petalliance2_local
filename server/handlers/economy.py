@@ -425,11 +425,6 @@ async def pet_star_up(session, payload: bytes):
             (1650, Writer().u16(0).bytes())]
 
 
-async def pet_evolve(session, payload: bytes, ack_id: int):
-    r = Reader(payload); r.u32(); r.u16(); r.u8(); r.finish()
-    return ack_id, Writer().u16(1).bytes()
-
-
 async def pet_skill_action(session, payload: bytes, ack_id: int):
     from handlers.inventory import inventory_packets
 

@@ -10,7 +10,7 @@ import uuid
 
 from db.database import Database
 from handlers import treasure
-from handlers import arena, pet_development, progression
+from handlers import arena, pet_development, pet_evolution, progression
 from handlers import character_state
 from handlers import (auth, battle, chat, economy, events, inventory, map as map_handler,
                       pet, player, territory, world_boss)
@@ -141,6 +141,8 @@ EXPECTED_ACKS = {
     4: (5,), 83: (262, 3141, 84), 324: (320,), 391: (112, 133, 262, 473, 3141, 390),
     930: (1077,), 978: (274,), 288: (305,), 1054: (112, 133, 262, 473, 3141, 1106), 1114: (271,),
     90: (473, 89),
+    1247: (112, 133, 262, 473, 3141, 777), 729: (112, 133, 262, 473, 3138, 3141, 728),
+    1667: (3141, 1653), 415: (414,),
     61: (112, 133, 262, 473, 3141, 60), 63: (62,), 1596: (112, 3138, 3141, 1650),
     3082: (2995, 404, 473, 1749),
     15: (112, 3141, 198), 136: (112, 210), 263: (3141, 186), 1392: (112, 133, 262, 3141, 473, 1561), 1519: (1396,),
@@ -262,8 +264,10 @@ async def dispatch(session: Session, msg_id: int, payload: bytes) -> tuple[int, 
     if msg_id == CMD["get_vip_awards"]: return await economy.get_vip_awards(session, payload)
     if msg_id == CMD["pet_star_up"]: return await economy.pet_star_up(session, payload)
     if msg_id == CMD["pet_advance_stage"]: return await pet.advance_stage(session, payload)
-    if msg_id == CMD["pet_evolve"]: return await economy.pet_evolve(session, payload, 777)
-    if msg_id == CMD["pet_super_evolve"]: return await economy.pet_evolve(session, payload, 728)
+    if msg_id == CMD["pet_evolve"]: return await pet_evolution.evolve(session, payload, 777)
+    if msg_id == CMD["pet_super_evolve"]: return await pet_evolution.evolve(session, payload, 728)
+    if msg_id == 1667: return await pet_evolution.evolution_skills(session, payload)
+    if msg_id == 415: return await pet_evolution.evolution_skills(session, payload, clear=True)
     if msg_id == CMD["pet_skill_change"]: return await economy.pet_skill_action(session, payload, 1369)
     if msg_id == CMD["pet_skill_level"]: return await economy.pet_skill_action(session, payload, 1371)
     if msg_id == CMD["pet_equip_strengthen"]: return await economy.pet_equip_strengthen(session, payload)

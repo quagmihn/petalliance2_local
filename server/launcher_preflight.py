@@ -1,5 +1,6 @@
 """Validate the official runtime before either game listener is started."""
 
+import argparse
 import asyncio
 import hashlib
 import ipaddress
@@ -17,6 +18,7 @@ from db.database import Database
 from local_draw import catalog_report
 from local_play import enabled
 from market_config import enabled_offers, local_offers
+from pet_evolution import inspect_catalog
 from quest_config import load_quests
 from recharge_config import normal_families
 from reward_config import RewardConfigError, drop_plan
@@ -104,6 +106,9 @@ def report_reward_catalogs():
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--pet-level", type=int, default=70)
+    args = parser.parse_args()
     payment = payment_mode()
     report("local_features", {flag: enabled(flag) for flag in (
         "LOCAL_FREEDOM_MODE", "LOCAL_UNLIMITED_PET_STORAGE", "LOCAL_UNLIMITED_ITEM_STORAGE",
@@ -123,6 +128,7 @@ def main():
             report("local_arena_catalog", {"opponents": len(opponents()),
                    "sha256": digest(ROOT / "server/config/local-arena.json"), "mode": "lobby"})
         report_reward_catalogs()
+        report("pet_progression", inspect_catalog(args.pet_level))
         from recharge_events import campaigns
         report("recharge_campaigns", {str(key): {"mode": row[0], "tiers": len(row[3])}
                                      for key, row in campaigns().items()})

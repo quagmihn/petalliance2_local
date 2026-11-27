@@ -22,6 +22,90 @@ class SystemMilestone(unittest.IsolatedAsyncioTestCase):
     send = test_item_event_rewards.ItemEventRewards.send
     stack = test_item_event_rewards.ItemEventRewards.stack
 
+    async def test_pet_max_feed_accepts_large_configured_stack_to_reach_level_70(self):
+        await self.db.pool.execute("UPDATE characters SET level=70,exp=873260 WHERE char_id=$1", self.char_id)
+        pet = await insert_owned_pet(self.db.pool, self.char_id, 208, level=61, slot=0)
+        uid = pet["pet_uid"]
+        await self.db.pool.execute("UPDATE pets SET exp=1574799 WHERE pet_uid=$1", uid)
+        await self.db.grant_item(self.char_id, 10005, 415)
+        count = 160
+        request = Writer().u32(10005).u32(uid).string("").u32(count).bytes()
+        response = dict(await self.send(516, request))
+        self.assertEqual(Reader(response[526]).u16(), 0)
+        self.assertEqual(await self.stack(10005), 255)
+        self.assertEqual(tuple(await self.db.pool.fetchrow("SELECT level,exp FROM pets WHERE pet_uid=$1", uid)),
+                         (70, 3574799))
+        self.assertEqual(await self.send(516, request), [(526, b"\x01\x00")])
+        self.assertEqual(await self.stack(10005), 255)
+
+    async def test_evolution_uses_eligible_route_and_persists_optional_skill(self):
+        from pet_evolution import evolution_costs, validate_route
+
+        pet = await insert_owned_pet(self.db.pool, self.char_id, 1, level=11, stage=5, star=1, slot=0)
+        uid = pet["pet_uid"]
+        request = Writer().u32(uid).u16(1).u8(0).bytes()
+        self.assertEqual(await self.send(1247, request), [(777, b"\x01\x00")])
+        await self.db.pool.execute("UPDATE pets SET level=12,exp=2150 WHERE pet_uid=$1", uid)
+        costs = evolution_costs(validate_route(1, 1))
+        for (kind, key), cost in costs.items():
+            if kind == 3:
+                await self.db.grant_item(self.char_id, key, cost + 2)
+            elif kind == 1:
+                await self.db.pool.execute("UPDATE characters SET gold=$2 WHERE char_id=$1", self.char_id, cost + 3)
+        self.assertEqual(await self.send(729, request), [(728, b"\x01\x00")])
+        packets = dict(await self.send(1247, request))
+        reply = Reader(packets[777])
+        self.assertEqual((reply.u16(), reply.u32(), reply.u32(), reply.u8()), (0, uid, 2, 1))
+        self.assertEqual((reply.u32(), reply.u32(), reply.u32()), (0, 1751, 0))
+        reply.finish()
+        self.assertEqual(await self.send(1247, request), [(777, b"\x01\x00")])
+        self.assertEqual(await self.send(1667, Writer().u32(uid).u32(0).u32(1751).bytes()),
+                         [(1653, b"\x01\x00")])
+        result = dict(await self.send(1667, Writer().u32(uid).u32(1).u32(1751).bytes()))
+        self.assertEqual(Reader(result[1653]).u16(), 0)
+        self.assertEqual(await self.send(415, Writer().u32(uid).bytes()), [(414, b"\x00\x00")])
+        row = await self.db.pool.fetchrow(
+            "SELECT pet_template_id,level,exp,slot_index,training_stage,star,evolution,skills_json,development_json "
+            "FROM pets WHERE char_id=$1 AND pet_uid=$2", self.char_id, uid)
+        self.assertEqual(tuple(row)[:7], (2, 12, 2150, 0, 5, 1, 1))
+        self.assertEqual(json.loads(row["skills_json"])[1], 1751)
+        self.assertNotIn("evo_offers", json.loads(row["development_json"]))
+        for (kind, key), _ in costs.items():
+            if kind == 3:
+                self.assertEqual(await self.stack(key), 2)
+            elif kind == 1:
+                self.assertEqual(await self.db.pool.fetchval("SELECT gold FROM characters WHERE char_id=$1",
+                                                            self.char_id), 3)
+
+    async def test_super_evolution_requires_and_consumes_the_configured_five_star_relations(self):
+        pet = await insert_owned_pet(self.db.pool, self.char_id, 208, level=61, star=5, slot=0)
+        uid = pet["pet_uid"]
+        request = Writer().u32(uid).u16(1).u8(0).bytes()
+        await self.db.pool.execute("UPDATE characters SET gold=5000001 WHERE char_id=$1", self.char_id)
+        for item in (10, 136):
+            await self.db.grant_item(self.char_id, item, 51)
+        self.assertEqual(await self.send(729, request), [(728, b"\x01\x00")])
+        self.assertEqual(await self.stack(10), 51)
+        detail, helpers = {}, []
+        for plan in table("PokemonInfo")[208]["yokeVec"]:
+            detail[str(plan)] = []
+            for template in table("YokeInfo")[plan]["pets"]:
+                helper = await insert_owned_pet(self.db.pool, self.char_id, template, star=5)
+                detail[str(plan)].append(helper["pet_uid"])
+                helpers.append(helper["pet_uid"])
+                await self.db.pool.execute("UPDATE pets SET development_json=$2::jsonb WHERE pet_uid=$1",
+                                           helper["pet_uid"], json.dumps({"yoke": {"bindTo": uid}}))
+        await self.db.pool.execute("UPDATE pets SET development_json=$2::jsonb WHERE pet_uid=$1",
+                                   uid, json.dumps({"yoke": {"yokeDetail": detail}, "hpx": 5}))
+        result = await self.send(729, request)
+        reply = Reader(dict(result)[728])
+        self.assertEqual((reply.u16(), reply.u32(), reply.u32()), (0, uid, 20003))
+        self.assertEqual([Reader(p).u64() for n, p in result if n == 3138], helpers)
+        self.assertEqual((await self.stack(10), await self.stack(136)), (1, 1))
+        self.assertEqual(tuple(await self.db.pool.fetchrow(
+            "SELECT pet_template_id,level,star,slot_index FROM pets WHERE pet_uid=$1", uid)), (20003, 61, 0, 0))
+        self.assertEqual(await self.db.pool.fetchval("SELECT count(*) FROM pets WHERE char_id=$1", self.char_id), 1)
+
     async def test_story_drop_only_award_fails_atomically_then_commits_once(self):
         # A persisted, completed objective is required before a story claim.
         await self.db.pool.executemany(

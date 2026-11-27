@@ -43,6 +43,7 @@ def pet_json(row) -> str:
         }
         from pet_development import ATTRIBUTES, OVERFLOW, max_points, state, stats
         saved = state(row)
+        data["skin"] = saved.get("skin", 0)
         data["maxStreng"] = max_points(row["pet_template_id"])
         if saved:
             for key in (*ATTRIBUTES, *OVERFLOW):
