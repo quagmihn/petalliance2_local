@@ -1,5 +1,12 @@
 # Execution checkpoint
 
+## 2026-11-28 · Pet Evolve and FEED/MAX at Level 70
+
+The official launcher is running gameplay revision `a825b95872eb99a893282a734321e8f862126a97` on `monster2_db` as `monster2`. HTTP PID 8511 and TCP PID 8512 started on the Waydroid bridge. The installed APK is unchanged.
+
+[Pet Evolution and feeding](PET_EVOLUTION_LEVEL70.md) records the Pet 516 rejection above 99, the working Waydroid QA Level 61 → 70 and the X·Katty Super Evolution, the ordinary evolution PostgreSQL tests, and the matching configuration requirements. The full suite passed 163 tests. Before further testing, verify the target account and database again. On 2026-11-28 production PostgreSQL showed `6:2:minh` and Katty UID 51 already at Level 70. The actual Katty still needs its remaining Relations at five stars before Super Evolution becomes eligible.
+
+
 ## 2026-11-27 · Minh Level 70 and Pet Market
 
 The official launcher serves `7276a6cd3f111162e1f085df41a4682ea9510196` from the project source, with HTTP PID 96321 and TCP PID 96322 on the Waydroid bridge. Both use `monster2_db` as `monster2`. The current unchanged version-7 APK SHA256 is `dafb7f8c1dd5a877d6c6d07e440f5c504cb5bb125aa2389f0bd6a9cb24f4f2e3`.
